@@ -1,0 +1,1 @@
+{"version":3,"file":"SearchInput.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/catalog/SearchInput.tsx"],"names":[],"mappings":"AAGA,wBAAgB,WAAW,CAAC,EAC1B,KAAK,EACL,QAAQ,EACR,WAAgC,EAChC,SAAS,GACV,EAAE;IACD,KAAK,EAAE,MAAM,CAAC;IACd,QAAQ,EAAE,CAAC,KAAK,EAAE,MAAM,KAAK,IAAI,CAAC;IAClC,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB,2CAkBA"}

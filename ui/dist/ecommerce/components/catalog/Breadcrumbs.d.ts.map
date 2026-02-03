@@ -1,0 +1,1 @@
+{"version":3,"file":"Breadcrumbs.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/catalog/Breadcrumbs.tsx"],"names":[],"mappings":"AAEA,MAAM,MAAM,cAAc,GAAG;IAAE,KAAK,EAAE,MAAM,CAAC;IAAC,IAAI,CAAC,EAAE,MAAM,CAAA;CAAE,CAAC;AAE9D,wBAAgB,WAAW,CAAC,EAAE,KAAK,EAAE,SAAS,EAAE,EAAE;IAAE,KAAK,EAAE,cAAc,EAAE,CAAC;IAAC,SAAS,CAAC,EAAE,MAAM,CAAA;CAAE,2CAiBhG"}

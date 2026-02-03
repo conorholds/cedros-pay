@@ -1,0 +1,251 @@
+import * as React from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ViewStyle,
+} from 'react-native';
+import type { Product, ProductVariant } from '../../types';
+import { Button } from '../ui/button';
+
+function getOptionNames(variants: ProductVariant[]) {
+  const set = new Set<string>();
+  for (const v of variants) {
+    for (const k of Object.keys(v.options)) set.add(k);
+  }
+  return Array.from(set);
+}
+
+function getOptionValues(variants: ProductVariant[], optionName: string) {
+  const set = new Set<string>();
+  for (const v of variants) {
+    const val = v.options[optionName];
+    if (val) set.add(val);
+  }
+  return Array.from(set);
+}
+
+function findVariant(variants: ProductVariant[], selected: Record<string, string>) {
+  return (
+    variants.find((v) =>
+      Object.entries(selected).every(([k, val]) => v.options[k] === val)
+    ) ?? null
+  );
+}
+
+/**
+ * Check if a variant is out of stock
+ */
+function isVariantOutOfStock(variant: ProductVariant): boolean {
+  if (variant.inventoryStatus === 'out_of_stock') return true;
+  if (typeof variant.inventoryQuantity === 'number' && variant.inventoryQuantity <= 0) return true;
+  return false;
+}
+
+/**
+ * Check if a variant has low stock
+ */
+function isVariantLowStock(variant: ProductVariant): boolean {
+  if (variant.inventoryStatus === 'low') return true;
+  if (
+    typeof variant.inventoryQuantity === 'number' &&
+    variant.inventoryQuantity > 0 &&
+    variant.inventoryQuantity <= 5
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get inventory info for display
+ */
+function getInventoryInfo(variant: ProductVariant): { isOutOfStock: boolean; isLow: boolean; quantity?: number } {
+  const isOutOfStock = isVariantOutOfStock(variant);
+  const isLow = !isOutOfStock && isVariantLowStock(variant);
+  const quantity = typeof variant.inventoryQuantity === 'number' ? variant.inventoryQuantity : undefined;
+  return { isOutOfStock, isLow, quantity };
+}
+
+/**
+ * Check if selecting a particular option value would lead to any in-stock variant
+ */
+function wouldLeadToInStockVariant(
+  variants: ProductVariant[],
+  currentSelected: Record<string, string>,
+  optionName: string,
+  optionValue: string
+): boolean {
+  const hypotheticalSelected = { ...currentSelected, [optionName]: optionValue };
+
+  // Find all variants that match the hypothetical selection (partial match)
+  const matchingVariants = variants.filter((v) =>
+    Object.entries(hypotheticalSelected).every(([k, val]) => v.options[k] === val)
+  );
+
+  // If no matching variants, this combination doesn't exist
+  if (matchingVariants.length === 0) return false;
+
+  // Check if any matching variant is in stock
+  return matchingVariants.some((v) => !isVariantOutOfStock(v));
+}
+
+export interface VariantSelectorProps {
+  product: Product;
+  value: { selectedOptions: Record<string, string>; variantId?: string };
+  onChange: (next: { selectedOptions: Record<string, string>; variant: ProductVariant | null }) => void;
+  style?: ViewStyle;
+  /** Show inventory status on options (default: true) */
+  showInventory?: boolean;
+  /** Disable out-of-stock options (default: false - they remain selectable but marked) */
+  disableOutOfStock?: boolean;
+}
+
+export function VariantSelector({
+  product,
+  value,
+  onChange,
+  style,
+  showInventory = true,
+  disableOutOfStock = false,
+}: VariantSelectorProps) {
+  const variants = React.useMemo(() => product.variants ?? [], [product.variants]);
+  const optionNames = React.useMemo(() => getOptionNames(variants), [variants]);
+
+  // Get currently selected variant for inventory display
+  const selectedVariant = React.useMemo(
+    () => findVariant(variants, value.selectedOptions),
+    [variants, value.selectedOptions]
+  );
+
+  const selectedInventory = React.useMemo(
+    () => (selectedVariant ? getInventoryInfo(selectedVariant) : null),
+    [selectedVariant]
+  );
+
+  if (variants.length === 0 || optionNames.length === 0) return null;
+
+  return (
+    <View style={[styles.container, style]}>
+      {optionNames.map((optionName) => {
+        const values = getOptionValues(variants, optionName);
+        const selectedValue = value.selectedOptions[optionName];
+
+        return (
+          <View key={optionName} style={styles.optionSection}>
+            <View style={styles.optionHeader}>
+              <Text style={styles.optionName}>{optionName}</Text>
+              <Text style={styles.selectedValue}>{selectedValue || 'Select'}</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.optionsContainer}
+            >
+              {values.map((v) => {
+                const isActive = v === selectedValue;
+                const hasInStockPath = wouldLeadToInStockVariant(
+                  variants,
+                  value.selectedOptions,
+                  optionName,
+                  v
+                );
+                const isOptionDisabled = disableOutOfStock && !hasInStockPath;
+
+                return (
+                  <Button
+                    key={v}
+                    size="sm"
+                    variant={isActive ? 'default' : 'outline'}
+                    onPress={() => {
+                      const nextSelected = { ...value.selectedOptions, [optionName]: v };
+                      const variant = findVariant(variants, nextSelected);
+                      onChange({ selectedOptions: nextSelected, variant });
+                    }}
+                    disabled={isOptionDisabled}
+                    style={[
+                      styles.optionButton,
+                      !hasInStockPath && !isOptionDisabled && styles.outOfStockOption,
+                    ]}
+                  >
+                    {v}
+                    {!hasInStockPath && !isOptionDisabled && (
+                      <Text style={styles.outOfStockLabel}> (Out)</Text>
+                    )}
+                  </Button>
+                );
+              })}
+            </ScrollView>
+          </View>
+        );
+      })}
+
+      {/* Selected variant inventory status */}
+      {showInventory && selectedVariant && selectedInventory && (
+        <View style={styles.inventorySection}>
+          {selectedInventory.isOutOfStock ? (
+            <Text style={styles.outOfStockText}>Out of stock</Text>
+          ) : selectedInventory.isLow && selectedInventory.quantity !== undefined ? (
+            <Text style={styles.lowStockText}>
+              Only <Text style={styles.lowStockQuantity}>{selectedInventory.quantity}</Text> left
+            </Text>
+          ) : null}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+  optionSection: {
+    gap: 8,
+  },
+  optionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  optionName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#171717',
+  },
+  selectedValue: {
+    fontSize: 12,
+    color: '#737373',
+  },
+  optionsContainer: {
+    gap: 8,
+    paddingBottom: 4,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  outOfStockOption: {
+    opacity: 0.5,
+  },
+  outOfStockLabel: {
+    fontSize: 10,
+    opacity: 0.7,
+  },
+  inventorySection: {
+    paddingTop: 8,
+  },
+  outOfStockText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#dc2626',
+  },
+  lowStockText: {
+    fontSize: 14,
+    color: '#d97706',
+  },
+  lowStockQuantity: {
+    fontWeight: '600',
+  },
+});

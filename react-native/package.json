@@ -1,0 +1,96 @@
+{
+  "name": "@cedros/pay-react-native",
+  "version": "1.0.0",
+  "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    },
+    "./stripe-only": {
+      "types": "./src/stripe-only.ts",
+      "import": "./src/stripe-only.ts",
+      "require": "./src/stripe-only.ts"
+    },
+    "./crypto-only": {
+      "types": "./src/crypto-only.ts",
+      "import": "./src/crypto-only.ts",
+      "require": "./src/crypto-only.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "payments",
+    "stripe",
+    "solana",
+    "x402",
+    "crypto",
+    "react-native",
+    "mobile",
+    "stablecoins"
+  ],
+  "author": "Cedros Pay Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/conorholds/cedros-pay.git",
+    "directory": "ui/react-native"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": "^1.95.0",
+    "@solana/spl-token": "^0.4.14",
+    "react": "^18.0.0",
+    "react-native": "^0.73.0",
+    "@stripe/stripe-react-native": "^0.41.0"
+  },
+  "peerDependenciesMeta": {
+    "@solana/web3.js": {
+      "optional": true
+    },
+    "@solana/spl-token": {
+      "optional": true
+    },
+    "@stripe/stripe-react-native": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.0.0",
+    "bs58": "^6.0.0",
+    "js-base64": "^3.7.8",
+    "uuid": "^9.0.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.95.0",
+    "@solana/spl-token": "^0.4.14",
+    "@stripe/stripe-react-native": "^0.41.0",
+    "@types/react": "^18.3.0",
+    "@types/react-native": "^0.73.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "react": "^18.3.0",
+    "react-native": "^0.73.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "build": "npm run build:lib && npm run build:esm && npm run build:types",
+    "build:lib": "tsc -p tsconfig.json --outDir lib --module commonjs",
+    "build:esm": "tsc -p tsconfig.json --outDir esm --module esnext",
+    "build:types": "tsc -p tsconfig.json --outDir types --declaration --emitDeclarationOnly",
+    "lint": "eslint src --ext ts,tsx",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "prepublishOnly": "echo \"Publishing @cedros/pay-react-native...\""
+  }
+}

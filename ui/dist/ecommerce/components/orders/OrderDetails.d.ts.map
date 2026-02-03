@@ -1,0 +1,1 @@
+{"version":3,"file":"OrderDetails.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/orders/OrderDetails.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,aAAa,CAAC;AAyBzC,wBAAgB,YAAY,CAAC,EAC3B,KAAK,EACL,MAAM,EACN,SAAS,GACV,EAAE;IACD,KAAK,EAAE,KAAK,CAAC;IACb,MAAM,CAAC,EAAE,MAAM,IAAI,CAAC;IACpB,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB,2CA2FA"}

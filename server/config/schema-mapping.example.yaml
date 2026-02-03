@@ -1,0 +1,177 @@
+# Cedros Pay Schema Mapping Configuration
+#
+# This file allows you to map your existing database schema to Cedros Pay's expected structure.
+# Useful when integrating with existing product catalogs, coupon systems, or payment tables.
+#
+# If a field is not specified, Cedros Pay will use sensible defaults (e.g., "id" for ID field).
+# You only need to specify mappings that differ from defaults.
+
+# =============================================================================
+# PRODUCTS MAPPING
+# =============================================================================
+products:
+  # Your table/collection name for products
+  table_name: "products"  # Default: "products"
+
+  # Map Cedros Pay fields to your database columns
+  field_map:
+    # Example: if your database uses "product_id" instead of "id"
+    id: "id"                    # Default: "id"
+    description: "description"  # Default: "description"
+
+    # Fiat (Stripe) pricing fields
+    fiat_amount: "fiat_amount"      # Default: "fiat_amount" (in dollars, not cents)
+    fiat_currency: "fiat_currency"  # Default: "fiat_currency"
+    stripe_price_id: "stripe_price_id"  # Default: "stripe_price_id"
+
+    # Crypto (x402) pricing fields
+    crypto_amount: "crypto_amount"   # Default: "crypto_amount"
+    crypto_token: "crypto_token"     # Default: "crypto_token"
+    crypto_account: "crypto_account" # Default: "crypto_account"
+
+    # Other fields
+    memo_template: "memo_template"  # Default: "memo_template"
+    metadata: "metadata"            # Default: "metadata" (JSONB/JSON column)
+    active: "active"                # Default: "active"
+    created_at: "created_at"        # Default: "created_at"
+    updated_at: "updated_at"        # Default: "updated_at"
+
+  # Field transformations (optional)
+  # Use when your data format doesn't match Cedros Pay's expectations
+  transforms:
+    # Example: Convert price stored in cents to dollars
+    # fiat_amount:
+    #   type: "divide"
+    #   factor: 100
+
+    # Example: Extract price from nested JSON
+    # fiat_amount:
+    #   type: "json_field"
+    #   field: "pricing.usd"
+
+    # Example: Use SQL expression for complex conversion
+    # fiat_amount:
+    #   type: "expression"
+    #   expr: "CAST(price_cents AS FLOAT) / 100"
+
+  # Custom SQL queries (advanced, optional)
+  # Use when default SELECT/INSERT/UPDATE queries don't work for your schema
+  # custom_sql:
+  #   select: |
+  #     SELECT
+  #       p.id,
+  #       p.name as description,
+  #       (p.price_cents::float / 100) as fiat_amount,
+  #       p.currency as fiat_currency,
+  #       ...
+  #     FROM products p
+  #     WHERE p.id = $1
+  #   list_active: |
+  #     SELECT * FROM products WHERE status = 'active' AND deleted_at IS NULL
+
+# =============================================================================
+# COUPONS MAPPING
+# =============================================================================
+coupons:
+  table_name: "coupons"  # Default: "coupons"
+
+  field_map:
+    code: "code"                    # Default: "code"
+    discount_type: "discount_type"  # Default: "discount_type" ("percentage" or "fixed")
+    discount_value: "discount_value" # Default: "discount_value"
+    currency: "currency"            # Default: "currency"
+    scope: "scope"                  # Default: "scope" ("all" or "specific")
+    product_ids: "product_ids"      # Default: "product_ids" (array/JSONB)
+    payment_method: "payment_method" # Default: "payment_method" ("stripe", "x402", or empty)
+    auto_apply: "auto_apply"        # Default: "auto_apply"
+    applies_at: "applies_at"        # Default: "applies_at" ("catalog" or "checkout")
+    usage_limit: "usage_limit"      # Default: "usage_limit"
+    usage_count: "usage_count"      # Default: "usage_count"
+    starts_at: "starts_at"          # Default: "starts_at"
+    expires_at: "expires_at"        # Default: "expires_at"
+    active: "active"                # Default: "active"
+    metadata: "metadata"            # Default: "metadata"
+    created_at: "created_at"        # Default: "created_at"
+    updated_at: "updated_at"        # Default: "updated_at"
+
+# =============================================================================
+# PAYMENT TRACKING MAPPING
+# =============================================================================
+# These tables are created and managed by Cedros Pay.
+# Only customize if you need to avoid naming conflicts with existing tables.
+payment_tracking:
+  # Cart quotes (temporary pricing locks)
+  cart_quotes:
+    table_name: "cart_quotes"  # Default: "cart_quotes"
+    # field_map is optional - only needed if you want to rename individual columns
+
+  # Refund requests
+  refund_quotes:
+    table_name: "refund_quotes"  # Default: "refund_quotes"
+
+  # Payment signature tracking (replay protection)
+  payment_signatures:
+    table_name: "payment_signatures"  # Default: "payment_signatures"
+
+  # Admin nonces (admin API replay protection)
+  admin_nonces:
+    table_name: "admin_nonces"  # Default: "admin_nonces"
+
+# =============================================================================
+# REAL-WORLD EXAMPLES
+# =============================================================================
+
+# Example 1: E-commerce store with existing products table
+# ---
+# products:
+#   table_name: "shop_products"
+#   field_map:
+#     id: "sku"
+#     description: "name"
+#     fiat_amount: "price"
+#     active: "is_available"
+#   transforms:
+#     fiat_amount:
+#       type: "divide"
+#       factor: 100  # Convert cents to dollars
+
+# Example 2: SaaS with subscription plans in nested JSON
+# ---
+# products:
+#   table_name: "subscription_plans"
+#   field_map:
+#     id: "plan_id"
+#     description: "plan_name"
+#   custom_sql:
+#     select: |
+#       SELECT
+#         plan_id as id,
+#         plan_name as description,
+#         (pricing->>'monthly')::float as fiat_amount,
+#         'usd' as fiat_currency,
+#         stripe_price_monthly as stripe_price_id,
+#         true as active
+#       FROM subscription_plans
+#       WHERE plan_id = $1
+
+# Example 3: Existing discount codes system
+# ---
+# coupons:
+#   table_name: "promo_codes"
+#   field_map:
+#     code: "promo_code"
+#     discount_value: "discount_percent"
+#     active: "is_active"
+#     expires_at: "valid_until"
+#   transforms:
+#     discount_type:
+#       type: "constant"
+#       value: "percentage"  # All your coupons are percentage-based
+
+# Example 4: Avoiding table name conflicts
+# ---
+# payment_tracking:
+#   payment_signatures:
+#     table_name: "cedros_payment_sigs"  # Avoid conflict with existing "payment_signatures"
+#   admin_nonces:
+#     table_name: "cedros_admin_nonces"

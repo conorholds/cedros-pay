@@ -1,0 +1,285 @@
+server:
+  address: ":8080"
+  public_url: ""
+  read_timeout: 15
+  write_timeout: 15
+  idle_timeout: 60
+  cors_allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:6006"
+  trusted_proxy_cidrs: []
+  route_prefix: ""
+
+stripe:
+  secret_key: ""
+  webhook_secret: ""
+  publishable_key: ""
+  success_url: "http://localhost:8080/stripe/success?session_id={CHECKOUT_SESSION_ID}"
+  cancel_url: "http://localhost:8080/stripe/cancel"
+  tax_rate_id: ""
+  mode: "test"
+
+storage:
+  # backend: "postgres" # Options: "postgres", "memory" (testing only)
+  # postgres_url: "postgresql://user:password@localhost:5432/cedros_pay?sslmode=disable"
+  # PostgreSQL configuration (only used if backend = "postgres")
+  # postgres_url: "postgresql://user:password@localhost:5432/cedros_pay?sslmode=disable"
+  # NOTE: MongoDB/file backends are not supported in this Rust server.
+  # schema_mapping:
+  #   payments:
+  #     table_name: "cedros_pay_test_payments"
+  #   sessions:
+  #     table_name: "cedros_pay_test_sessions"
+  #   products:
+  #     table_name: "cedros_pay_test_products"
+  #   coupons:
+  #     table_name: "cedros_pay_test_coupons"
+
+  backend: "memory" # Default dev storage (testing only)
+  # postgres_url: ""
+  # schema_mapping:
+  #   payments_table: "cedros_pay_test_payments"
+  #   sessions_table: "cedros_pay_test_sessions"
+  #   products_table: "cedros_pay_test_products"
+  #   coupons_table: "cedros_pay_test_coupons"
+  #   cart_quotes_table: "cedros_pay_test_cart_quotes"
+  #   refund_quotes_table: "cedros_pay_test_refund_quotes"
+  #   webhook_queue_table: "cedros_pay_test_webhook_queue"
+
+x402:
+  payment_address: "tri1Vi4RkdSLu4C2YeofJedi3ZmvCPvtygNuKmiNqCa" #"tri1Vi4RkdSLu4C2YeofJedi3ZmvCPvtygNuKmiNqCa"
+  token_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  allowed_tokens:
+    - "USDC"
+  token_decimals: 6
+  network: "mainnet-beta"
+  rpc_url: "https://api.mainnet-beta.solana.com"
+  ws_url: "wss://api.mainnet-beta.solana.com"
+  memo_prefix: "cedros"
+  skip_preflight: false
+  commitment: confirmed
+  gasless_enabled: true
+  auto_create_token_account: true
+  tx_queue_min_time_between: 0
+  tx_queue_max_in_flight: 0
+
+  # Compute Budget & Priority Fees
+  compute_unit_limit: 40000
+  compute_unit_price_micro_lamports: 1
+
+paywall:
+  product_source: "memory"    # Use inline resources defined below
+  quote_ttl: 300              # 5 minutes in seconds
+  product_cache_ttl: 300      # 5 minutes in seconds
+
+  # Products configuration (inline YAML)
+  # When product_source = "yaml", products are defined here
+  resources:
+    demo-item-id-1:
+      description: "Demo protected content"
+      fiat_amount_cents: 100
+      fiat_currency: "usd"
+      stripe_price_id: "price_1SPqRpR4HtkFbUJKUciKecmZ"
+      crypto_atomic_amount: 1000000
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        plan: "demo"
+
+    demo-item-id-2:
+      description: "Test product 2"
+      fiat_amount_cents: 222
+      fiat_currency: "usd"
+      stripe_price_id: "price_1SQCuhR4HtkFbUJKDUQpCA6D"
+      crypto_atomic_amount: 2220000
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "test-2"
+
+    demo-item-id-3:
+      description: "Test product 3"
+      fiat_amount_cents: 150
+      fiat_currency: "usd"
+      crypto_atomic_amount: 1500000
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "test-3"
+
+    demo-item-id-4:
+      description: "Test product 4"
+      fiat_amount_cents: 69
+      fiat_currency: "usd"
+      crypto_atomic_amount: 690000
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "test-4"
+
+    demo-item-id-5:
+      description: "Premium Article Access"
+      fiat_amount_cents: 100
+      fiat_currency: "usd"
+      crypto_atomic_amount: 1000000
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "test-5"
+
+    ebook-1:
+      description: "The Cedros Guide to Generational Wealth"
+      fiat_amount_cents: 100 # $1.00 in cents
+      fiat_currency: usd
+      stripe_price_id: "price_1SSHBAJb9VbrK3umvSLT7T7T"
+      crypto_atomic_amount: 1000000 # 1.00 USDC (6 decimals)
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "ebook demo"
+
+    tip-1:
+      description: "Buy me a Coffee"
+      fiat_amount_cents: 69 # $1.00 in cents
+      fiat_currency: usd
+      stripe_price_id: "price_1SSKBfJb9VbrK3um2qy603DZ"
+      crypto_atomic_amount: 690000 # 1.00 USDC (6 decimals)
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "tip"
+
+  # For PostgreSQL products (uncomment to use):
+  # product_source: "postgres"
+  # postgres_url: "postgres://user:pass@localhost:5432/cedros_pay?sslmode=disable"
+
+  # For MongoDB products (uncomment to use):
+  # NOTE: MongoDB product source is not supported in this Rust server.
+
+# Coupon Configuration
+# Note: YAML coupons are supported via coupons.yaml_path (not inline)
+coupons:
+  cache_ttl: 60               # 1 minute in seconds
+  coupon_source: "disabled"   # "postgres", "mongodb", or "disabled"
+  # yaml_path: "./config/coupons.yaml"
+  # postgres_url: "postgres://user:pass@localhost:5432/cedros_pay"
+  # mongodb_url: "mongodb://localhost:27017"
+  # mongodb_database: "cedros_pay"
+  # mongodb_collection: "coupons"
+
+callbacks:
+  payment_success_url: ""
+  headers:
+    Content-Type: application/json
+  body_template: |
+    {{$userId := ""}}{{$email := ""}}{{$itemName := ""}}{{$itemId := ""}}{{$timestamp := ""}}{{if .Metadata}}{{if index .Metadata "userId"}}{{$userId = index .Metadata "userId"}}{{end}}{{if index .Metadata "email"}}{{$email = index .Metadata "email"}}{{end}}{{if index .Metadata "itemName"}}{{$itemName = index .Metadata "itemName"}}{{end}}{{if index .Metadata "itemId"}}{{$itemId = index .Metadata "itemId"}}{{end}}{{if index .Metadata "timestamp"}}{{$timestamp = index .Metadata "timestamp"}}{{end}}{{end}}{
+      "embeds": [{
+        "title": "💰 Cedros Pay — Payment Received",
+        "description": "A new **{{.Method}}** payment has been successfully processed!",
+        "color": 3066993,
+        "fields": [
+          {
+            "name": "🏷️ Resource ID",
+            "value": "{{.ResourceID}}",
+            "inline": true
+          },
+          {
+            "name": "💳 Payment Method",
+            "value": "{{.Method}}",
+            "inline": true
+          }{{if .CryptoAtomicAmount}},
+          {
+            "name": "💵 Crypto Amount",
+            "value": "{{.CryptoAtomicAmount}} atomic units ({{.CryptoToken}})",
+            "inline": true
+          }{{end}}{{if .FiatAmountCents}},
+          {
+            "name": "💵 Fiat Amount",
+            "value": "{{.FiatAmountCents}} cents ({{.FiatCurrency}})",
+            "inline": true
+          }{{end}}{{if .Wallet}},
+          {
+            "name": "👛 Wallet Address",
+            "value": "{{.Wallet}}",
+            "inline": false
+          }{{end}}{{if .ProofSignature}},
+          {
+            "name": "🔐 Transaction Signature",
+            "value": "{{.ProofSignature}}",
+            "inline": false
+          }{{end}}{{if .StripeSessionID}},
+          {
+            "name": "🔗 Stripe Session ID",
+            "value": "{{.StripeSessionID}}",
+            "inline": false
+          }{{end}}{{if .StripeCustomer}},
+          {
+            "name": "👤 Stripe Customer",
+            "value": "{{.StripeCustomer}}",
+            "inline": true
+          }{{end}}{{if $userId}},
+          {
+            "name": "🆔 User ID",
+            "value": "{{$userId}}",
+            "inline": true
+          }{{end}}{{if $email}},
+          {
+            "name": "📧 Email",
+            "value": "{{$email}}",
+            "inline": true
+          }{{end}}{{if $itemName}},
+          {
+            "name": "📦 Item Name",
+            "value": "{{$itemName}}",
+            "inline": false
+          }{{end}}{{if $itemId}},
+          {
+            "name": "🔖 Item ID",
+            "value": "{{$itemId}}",
+            "inline": true
+          }{{end}}{{if $timestamp}},
+          {
+            "name": "⏰ Client Timestamp",
+            "value": "{{$timestamp}}",
+            "inline": true
+          }{{end}},
+          {
+            "name": "✅ Server Processed At",
+            "value": "{{.PaidAt.Format "2006-01-02 15:04:05 UTC"}}",
+            "inline": false
+          }
+        ],
+        "footer": {
+          "text": "Cedros Pay • Unified Payments for Humans & Agents"
+        },
+        "timestamp": "{{.PaidAt.Format "2006-01-02T15:04:05Z07:00"}}"
+      }]
+    }
+  timeout: 5
+
+monitoring:
+  low_balance_alert_url: ""
+  low_balance_threshold: 0.01
+  check_interval: 900         # 15 minutes in seconds
+  timeout: 5
+  headers: {} # Optional custom headers for webhook
+
+# Schema Mapping Configuration (for testing with prefixed tables/collections)
+# Uncomment the section below when testing with populate-demo-data.sh
+# This maps Cedros Pay's expected table names to your prefixed test tables
+#
+# schema_mapping:
+#   products:
+#     table_name: "cedros_pay_test_products"
+#   coupons:
+#     table_name: "cedros_pay_test_coupons"
+#   sessions:
+#     table_name: "cedros_pay_test_sessions"
+### Legacy YAML example.
+###
+### Standalone server note:
+### The standalone server entrypoint (`src/lib.rs:560`) loads configuration from Postgres
+### (`app_config`) rather than automatically loading this file.
+###
+### YAML mode note:
+### `Config::load` can read YAML + apply env overrides (legacy/embedded/testing mode).

@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Übersetzungsquelle (Deutsch)",
+  "version": "1.0.0",
+  "locale": "de",
+  "ui": {
+    "pay_with_card": "Mit Karte bezahlen",
+    "pay_with_crypto": "Mit USDC bezahlen",
+    "pay_with_usdc": "Mit USDC bezahlen",
+    "purchase": "Kaufen",
+    "card": "Karte",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Krypto",
+    "connect_wallet": "Wallet verbinden",
+    "connecting": "Verbindung wird hergestellt...",
+    "processing": "Wird verarbeitet...",
+    "loading": "Wird geladen...",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "retry": "Erneut versuchen",
+    "go_back": "Zurück",
+    "contact_support": "Support kontaktieren"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Zahlungsverifizierung fehlgeschlagen",
+      "action": "Bitte versuchen Sie die Zahlung erneut. Wenn das weiterhin auftritt, kontaktieren Sie den Support."
+    },
+    "invalid_signature": {
+      "message": "Transaktionssignatur ist ungültig",
+      "action": "Bitte genehmigen Sie die Transaktion in Ihrer Wallet und versuchen Sie es erneut."
+    },
+    "invalid_transaction": {
+      "message": "Transaktionsformat ist ungültig",
+      "action": "Bitte versuchen Sie die Zahlung erneut. Falls das weiterhin passiert, aktualisieren Sie Ihre Wallet-App."
+    },
+    "transaction_not_found": {
+      "message": "Transaktion nicht in der Blockchain gefunden",
+      "action": "Ihre Transaktion wird ggf. noch verarbeitet. Bitte warten Sie einen Moment und prüfen Sie Ihre Wallet oder versuchen Sie es erneut."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transaktion wird noch verarbeitet",
+      "action": "Bitte warten Sie einen Moment, bis die Blockchain Ihre Transaktion bestätigt, und versuchen Sie es dann erneut."
+    },
+    "transaction_failed": {
+      "message": "Transaktion in der Blockchain fehlgeschlagen",
+      "action": "Prüfen Sie die Details in Ihrer Wallet. Ggf. müssen Sie die Transaktionseinstellungen anpassen oder mehr SOL für Gebühren hinzufügen."
+    },
+    "transaction_expired": {
+      "message": "Die Transaktion hat zu lange gedauert",
+      "action": "Bitte versuchen Sie die Zahlung erneut. Erhöhen Sie ggf. die Priorität der Transaktion, sofern Ihre Wallet dies unterstützt."
+    },
+    "invalid_recipient": {
+      "message": "Zahlung wurde an die falsche Adresse gesendet",
+      "action": "Bitte versuchen Sie es erneut und stellen Sie sicher, dass Sie in Ihrer Wallet die richtige Transaktion genehmigen."
+    },
+    "invalid_sender": {
+      "message": "Absender‑Wallet der Zahlung ist ungültig",
+      "action": "Bitte verbinden Sie Ihre Wallet erneut und versuchen Sie es noch einmal."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Sie sind nicht berechtigt, Rückerstattungen zu veranlassen",
+      "action": "Nur autorisierte Konten können Rückerstattungen verarbeiten. Kontaktieren Sie den Support, wenn Sie einen Fehler vermuten."
+    },
+    "amount_below_minimum": {
+      "message": "Zahlungsbetrag ist zu niedrig",
+      "action": "Bitte prüfen Sie den erforderlichen Betrag und versuchen Sie es erneut."
+    },
+    "amount_mismatch": {
+      "message": "Zahlungsbetrag stimmt nicht mit dem Angebot überein",
+      "action": "Der Preis kann sich geändert haben. Bitte aktualisieren Sie die Seite und zahlen Sie erneut."
+    },
+    "insufficient_funds_sol": {
+      "message": "Nicht genug SOL für Transaktionsgebühren",
+      "action": "Fügen Sie Ihrer Wallet mindestens 0,001 SOL hinzu, um die Netzwerkgebühren zu decken, und versuchen Sie es erneut."
+    },
+    "insufficient_funds_token": {
+      "message": "Unzureichendes Guthaben in Ihrer Wallet",
+      "action": "Fügen Sie Ihrer Wallet mehr Guthaben hinzu und versuchen Sie es erneut."
+    },
+    "invalid_token_mint": {
+      "message": "Falscher Zahlungs‑Token",
+      "action": "Bitte zahlen Sie mit dem in den Zahlungsdetails angegebenen richtigen Token."
+    },
+    "not_spl_transfer": {
+      "message": "Transaktion ist keine gültige Token‑Übertragung",
+      "action": "Stellen Sie sicher, dass Sie den richtigen Tokentyp aus Ihrer Wallet senden."
+    },
+    "missing_token_account": {
+      "message": "Token‑Konto nicht gefunden",
+      "action": "Ihre Wallet muss ggf. zuerst ein Token‑Konto erstellen. Versuchen Sie es erneut oder verwenden Sie eine andere Wallet."
+    },
+    "invalid_token_program": {
+      "message": "Ungültiges Token‑Programm",
+      "action": "Bitte versuchen Sie die Zahlung erneut. Wenn das weiterhin auftritt, verwenden Sie eine andere Wallet."
+    },
+    "missing_memo": {
+      "message": "Zahlungsvermerk (Memo) ist erforderlich, wurde aber nicht hinzugefügt",
+      "action": "Bitte versuchen Sie die Zahlung erneut und genehmigen Sie die Transaktionsdetails in Ihrer Wallet."
+    },
+    "invalid_memo": {
+      "message": "Format des Zahlungs‑Memos ist ungültig",
+      "action": "Bitte versuchen Sie die Zahlung erneut."
+    },
+    "payment_already_used": {
+      "message": "Diese Zahlung wurde bereits verarbeitet",
+      "action": "Prüfen Sie Ihren Transaktionsverlauf. Wenn Sie eine weitere Zahlung vornehmen möchten, starten Sie eine neue Transaktion."
+    },
+    "signature_reused": {
+      "message": "Transaktionssignatur wurde bereits verwendet",
+      "action": "Bitte erstellen Sie eine neue Zahlungstransaktion."
+    },
+    "quote_expired": {
+      "message": "Zahlungsangebot ist abgelaufen",
+      "action": "Preise werden häufig aktualisiert. Bitte aktualisieren Sie die Seite und zahlen Sie erneut."
+    },
+    "missing_field": {
+      "message": "Erforderliche Angaben fehlen",
+      "action": "Bitte prüfen Sie alle Pflichtfelder und versuchen Sie es erneut."
+    },
+    "invalid_field": {
+      "message": "Einige Angaben sind ungültig",
+      "action": "Bitte prüfen Sie Ihre Eingaben und versuchen Sie es erneut."
+    },
+    "invalid_amount": {
+      "message": "Zahlungsbetrag ist ungültig",
+      "action": "Bitte prüfen Sie den Betrag und versuchen Sie es erneut."
+    },
+    "invalid_wallet": {
+      "message": "Wallet‑Adresse ist ungültig",
+      "action": "Bitte verbinden Sie Ihre Wallet erneut und versuchen Sie es noch einmal."
+    },
+    "invalid_resource": {
+      "message": "Ungültige Artikelauswahl",
+      "action": "Bitte aktualisieren Sie die Seite und versuchen Sie es erneut."
+    },
+    "invalid_coupon": {
+      "message": "Ungültiger Gutscheincode",
+      "action": "Bitte prüfen Sie den Gutscheincode und versuchen Sie es erneut."
+    },
+    "invalid_cart_item": {
+      "message": "Ein oder mehrere Warenkorbartikel sind ungültig",
+      "action": "Bitte überprüfen Sie Ihren Warenkorb und versuchen Sie es erneut."
+    },
+    "empty_cart": {
+      "message": "Ihr Warenkorb ist leer",
+      "action": "Bitte fügen Sie Artikel in den Warenkorb, bevor Sie zur Kasse gehen."
+    },
+    "resource_not_found": {
+      "message": "Artikel nicht gefunden",
+      "action": "Dieser Artikel ist möglicherweise nicht mehr verfügbar. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut."
+    },
+    "cart_not_found": {
+      "message": "Warenkorb nicht gefunden",
+      "action": "Ihr Warenkorb ist möglicherweise abgelaufen. Bitte starten Sie eine neue Bestellung."
+    },
+    "refund_not_found": {
+      "message": "Rückerstattung nicht gefunden",
+      "action": "Bitte prüfen Sie Ihre Erstattungsreferenznummer oder kontaktieren Sie den Support."
+    },
+    "product_not_found": {
+      "message": "Produkt nicht verfügbar",
+      "action": "Dieses Produkt ist möglicherweise nicht mehr verfügbar. Bitte stöbern Sie in unserer aktuellen Auswahl."
+    },
+    "coupon_not_found": {
+      "message": "Gutscheincode nicht gefunden",
+      "action": "Bitte prüfen Sie den Code oder entfernen Sie ihn, um fortzufahren."
+    },
+    "session_not_found": {
+      "message": "Zahlungssitzung abgelaufen",
+      "action": "Bitte starten Sie eine neue Zahlung."
+    },
+    "cart_already_paid": {
+      "message": "Diese Bestellung wurde bereits bezahlt",
+      "action": "Prüfen Sie Ihre Bestellhistorie. Wenn Sie einen weiteren Kauf tätigen möchten, starten Sie eine neue Bestellung."
+    },
+    "refund_already_processed": {
+      "message": "Diese Rückerstattung wurde bereits verarbeitet",
+      "action": "Prüfen Sie Ihren Transaktionsverlauf oder kontaktieren Sie den Support für Details."
+    },
+    "coupon_expired": {
+      "message": "Gutschein ist abgelaufen",
+      "action": "Bitte entfernen Sie den Code oder verwenden Sie einen anderen."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Gutschein‑Nutzungslimit erreicht",
+      "action": "Dieser Gutschein wurde vollständig eingelöst. Bitte verwenden Sie einen anderen Code."
+    },
+    "coupon_not_applicable": {
+      "message": "Gutschein kann nicht auf diesen Kauf angewendet werden",
+      "action": "Bitte prüfen Sie die Gutscheinbedingungen oder entfernen Sie ihn, um fortzufahren."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Gutschein ist für diese Zahlungsmethode nicht gültig",
+      "action": "Versuchen Sie eine andere Zahlungsmethode oder entfernen Sie den Code."
+    },
+    "stripe_error": {
+      "message": "Kartenzahlungsdienst vorübergehend nicht verfügbar",
+      "action": "Bitte versuchen Sie es in Kürze erneut oder nutzen Sie stattdessen die Krypto‑Zahlung."
+    },
+    "rpc_error": {
+      "message": "Blockchain‑Netzwerk vorübergehend nicht verfügbar",
+      "action": "Bitte versuchen Sie es in Kürze erneut oder nutzen Sie stattdessen Kartenzahlung."
+    },
+    "network_error": {
+      "message": "Netzwerkverbindungsproblem",
+      "action": "Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
+    },
+    "internal_error": {
+      "message": "Auf unserer Seite ist ein Fehler aufgetreten",
+      "action": "Bitte versuchen Sie es erneut. Wenn das weiterhin passiert, kontaktieren Sie den Support."
+    },
+    "database_error": {
+      "message": "Dienst vorübergehend nicht verfügbar",
+      "action": "Bitte versuchen Sie es in Kürze erneut."
+    },
+    "config_error": {
+      "message": "Fehler in der Dienstkonfiguration",
+      "action": "Bitte wenden Sie sich an den Support."
+    },
+    "unknown_error": {
+      "message": "Es ist ein unerwarteter Fehler aufgetreten",
+      "action": "Bitte versuchen Sie es erneut oder kontaktieren Sie den Support, wenn das weiterhin passiert."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Warnung: Nicht erkannte Token‑Mint‑Adresse. Prüfen Sie sorgfältig, ob dies der richtige Token ist, um einen Verlust von Guthaben zu vermeiden.",
+    "token_typo_warning": "Token‑Adresse stimmt nicht mit bekannten Stablecoins (USDC, USDT, PYUSD, CASH) überein. Bitte sorgfältig prüfen, um dauerhaften Verlust von Guthaben zu verhindern."
+  },
+  "wallet": {
+    "no_wallet_detected": "Keine Solana‑Wallet erkannt",
+    "install_wallet": "Bitte installieren Sie eine Solana‑Wallet wie Phantom, Solflare oder Backpack.",
+    "wallet_not_connected": "Wallet nicht verbunden",
+    "connect_your_wallet": "Bitte verbinden Sie Ihre Wallet, um fortzufahren.",
+    "wallet_connection_failed": "Wallet‑Verbindung fehlgeschlagen",
+    "try_again": "Bitte versuchen Sie, die Verbindung erneut herzustellen.",
+    "transaction_rejected": "Transaktion wurde abgelehnt",
+    "approve_in_wallet": "Bitte genehmigen Sie die Transaktion in Ihrer Wallet, um fortzufahren."
+  }
+}

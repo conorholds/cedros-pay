@@ -1,0 +1,204 @@
+server:
+  address: ":8080"
+  public_url: "https://api.cedros.io"
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+  cors_allowed_origins:
+    - "https://cedrospay.com"
+    - "https://docs.cedrospay.com"
+    - "https://cedros.io"
+    - "https://api.cedros.io"
+  route_prefix: ""
+
+stripe:
+  success_url: "https://cedrospay.com#demo?stripe_success=true&session_id={CHECKOUT_SESSION_ID}"
+  cancel_url: "https://cedrospay.com#demo?stripe_cancel=true"
+  tax_rate_id:
+  mode: "live"
+
+storage:
+  backend: postgres # Payment transactions in Postgres
+  postgres_url: "" # Set via POSTGRES_URL environment variable in production
+  schema_mapping:
+    payments:
+      table_name: "cedros_pay_demo_payments"
+    sessions:
+      table_name: "cedros_pay_demo_sessions"
+    products:
+      table_name: "cedros_pay_demo_products"
+    coupons:
+      table_name: "cedros_pay_demo_coupons"
+    cart_quotes:
+      table_name: "cedros_pay_demo_cart_quotes"
+    refund_quotes:
+      table_name: "cedros_pay_demo_refund_quotes"
+    webhook_queue:
+      table_name: "cedros_pay_demo_webhook_queue"
+
+x402:
+  payment_address: "3oXAyQZvXfhq44YyGh6RHcQqGKsTaG7mmMyMhQn2GQ3m"
+  token_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  allowed_tokens:
+    - "USDC"
+  token_decimals: 6
+  rounding_mode: "standard"
+  network: "mainnet-beta"
+  memo_prefix: "cedros"
+  skip_preflight: false
+  commitment: confirmed
+  gasless_enabled: true
+  auto_create_token_account: true
+  tx_queue_min_time_between: "0s"
+  tx_queue_max_in_flight: 0
+
+  # Compute Budget & Priority Fees
+  compute_unit_limit: 42069
+  compute_unit_price_micro_lamports: 1
+
+paywall:
+  quote_ttl: 5m
+  product_cache_ttl: 5m # Cache duration for product list
+
+  # Products configuration (inline YAML)
+  # When product_source = "yaml", products are defined here
+  resources:
+    ebook-1:
+      description: "The Cedros Guide to Generational Wealth"
+      fiat_amount_cents: 100 # $1.00 in cents
+      fiat_currency: usd
+      stripe_price_id: "price_1SSHBAJb9VbrK3umvSLT7T7T"
+      crypto_atomic_amount: 1000000 # 1.00 USDC (6 decimals)
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "ebook demo"
+
+    tip-1:
+      description: "Buy me a Coffee"
+      fiat_amount_cents: 69 # $1.00 in cents
+      fiat_currency: usd
+      stripe_price_id: "price_1SSKBfJb9VbrK3um2qy603DZ"
+      crypto_atomic_amount: 690000 # 1.00 USDC (6 decimals)
+      crypto_token: "USDC"
+      memo_template: "{{resource}}:{{nonce}}"
+      metadata:
+        product: "tip"
+
+# Coupon Configuration
+coupons:
+  cache_ttl: 1m # Short cache for usage count accuracy
+
+  # Coupons configuration (inline YAML)
+  # When coupon_source = "yaml", coupons are defined here
+  coupons:
+    SAVE20:
+      code: "SAVE20"
+      discount_type: "percentage"
+      discount_value: 20.0
+      scope: "all" # Applies to all products and carts
+      product_ids: [] # Empty when scope = "all"
+      auto_apply: false # User must enter code
+      usage_limit: 100000
+      usage_count: 0
+      starts_at: "2025-01-01T00:00:00Z"
+      expires_at: "2025-12-31T23:59:59Z"
+      active: true
+      metadata:
+        campaign: "demo-sale"
+        cart_eligible: "true" # Works on both single items and carts
+
+callbacks:
+  headers:
+    Content-Type: application/json
+  body_template: |
+    {{$userId := ""}}{{$email := ""}}{{$itemName := ""}}{{$itemId := ""}}{{$timestamp := ""}}{{if .Metadata}}{{if index .Metadata "userId"}}{{$userId = index .Metadata "userId"}}{{end}}{{if index .Metadata "email"}}{{$email = index .Metadata "email"}}{{end}}{{if index .Metadata "itemName"}}{{$itemName = index .Metadata "itemName"}}{{end}}{{if index .Metadata "itemId"}}{{$itemId = index .Metadata "itemId"}}{{end}}{{if index .Metadata "timestamp"}}{{$timestamp = index .Metadata "timestamp"}}{{end}}{{end}}{
+      "embeds": [{
+        "title": "💰 Cedros Pay — Payment Received",
+        "description": "A new **{{.Method}}** payment has been successfully processed!",
+        "color": 3066993,
+        "fields": [
+          {
+            "name": "🏷️ Resource ID",
+            "value": "{{.ResourceID}}",
+            "inline": true
+          },
+          {
+            "name": "💳 Payment Method",
+            "value": "{{.Method}}",
+            "inline": true
+          }{{if .CryptoAtomicAmount}},
+          {
+            "name": "💵 Crypto Amount",
+            "value": "{{.CryptoAtomicAmount}} atomic units ({{.CryptoToken}})",
+            "inline": true
+          }{{end}}{{if .FiatAmountCents}},
+          {
+            "name": "💵 Fiat Amount",
+            "value": "{{.FiatAmountCents}} cents ({{.FiatCurrency}})",
+            "inline": true
+          }{{end}}{{if .Wallet}},
+          {
+            "name": "👛 Wallet Address",
+            "value": "{{.Wallet}}",
+            "inline": false
+          }{{end}}{{if .ProofSignature}},
+          {
+            "name": "🔐 Transaction Signature",
+            "value": "{{.ProofSignature}}",
+            "inline": false
+          }{{end}}{{if .StripeSessionID}},
+          {
+            "name": "🔗 Stripe Session ID",
+            "value": "{{.StripeSessionID}}",
+            "inline": false
+          }{{end}}{{if .StripeCustomer}},
+          {
+            "name": "👤 Stripe Customer",
+            "value": "{{.StripeCustomer}}",
+            "inline": true
+          }{{end}}{{if $userId}},
+          {
+            "name": "🆔 User ID",
+            "value": "{{$userId}}",
+            "inline": true
+          }{{end}}{{if $email}},
+          {
+            "name": "📧 Email",
+            "value": "{{$email}}",
+            "inline": true
+          }{{end}}{{if $itemName}},
+          {
+            "name": "📦 Item Name",
+            "value": "{{$itemName}}",
+            "inline": false
+          }{{end}}{{if $itemId}},
+          {
+            "name": "🔖 Item ID",
+            "value": "{{$itemId}}",
+            "inline": true
+          }{{end}}{{if $timestamp}},
+          {
+            "name": "⏰ Client Timestamp",
+            "value": "{{$timestamp}}",
+            "inline": true
+          }{{end}},
+          {
+            "name": "✅ Server Processed At",
+            "value": "{{.PaidAt.Format "2006-01-02 15:04:05 UTC"}}",
+            "inline": false
+          }
+        ],
+        "footer": {
+          "text": "Cedros Pay • Unified Payments for Humans & Agents"
+        },
+        "timestamp": "{{.PaidAt.Format "2006-01-02T15:04:05Z07:00"}}"
+      }]
+    }
+  timeout: 5s
+
+monitoring:
+  low_balance_threshold: 0.01 # SOL balance threshold to trigger alert
+  check_interval: 15m # How often to check wallet balances
+  timeout: 5s # Request timeout for webhook calls
+  headers: {} # Optional custom headers for webhook
