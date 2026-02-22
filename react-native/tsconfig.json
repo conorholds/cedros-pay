@@ -40,6 +40,9 @@
     "lib",
     "esm",
     "types",
-    "__tests__"
+    "__tests__",
+    "src/**/__tests__",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }

@@ -555,15 +555,7 @@ impl PaywallService {
             wallet_paid_by: None,
         };
 
-        // Store the cart quote
-        if let Err(e) = self.store.store_cart_quote(cart_quote.clone()).await {
-            warn!(error = %e, "Failed to store cart quote");
-            return Err(ServiceError::Internal(format!(
-                "failed to store cart quote: {e}"
-            )));
-        }
-
-        // Only create inventory reservations if holds are enabled
+        // BUG-14: Reserve inventory BEFORE storing cart quote to avoid orphaned quotes
         if self.config.storage.inventory_holds_enabled {
             // Use separate hold TTL for reservations (may differ from cart quote TTL)
             let hold_expires_at =
@@ -612,6 +604,19 @@ impl PaywallService {
                     ));
                 }
             }
+        }
+
+        // Store cart quote after successful inventory reservation
+        if let Err(e) = self.store.store_cart_quote(cart_quote.clone()).await {
+            warn!(error = %e, "Failed to store cart quote — releasing reservations");
+            // Clean up reservations on quote store failure
+            let _ = self
+                .store
+                .release_inventory_reservations(tenant_id, &cart_quote.id, created_at)
+                .await;
+            return Err(ServiceError::Internal(format!(
+                "failed to store cart quote: {e}"
+            )));
         }
 
         Ok(cart_quote)

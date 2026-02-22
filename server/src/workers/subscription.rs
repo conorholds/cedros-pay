@@ -120,10 +120,17 @@ impl<S: Store + 'static> SubscriptionWorker<S> {
 
     /// Expire overdue x402 subscriptions per spec (18-services-subscriptions.md)
     async fn expire_overdue_subscriptions(&self) {
-        let tenants = match self.store.list_tenant_ids().await {
-            Ok(tenants) => tenants,
-            Err(e) => {
+        // OPS-04: Wrap DB calls in timeout to prevent unbounded hangs
+        const DB_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+        let tenants = match tokio::time::timeout(DB_TIMEOUT, self.store.list_tenant_ids()).await {
+            Ok(Ok(tenants)) => tenants,
+            Ok(Err(e)) => {
                 tracing::error!(error = %e, "Failed to list tenant ids for subscription worker");
+                return;
+            }
+            Err(_) => {
+                tracing::error!("Timed out listing tenant ids for subscription worker");
                 return;
             }
         };
@@ -141,8 +148,12 @@ impl<S: Store + 'static> SubscriptionWorker<S> {
                 tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
             }
 
-            match self.service.expire_overdue(&tenant_id).await {
-                Ok(count) if count > 0 => {
+            match tokio::time::timeout(DB_TIMEOUT, self.service.expire_overdue(&tenant_id)).await {
+                Err(_) => {
+                    consecutive_errors += 1;
+                    tracing::error!(tenant_id = %tenant_id, "Timed out expiring overdue subscriptions");
+                }
+                Ok(Ok(count)) if count > 0 => {
                     consecutive_errors = 0;
                     tracing::info!(
                         count,
@@ -150,14 +161,14 @@ impl<S: Store + 'static> SubscriptionWorker<S> {
                         "Expired overdue x402 subscriptions"
                     );
                 }
-                Ok(_) => {
+                Ok(Ok(_)) => {
                     consecutive_errors = 0;
                     tracing::debug!(
                         tenant_id = %tenant_id,
                         "No overdue subscriptions to expire"
                     );
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     consecutive_errors = consecutive_errors.saturating_add(1);
                     tracing::error!(
                         error = %e,

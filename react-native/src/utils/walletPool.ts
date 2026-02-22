@@ -30,7 +30,8 @@
  * ```
  */
 
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import type { WalletAdapter } from '@solana/wallet-adapter-base';
 import { getLogger } from './logger';
 

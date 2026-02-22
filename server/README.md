@@ -75,7 +75,7 @@ A Rust payment processing library and server supporting multiple payment methods
 
 ```toml
 [dependencies]
-cedros-pay = "0.1.0"
+cedros-pay = "1.1.1"
 ```
 
 Or install the server binary:
@@ -290,4 +290,4 @@ For questions, issues, or discussions:
 **Remember: This is alpha software. Not ready for production use!** ⚠️
 
 **Last Updated:** 2026-02-03  
-**Current Version:** 0.1.0-alpha
+**Current Version:** 1.1.1

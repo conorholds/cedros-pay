@@ -359,12 +359,12 @@ export class WalletManager implements IWalletManager {
 
     // Encode the 64-byte signature to base58
     // Note: Signatures are 64 bytes, not 32 like PublicKeys
-    const signature = bs58.encode(firstSignature);
+    const signature = bs58.encode(new Uint8Array(firstSignature));
 
     getLogger().debug('[WalletManager] Transaction signed with signature:', signature.substring(0, 20) + '...');
 
     return {
-      serialized: Base64.fromUint8Array(serialized),
+      serialized: Base64.fromUint8Array(new Uint8Array(serialized)),
       signature,
     };
   }
@@ -402,7 +402,7 @@ export class WalletManager implements IWalletManager {
     // Log the partial signature for debugging
     const firstSignature = signed.signatures[0]?.signature;
     if (firstSignature) {
-      const sig = bs58.encode(firstSignature);
+      const sig = bs58.encode(new Uint8Array(firstSignature));
       getLogger().debug('[WalletManager] Partially signed with signature:', sig.substring(0, 20) + '...');
     }
 
@@ -412,7 +412,7 @@ export class WalletManager implements IWalletManager {
       verifySignatures: false,
     });
 
-    return Base64.fromUint8Array(serialized);
+    return Base64.fromUint8Array(new Uint8Array(serialized));
   }
 
   /**

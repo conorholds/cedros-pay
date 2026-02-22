@@ -169,15 +169,10 @@ pub struct NonceResponse {
     pub purpose: String,
 }
 
-/// Maximum limit for list queries to prevent resource exhaustion
-const MAX_LIST_LIMIT: i32 = 1000;
+use super::cap_limit;
 
 fn default_limit() -> i32 {
     100
-}
-
-fn cap_limit(limit: i32) -> i32 {
-    limit.clamp(1, MAX_LIST_LIMIT)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,8 +680,8 @@ async fn validate_and_consume_nonce<S: Store>(
         return Err("nonce_already_used".to_string());
     }
 
-    // Validate purpose (empty purpose is wildcard for backwards compatibility)
-    if !nonce.purpose.is_empty() && nonce.purpose != expected_purpose {
+    // SECURITY: Reject empty purpose — must not act as wildcard.
+    if nonce.purpose.is_empty() || nonce.purpose != expected_purpose {
         return Err("invalid_nonce_purpose".to_string());
     }
 

@@ -17,8 +17,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{is_valid_return_transition, OrderItem, ReturnRequest};
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,10 +52,6 @@ pub struct ListReturnsResponse {
     pub returns: Vec<ReturnRequest>,
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn is_allowed_return_status(status: &str) -> bool {
     matches!(
         status,
@@ -84,7 +79,7 @@ pub async fn list_returns(
     tenant: TenantContext,
     Query(params): Query<ListReturnsQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     let status = params.status.as_deref().map(|s| s.trim().to_lowercase());
 

@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react-native",
-  "version": "1.0.0",
+  "version": "1.1.8",
   "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -43,17 +43,33 @@
     "directory": "ui/react-native"
   },
   "peerDependencies": {
-    "@solana/web3.js": "^1.95.0",
     "@solana/spl-token": "^0.4.14",
-    "react": "^18.0.0",
-    "react-native": "^0.73.0",
-    "@stripe/stripe-react-native": "^0.41.0"
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-phantom": "^0.9.24",
+    "@solana/wallet-adapter-solflare": "^0.6.28",
+    "@solana/web3.js": "^1.95.0",
+    "@stripe/stripe-react-native": "^0.41.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-native": ">=0.72.0 <1.0.0"
   },
   "peerDependenciesMeta": {
-    "@solana/web3.js": {
+    "@solana/spl-token": {
       "optional": true
     },
-    "@solana/spl-token": {
+    "@solana/wallet-adapter-base": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-react": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-phantom": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-solflare": {
+      "optional": true
+    },
+    "@solana/web3.js": {
       "optional": true
     },
     "@stripe/stripe-react-native": {
@@ -68,9 +84,10 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@solana/web3.js": "^1.95.0",
     "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.95.0",
     "@stripe/stripe-react-native": "^0.41.0",
+    "@types/jest": "^30.0.0",
     "@types/react": "^18.3.0",
     "@types/react-native": "^0.73.0",
     "@types/uuid": "^9.0.0",
@@ -84,10 +101,11 @@
     "typescript": "^5.4.0"
   },
   "scripts": {
-    "build": "npm run build:lib && npm run build:esm && npm run build:types",
+    "build": "npm run build:lib && npm run build:esm && npm run build:types && npm run build:copy-translations",
     "build:lib": "tsc -p tsconfig.json --outDir lib --module commonjs",
     "build:esm": "tsc -p tsconfig.json --outDir esm --module esnext",
     "build:types": "tsc -p tsconfig.json --outDir types --declaration --emitDeclarationOnly",
+    "build:copy-translations": "cp -r src/i18n/translations lib/i18n/translations && cp -r src/i18n/translations esm/i18n/translations",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
     "test": "jest",

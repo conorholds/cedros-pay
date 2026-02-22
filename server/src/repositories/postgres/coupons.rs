@@ -161,6 +161,7 @@ impl CouponRepository for PostgresCouponRepository {
             FROM {table}
             WHERE tenant_id = $1 AND active = true
             ORDER BY created_at DESC
+            LIMIT 1000
             "#,
             cols = COUPON_SELECT_COLUMNS,
             table = self.table_name
@@ -173,6 +174,54 @@ impl CouponRepository for PostgresCouponRepository {
             .map_err(|e| CouponRepositoryError::Storage(e.to_string()))?;
 
         Ok(rows.into_iter().map(|r| r.into_coupon()).collect())
+    }
+
+    async fn list_coupons_paginated(
+        &self,
+        tenant_id: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<(Vec<Coupon>, i64), CouponRepositoryError> {
+        let limit = i64::try_from(limit)
+            .map_err(|_| CouponRepositoryError::Validation("limit out of range".to_string()))?;
+        let offset = i64::try_from(offset)
+            .map_err(|_| CouponRepositoryError::Validation("offset out of range".to_string()))?;
+
+        let query = format!(
+            r#"
+            SELECT {cols}, COUNT(*) OVER() AS total_count
+            FROM {table}
+            WHERE tenant_id = $1 AND active = true
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            cols = COUPON_SELECT_COLUMNS,
+            table = self.table_name
+        );
+
+        let rows = sqlx::query(&query)
+            .bind(tenant_id)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| CouponRepositoryError::Storage(e.to_string()))?;
+
+        let total: i64 = rows
+            .first()
+            .and_then(|r| sqlx::Row::try_get(r, "total_count").ok())
+            .unwrap_or(0);
+
+        let coupons = rows
+            .into_iter()
+            .map(|r| {
+                let row = CouponRow::from_row(&r)
+                    .map_err(|e| CouponRepositoryError::Storage(e.to_string()))?;
+                Ok(row.into_coupon())
+            })
+            .collect::<Result<Vec<_>, CouponRepositoryError>>()?;
+
+        Ok((coupons, total))
     }
 
     async fn get_auto_apply_coupons_for_payment(
@@ -203,6 +252,7 @@ impl CouponRepository for PostgresCouponRepository {
               AND (expires_at IS NULL OR expires_at > NOW())
               AND (usage_limit IS NULL OR usage_count < usage_limit)
             ORDER BY created_at ASC
+            LIMIT 1000
             "#,
             cols = COUPON_SELECT_COLUMNS,
             table = self.table_name
@@ -243,6 +293,7 @@ impl CouponRepository for PostgresCouponRepository {
               AND (expires_at IS NULL OR expires_at > NOW())
               AND (usage_limit IS NULL OR usage_count < usage_limit)
             ORDER BY created_at ASC
+            LIMIT 1000
             "#,
             cols = COUPON_SELECT_COLUMNS,
             table = self.table_name
@@ -292,6 +343,7 @@ impl CouponRepository for PostgresCouponRepository {
               AND (expires_at IS NULL OR expires_at > NOW())
               AND (usage_limit IS NULL OR usage_count < usage_limit)
             ORDER BY created_at ASC
+            LIMIT 1000
             "#,
             cols = COUPON_SELECT_COLUMNS,
             table = self.table_name

@@ -47,6 +47,12 @@ export interface CSPConfig {
      * @default true
      */
     includeStripe?: boolean;
+    /**
+     * Whether to include Solana RPC directives
+     * Set to false if only using Stripe payments
+     * @default true
+     */
+    includeSolana?: boolean;
 }
 /**
  * Generated CSP directives

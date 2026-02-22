@@ -280,6 +280,9 @@ pub struct ServerConfig {
     pub admin_metrics_api_key: Option<String>,
     #[serde(default = "default_cors_origins")]
     pub cors_allowed_origins: Vec<String>,
+    /// Skip internal CORS layer (for embedded use where host manages CORS)
+    #[serde(default)]
+    pub cors_disabled: bool,
     /// Trusted reverse proxy / load balancer CIDR allowlist.
     ///
     /// When configured, proxy-controlled headers (e.g. X-Forwarded-For) are only trusted when the

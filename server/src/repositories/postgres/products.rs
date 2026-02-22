@@ -180,6 +180,7 @@ impl ProductRow {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::PostgresProductRepository;
     use sqlx::PgPool;
@@ -340,6 +341,7 @@ impl ProductRepository for PostgresProductRepository {
             FROM {table}
             WHERE tenant_id = $1 AND active = true
             ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            LIMIT 10000
             "#,
             cols = PRODUCT_SELECT_COLUMNS,
             table = self.table_name
@@ -364,6 +366,7 @@ impl ProductRepository for PostgresProductRepository {
             FROM {table}
             WHERE tenant_id = $1
             ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            LIMIT 10000
             "#,
             cols = PRODUCT_SELECT_COLUMNS,
             table = self.table_name

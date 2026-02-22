@@ -5,7 +5,32 @@ use base64::{
 use rand::RngCore;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
+use std::time::Duration;
+use tokio::time::timeout;
 use tracing::warn;
+
+/// Error type for RPC call attempts with timeout
+#[derive(Debug)]
+pub enum RpcAttemptError {
+    Timeout,
+    Failed(String),
+}
+
+/// Execute an async RPC call with a timeout, mapping errors uniformly.
+pub async fn rpc_attempt_with_timeout<T, E, F>(
+    dur: Duration,
+    fut: F,
+) -> Result<T, RpcAttemptError>
+where
+    F: std::future::Future<Output = Result<T, E>>,
+    E: std::fmt::Display,
+{
+    match timeout(dur, fut).await {
+        Ok(Ok(v)) => Ok(v),
+        Ok(Err(e)) => Err(RpcAttemptError::Failed(e.to_string())),
+        Err(_) => Err(RpcAttemptError::Timeout),
+    }
+}
 
 use crate::constants::{MAX_MEMO_LENGTH, X402_SCHEME_NATIVE, X402_SCHEME_SPL, X402_VERSION};
 use crate::errors::ErrorCode;

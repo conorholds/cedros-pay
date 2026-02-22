@@ -5,7 +5,11 @@
  * Follows the same patterns as StripeManager for consistency.
  */
 
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import {
+  initStripe,
+  initPaymentSheet,
+  presentPaymentSheet,
+} from '@stripe/stripe-react-native';
 import { generateUUID } from '../utils/uuid';
 import type {
   PaymentResult,
@@ -122,7 +126,7 @@ export interface ISubscriptionManager {
  * @see {@link ISubscriptionManager} for the stable interface
  */
 export class SubscriptionManager implements ISubscriptionManager {
-  private stripe: Stripe | null = null;
+  private isStripeInitialized = false;
   private readonly publicKey: string;
   private readonly routeDiscovery: RouteDiscoveryManager;
 
@@ -141,11 +145,16 @@ export class SubscriptionManager implements ISubscriptionManager {
     this.routeDiscovery = routeDiscovery;
   }
 
-  /** Initialize Stripe.js library */
+  /** Initialize Stripe React Native SDK */
   async initialize(): Promise<void> {
-    if (this.stripe) return;
-    this.stripe = await loadStripe(this.publicKey);
-    if (!this.stripe) throw new Error('Failed to initialize Stripe');
+    if (this.isStripeInitialized) return;
+
+    await initStripe({
+      publishableKey: this.publicKey,
+    });
+
+    this.isStripeInitialized = true;
+    getLogger().debug('[SubscriptionManager] Stripe React Native SDK initialized');
   }
 
   /** Internal helper: execute with rate limiting, circuit breaker, and retry */
@@ -229,40 +238,96 @@ export class SubscriptionManager implements ISubscriptionManager {
   }
 
   /**
-   * Redirect to Stripe checkout
+   * Redirect to Stripe checkout — not supported on React Native.
+   * Use processSubscription() instead, which uses the native Payment Sheet.
    */
-  async redirectToCheckout(sessionId: string): Promise<PaymentResult> {
-    if (!this.stripe) {
-      await this.initialize();
-    }
-
-    if (!this.stripe) {
-      return {
-        success: false,
-        error: 'Stripe not initialized',
-      };
-    }
-
-    const result = await this.stripe.redirectToCheckout({ sessionId });
-
-    if (result.error) {
-      return {
-        success: false,
-        error: result.error.message,
-      };
-    }
-
-    // This code won't execute if redirect succeeds
-    return { success: true, transactionId: sessionId };
+  async redirectToCheckout(_sessionId: string): Promise<PaymentResult> {
+    getLogger().warn(
+      '[SubscriptionManager] redirectToCheckout is not supported on React Native. ' +
+      'Use processSubscription() instead.'
+    );
+    return {
+      success: false,
+      error: 'redirectToCheckout is not available on React Native. Use processSubscription() instead.',
+    };
   }
 
   /**
-   * Complete subscription flow: create session and redirect
+   * Initialize and present the native Payment Sheet for a subscription.
+   */
+  private async presentPayment(options: {
+    paymentIntentClientSecret: string;
+    customerId?: string;
+    customerEphemeralKeySecret?: string;
+  }): Promise<PaymentResult> {
+    if (!this.isStripeInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      const sheetConfig: Record<string, unknown> = {
+        paymentIntentClientSecret: options.paymentIntentClientSecret,
+        customerId: options.customerId,
+        allowsDelayedPaymentMethods: true,
+      };
+      if (options.customerEphemeralKeySecret) {
+        sheetConfig.customerEphemeralKeySecret = options.customerEphemeralKeySecret;
+      }
+      const { error: initError } = await initPaymentSheet(sheetConfig as Parameters<typeof initPaymentSheet>[0]);
+
+      if (initError) {
+        getLogger().error('[SubscriptionManager] Payment sheet initialization failed:', initError);
+        return { success: false, error: initError.message };
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+
+      if (presentError) {
+        if (presentError.code === 'Canceled') {
+          return { success: false, error: 'Payment canceled by user' };
+        }
+        getLogger().error('[SubscriptionManager] Payment presentation failed:', presentError);
+        return { success: false, error: presentError.message };
+      }
+
+      return {
+        success: true,
+        transactionId: options.paymentIntentClientSecret.split('_secret_')[0],
+      };
+    } catch (error) {
+      getLogger().error('[SubscriptionManager] Payment sheet error:', error);
+      return { success: false, error: formatError(error, 'Payment sheet failed') };
+    }
+  }
+
+  /**
+   * Complete subscription flow: create session and present Payment Sheet.
+   * Backend must return paymentIntentClientSecret for React Native flows.
    */
   async processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult> {
     try {
       const session = await this.createSubscriptionSession(request);
-      return await this.redirectToCheckout(session.sessionId);
+
+      // For React Native, backend should return payment intent details
+      const sessionRecord = session as unknown as Record<string, unknown>;
+      if (sessionRecord.paymentIntentClientSecret) {
+        return await this.presentPayment({
+          paymentIntentClientSecret: sessionRecord.paymentIntentClientSecret as string,
+          customerId: sessionRecord.customerId as string | undefined,
+          customerEphemeralKeySecret: sessionRecord.customerEphemeralKeySecret as string | undefined,
+        });
+      }
+
+      // Fallback: backend only provides sessionId (web-style)
+      getLogger().warn(
+        '[SubscriptionManager] Backend returned sessionId but React Native requires ' +
+        'PaymentIntent client secret. Please update backend to return ' +
+        'paymentIntentClientSecret for mobile subscription flows.'
+      );
+      return {
+        success: false,
+        error: 'Mobile subscriptions require PaymentIntent client secret. Please contact support.',
+      };
     } catch (error) {
       return {
         success: false,

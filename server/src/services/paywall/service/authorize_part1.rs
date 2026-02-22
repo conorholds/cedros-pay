@@ -169,7 +169,7 @@ impl PaywallService {
         // Try x402 verification
         if let Some(header) = payment_header {
             return self
-                .authorize_x402(tenant_id, resource, header, coupon_code, wallet)
+                .authorize_x402(tenant_id, resource, header, coupon_code)
                 .await;
         }
 
@@ -243,14 +243,14 @@ impl PaywallService {
         })
     }
 
-    /// Authorize via x402 payment proof
+    /// Authorize via x402 payment proof.
+    /// Note: wallet info is extracted from the proof itself (proof.payer).
     async fn authorize_x402(
         &self,
         tenant_id: &str,
         resource: &str,
         payment_header: &str,
         coupon_code: Option<&str>,
-        _wallet: Option<&str>, // DEAD-002: Kept for API compatibility; wallet info is in proof.payer
     ) -> ServiceResult<AuthorizationResult> {
         // Parse payment proof from header
         let proof =
@@ -646,7 +646,9 @@ impl PaywallService {
                     error = %e,
                     code = %coupon.code,
                     resource = %resource,
-                    "ALERT: Failed to increment coupon usage after 3 attempts - coupon may exceed limit"
+                    signature = %result.signature,
+                    tenant_id = %tenant_id,
+                    "RECONCILE: Failed to increment coupon usage after 3 attempts - coupon may exceed limit. Query payment by signature to reconcile."
                 );
                 // Record metric for failed coupon increment - critical for monitoring
                 crate::observability::record_coupon_operation("increment", "failed");

@@ -14,7 +14,7 @@ import { SolanaCluster } from '../types';
  *
  * @returns Cached or newly created manager instances
  */
-export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean): {
+export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean): Promise<{
     stripeManager: IStripeManager;
     x402Manager: IX402Manager;
     walletManager: IWalletManager;
@@ -22,7 +22,7 @@ export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: 
     subscriptionChangeManager: ISubscriptionChangeManager;
     creditsManager: ICreditsManager;
     routeDiscovery: RouteDiscoveryManager;
-};
+}>;
 /**
  * Release a reference to cached managers
  *

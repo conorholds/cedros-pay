@@ -39,6 +39,7 @@ impl Default for ServerConfig {
             route_prefix: DEFAULT_ROUTE_PREFIX.to_string(),
             admin_metrics_api_key: None,
             cors_allowed_origins: default_cors_origins(),
+            cors_disabled: false,
             trusted_proxy_cidrs: Vec::new(),
             read_timeout: default_read_timeout(),
             write_timeout: default_write_timeout(),

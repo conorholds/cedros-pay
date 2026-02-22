@@ -14,6 +14,7 @@ use crate::errors::{error_response, ErrorCode};
 use crate::middleware::tenant::TenantContext;
 use crate::models::BillingPeriod;
 use crate::repositories::ProductRepository;
+use crate::services::subscriptions::CreateX402SubscriptionParams;
 use crate::services::{PaywallService, StripeClient, SubscriptionService};
 use crate::storage::Store;
 
@@ -55,6 +56,8 @@ pub struct CreateX402SubscriptionRequest {
     pub metadata: Option<std::collections::HashMap<String, String>>,
     pub billing_period: Option<String>,
     pub billing_interval: Option<i32>,
+    /// Optional plan ID - links subscription to a specific plan
+    pub plan_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +71,8 @@ pub struct CreateCreditsSubscriptionRequest {
     pub metadata: Option<std::collections::HashMap<String, String>>,
     pub billing_period: Option<String>,
     pub billing_interval: Option<i32>,
+    /// Optional plan ID - links subscription to a specific plan
+    pub plan_id: Option<String>,
 }
 
 /// Response for x402/activate per spec (03-http-endpoints-subscriptions.md)
@@ -223,10 +228,17 @@ pub async fn status<S: Store + 'static>(
     tenant: TenantContext,
     Query(query): Query<SubscriptionStatusQuery>,
 ) -> impl IntoResponse {
-    let result = state
-        .subscription_service
-        .has_access(&tenant.tenant_id, &query.user_id, &query.resource)
-        .await;
+    let result = if query.user_id.starts_with("cus_") {
+        state
+            .subscription_service
+            .has_access_by_stripe_customer_id(&tenant.tenant_id, &query.user_id, &query.resource)
+            .await
+    } else {
+        state
+            .subscription_service
+            .has_access(&tenant.tenant_id, &query.user_id, &query.resource)
+            .await
+    };
 
     match result {
         Ok((has_access, sub_opt)) => {
@@ -320,46 +332,76 @@ pub async fn create_x402<S: Store + 'static>(
     // Check if payment signature was provided and valid
     let payment_verified = if let Some(ref sig) = req.payment_signature {
         // Verify the payment signature via paywall service
-        state
+        match state
             .paywall_service
             .has_payment_been_processed(&tenant.tenant_id, sig)
             .await
-            .unwrap_or(false)
+        {
+            Ok(v) => v,
+            Err(e) => {
+                let (status, body) = crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+                return json_error(status, body);
+            }
+        }
     } else {
         false
     };
+
+    if payment_verified {
+        if let Some(sig) = req.payment_signature.as_deref() {
+            let payment = match state.paywall_service.get_payment(&tenant.tenant_id, sig).await {
+                Ok(p) => p,
+                Err(e) => {
+                    let (status, body) =
+                        crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+                    return json_error(status, body);
+                }
+            };
+            if payment.resource_id != req.product_id || payment.wallet != req.wallet {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidPaymentProof,
+                    Some("payment signature does not match wallet/resource".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        }
+    }
+
+    if !payment_verified {
+        let quote = state
+            .paywall_service
+            .generate_quote(&tenant.tenant_id, &req.product_id, None)
+            .await
+            .ok()
+            .and_then(|q| serde_json::to_value(q).ok());
+
+        let (status, body) = crate::errors::error_response(
+            crate::errors::ErrorCode::PaymentRequired,
+            Some("payment required".to_string()),
+            quote.map(|q| serde_json::json!({ "quote": q })),
+        );
+        return json_error(status, body);
+    }
 
     // SECURITY (H-004): Pass payment signature to subscription creation for idempotency.
     // The subscription service will use atomic UPSERT to prevent duplicates.
     let result = state
         .subscription_service
-        .create_x402_subscription(
-            &tenant.tenant_id,
-            &req.wallet,
-            &req.product_id,
+        .create_x402_subscription(CreateX402SubscriptionParams {
+            tenant_id: tenant.tenant_id.clone(),
+            wallet: req.wallet.clone(),
+            product_id: req.product_id.clone(),
             billing_period,
             billing_interval,
-            req.payment_signature.as_deref(),
-        )
+            payment_signature: req.payment_signature.clone(),
+            metadata: req.metadata.clone(),
+            plan_id: req.plan_id.clone(),
+        })
         .await;
 
     match result {
         Ok(sub) => {
-            // Per spec: include quote if payment not yet made
-            let quote = if !payment_verified {
-                // Generate quote for the product
-                match state
-                    .paywall_service
-                    .generate_quote(&tenant.tenant_id, &req.product_id, None)
-                    .await
-                {
-                    Ok(q) => Some(serde_json::to_value(q).unwrap_or_default()),
-                    Err(_) => None,
-                }
-            } else {
-                None
-            };
-
             // Per spec (03-http-endpoints-subscriptions.md): x402/activate response
             // does NOT include cancelAtPeriodEnd or paymentMethod
             let resp = X402ActivateResponse {
@@ -371,7 +413,7 @@ pub async fn create_x402<S: Store + 'static>(
                 current_period_end: sub.current_period_end,
                 billing_period: sub.billing_period.to_string(),
                 billing_interval: sub.billing_interval,
-                quote,
+                quote: None,
             };
             json_ok(resp)
         }
@@ -423,11 +465,18 @@ pub async fn create_credits<S: Store + 'static>(
     let payment_verified = match req.hold_id.as_deref() {
         Some(hold_id) => {
             let signature = format!("credits:{}", hold_id);
-            state
+            match state
                 .paywall_service
                 .has_payment_been_processed(&tenant.tenant_id, &signature)
                 .await
-                .unwrap_or(false)
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    let (status, body) =
+                        crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+                    return json_error(status, body);
+                }
+            }
         }
         None => false,
     };
@@ -456,6 +505,8 @@ pub async fn create_credits<S: Store + 'static>(
             &req.product_id,
             billing_period,
             billing_interval,
+            req.metadata.clone(),
+            req.plan_id.clone(),
         )
         .await;
 
@@ -969,8 +1020,12 @@ mod tests {
 
     use axum::response::IntoResponse;
     use chrono::Utc;
+    use http_body_util::BodyExt;
 
-    use crate::models::{get_asset, Money, Product};
+    use crate::models::{
+        get_asset, BillingPeriod, Money, PaymentMethod, PaymentTransaction, Product, Subscription,
+        SubscriptionStatus,
+    };
     use crate::repositories::{InMemoryCouponRepository, InMemoryProductRepository};
     use crate::storage::memory::InMemoryStore;
     use crate::webhooks::NoopNotifier;
@@ -1017,20 +1072,46 @@ mod tests {
         })
     }
 
+    async fn seed_payment(
+        state: &Arc<SubscriptionAppState<InMemoryStore>>,
+        signature: &str,
+        wallet: &str,
+        resource_id: &str,
+    ) {
+        let asset = get_asset("USDC").expect("asset");
+        let tx = PaymentTransaction {
+            signature: signature.to_string(),
+            tenant_id: "default".to_string(),
+            resource_id: resource_id.to_string(),
+            wallet: wallet.to_string(),
+            user_id: None,
+            amount: Money::new(asset, 100),
+            created_at: Utc::now(),
+            metadata: std::collections::HashMap::new(),
+        };
+        state
+            .subscription_service
+            .store()
+            .record_payment(tx)
+            .await
+            .expect("seed payment");
+    }
+
     #[tokio::test]
-    async fn test_create_credits_requires_verified_payment() {
+    async fn test_create_x402_requires_verified_payment() {
         let state = build_state();
 
-        let response = create_credits(
+        let response = create_x402(
             State(state.clone()),
             TenantContext::default(),
-            Json(CreateCreditsSubscriptionRequest {
+            Json(CreateX402SubscriptionRequest {
                 wallet: "wallet-1".to_string(),
                 product_id: "prod-1".to_string(),
-                hold_id: None,
+                payment_signature: None,
                 metadata: None,
                 billing_period: None,
                 billing_interval: None,
+                plan_id: None,
             }),
         )
         .await
@@ -1045,6 +1126,158 @@ mod tests {
             .await
             .unwrap();
         assert!(subs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_credits_requires_verified_payment() {
+        let state = build_state();
+
+        let response = create_credits(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateCreditsSubscriptionRequest {
+                wallet: "wallet-1".to_string(),
+                product_id: "prod-1".to_string(),
+                hold_id: None,
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+
+        let subs = state
+            .subscription_service
+            .store()
+            .get_subscriptions_by_wallet("default", "wallet-1")
+            .await
+            .unwrap();
+        assert!(subs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_x402_rejects_signature_wallet_mismatch() {
+        let state = build_state();
+        seed_payment(&state, "sig-wallet-mismatch", "wallet-a", "prod-1").await;
+
+        let response = create_x402(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateX402SubscriptionRequest {
+                wallet: "wallet-b".to_string(),
+                product_id: "prod-1".to_string(),
+                payment_signature: Some("sig-wallet-mismatch".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], "invalid_payment_proof");
+
+        let subs = state
+            .subscription_service
+            .store()
+            .get_subscriptions_by_wallet("default", "wallet-b")
+            .await
+            .unwrap();
+        assert!(subs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_x402_rejects_signature_resource_mismatch() {
+        let state = build_state();
+        seed_payment(&state, "sig-resource-mismatch", "wallet-1", "prod-other").await;
+
+        let response = create_x402(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateX402SubscriptionRequest {
+                wallet: "wallet-1".to_string(),
+                product_id: "prod-1".to_string(),
+                payment_signature: Some("sig-resource-mismatch".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], "invalid_payment_proof");
+
+        let subs = state
+            .subscription_service
+            .store()
+            .get_subscriptions_by_wallet("default", "wallet-1")
+            .await
+            .unwrap();
+        assert!(subs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_status_supports_stripe_customer_id() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-cus-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: None,
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::Stripe,
+                stripe_subscription_id: Some("sub_stripe_1".to_string()),
+                stripe_customer_id: Some("cus_123".to_string()),
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = status(
+            State(state),
+            TenantContext::default(),
+            Query(SubscriptionStatusQuery {
+                user_id: "cus_123".to_string(),
+                resource: "prod-1".to_string(),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["active"], true);
+        assert_eq!(json["status"], "active");
     }
 
     #[test]

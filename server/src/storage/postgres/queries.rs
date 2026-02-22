@@ -41,10 +41,13 @@ pub mod cart {
         SELECT wallet_paid_by FROM cart_quotes WHERE id = $1 AND tenant_id = $2
     "#;
 
-    /// Delete all expired cart quotes across tenants (admin only)
+    /// Delete expired cart quotes across tenants (admin only, batched to avoid long locks)
     pub const CLEANUP_EXPIRED_ALL: &str = r#"
-        DELETE FROM cart_quotes
-        WHERE expires_at < NOW() AND wallet_paid_by IS NULL
+        DELETE FROM cart_quotes WHERE id IN (
+            SELECT id FROM cart_quotes
+            WHERE expires_at < NOW() AND wallet_paid_by IS NULL
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -103,11 +106,13 @@ pub mod refund {
     "#;
 
     /// Get ALL refunds for a purchase (for cumulative tracking)
+    // DB-08d: Added LIMIT 1000 to bound unbounded query
     pub const GET_ALL_BY_ORIGINAL_PURCHASE_ID: &str = r#"
         SELECT id, tenant_id, original_purchase_id, recipient_wallet, amount, amount_asset, reason,
                metadata, created_at, expires_at, processed_by, processed_at, signature
         FROM refund_quotes WHERE original_purchase_id = $1 AND tenant_id = $2
         ORDER BY created_at ASC
+        LIMIT 1000
     "#;
 
     /// Per spec (08-storage.md): Delete must filter by tenant_id for isolation
@@ -115,10 +120,33 @@ pub mod refund {
         DELETE FROM refund_quotes WHERE id = $1 AND tenant_id = $2
     "#;
 
-    /// Delete all expired refund quotes across tenants (admin only)
+    /// List credits refund requests with optional status filter and pagination.
+    /// Credits refunds have `original_purchase_id LIKE 'credits:%'`.
+    /// Uses COUNT(*) OVER() for atomic count+paginate in a single query.
+    pub const LIST_CREDITS_REFUNDS: &str = r#"
+        SELECT id, tenant_id, original_purchase_id, recipient_wallet, amount, amount_asset, reason,
+               metadata, created_at, expires_at, processed_by, processed_at, signature,
+               COUNT(*) OVER() AS total_count
+        FROM refund_quotes
+        WHERE tenant_id = $1
+          AND original_purchase_id LIKE 'credits:%'
+          AND (
+            $2::text IS NULL
+            OR ($2 = 'pending' AND processed_at IS NULL AND expires_at > NOW())
+            OR ($2 = 'completed' AND processed_at IS NOT NULL AND signature IS NOT NULL)
+            OR ($2 = 'denied' AND processed_at IS NOT NULL AND signature IS NULL)
+          )
+        ORDER BY created_at DESC
+        LIMIT $3 OFFSET $4
+    "#;
+
+    /// Delete expired refund quotes across tenants (admin only, batched to avoid long locks)
     pub const CLEANUP_EXPIRED_ALL: &str = r#"
-        DELETE FROM refund_quotes
-        WHERE expires_at < NOW() AND processed_at IS NULL
+        DELETE FROM refund_quotes WHERE id IN (
+            SELECT id FROM refund_quotes
+            WHERE expires_at < NOW() AND processed_at IS NULL
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -220,7 +248,8 @@ pub mod orders {
     pub const LIST_FILTERED: &str = r#"
         SELECT id, tenant_id, source, purchase_id, resource_id, user_id, customer, status,
                items, amount, amount_asset, customer_email, customer_name, receipt_url,
-               shipping, metadata, created_at, updated_at, status_updated_at
+               shipping, metadata, created_at, updated_at, status_updated_at,
+               COUNT(*) OVER() AS total_count
         FROM orders
         WHERE tenant_id = $1
           AND ($2::text IS NULL OR status = $2)
@@ -236,6 +265,7 @@ pub mod orders {
         LIMIT $6 OFFSET $7
     "#;
 
+    #[allow(dead_code)] // Superseded by COUNT(*) OVER() in LIST_FILTERED
     pub const COUNT_FILTERED: &str = r#"
         SELECT COUNT(1)
         FROM orders
@@ -293,6 +323,13 @@ pub mod fulfillments {
         WHERE tenant_id = $1 AND order_id = $2
         ORDER BY created_at DESC
         LIMIT $3
+    "#;
+
+    pub const GET_BY_ID: &str = r#"
+        SELECT id, tenant_id, order_id, status, carrier, tracking_number, tracking_url,
+               items, shipped_at, delivered_at, metadata, created_at, updated_at
+        FROM fulfillments
+        WHERE tenant_id = $1 AND id = $2
     "#;
 
     pub const UPDATE_STATUS: &str = r#"
@@ -392,10 +429,15 @@ pub mod inventory_reservations {
         WHERE tenant_id = $1 AND cart_id = $2 AND status = 'active'
     "#;
 
+    // DB-09b: Batch LIMIT to prevent unbounded cleanup affecting all rows at once
     pub const CLEANUP_EXPIRED: &str = r#"
         UPDATE inventory_reservations
         SET status = 'released'
-        WHERE status = 'active' AND expires_at < $1
+        WHERE ctid IN (
+            SELECT ctid FROM inventory_reservations
+            WHERE status = 'active' AND expires_at < $1
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -731,9 +773,13 @@ pub mod payment {
         )
     "#;
 
-    /// Archive old payments across all tenants (admin only)
+    /// Archive old payments across all tenants (admin only, batched to avoid long locks)
     pub const ARCHIVE_OLD_ALL: &str = r#"
-        DELETE FROM payment_transactions WHERE created_at < $1
+        DELETE FROM payment_transactions WHERE ctid IN (
+            SELECT ctid FROM payment_transactions
+            WHERE created_at < $1
+            LIMIT 1000
+        )
     "#;
 
     pub const LIST_BY_USER_ID: &str = r#"
@@ -783,8 +829,13 @@ pub mod credits_hold {
         DELETE FROM credits_holds WHERE tenant_id = $1 AND hold_id = $2
     "#;
 
+    /// Batched to avoid long locks on large backlogs
     pub const CLEANUP_EXPIRED: &str = r#"
-        DELETE FROM credits_holds WHERE expires_at < $1
+        DELETE FROM credits_holds WHERE ctid IN (
+            SELECT ctid FROM credits_holds
+            WHERE expires_at < $1
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -807,9 +858,13 @@ pub mod nonce {
         UPDATE admin_nonces SET consumed_at = NOW() WHERE id = $1 AND tenant_id = $2 AND consumed_at IS NULL
     "#;
 
-    /// Cleanup expired nonces across all tenants (admin only)
+    /// Cleanup expired nonces across all tenants (admin only, batched to avoid long locks)
     pub const CLEANUP_EXPIRED_ALL: &str = r#"
-        DELETE FROM admin_nonces WHERE expires_at < NOW() OR consumed_at IS NOT NULL
+        DELETE FROM admin_nonces WHERE id IN (
+            SELECT id FROM admin_nonces
+            WHERE expires_at < NOW() OR consumed_at IS NOT NULL
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -878,9 +933,9 @@ pub mod webhook {
         SELECT id, tenant_id, url, payload, payload_bytes, headers, event_type, status, attempts, max_attempts,
                last_error, last_attempt_at, next_attempt_at, created_at, completed_at
         FROM webhook_queue
-        WHERE ($1::text IS NULL OR status = $1)
+        WHERE tenant_id = $1 AND ($2::text IS NULL OR status = $2)
         ORDER BY created_at ASC
-        LIMIT $2
+        LIMIT $3
     "#;
 
     pub const RETRY: &str = r#"
@@ -891,12 +946,22 @@ pub mod webhook {
         DELETE FROM webhook_queue WHERE id = $1
     "#;
 
-    /// Cleanup old completed/failed webhooks
-    /// $1: retention_days (e.g., 7 for 7-day retention)
+    /// Cleanup old completed/failed webhooks (batched to avoid long locks)
+    /// $1: retention_days (integer, e.g., 7 for 7-day retention)
     pub const CLEANUP_OLD: &str = r#"
-        DELETE FROM webhook_queue
-        WHERE status IN ('success', 'failed')
-          AND completed_at < NOW() - ($1 || ' days')::interval
+        DELETE FROM webhook_queue WHERE id IN (
+            SELECT id FROM webhook_queue
+            WHERE status IN ('success', 'failed')
+              AND completed_at < NOW() - $1 * INTERVAL '1 day'
+            LIMIT 1000
+        )
+    "#;
+
+    /// Count pending/retry-ready webhooks for backlog metric
+    pub const COUNT_PENDING: &str = r#"
+        SELECT COUNT(*) FROM webhook_queue
+        WHERE status IN ('pending', 'processing')
+           OR (status = 'failed' AND next_attempt_at <= NOW())
     "#;
 }
 
@@ -959,12 +1024,15 @@ pub mod email {
         FROM email_queue WHERE id = $1
     "#;
 
-    /// Cleanup old completed/failed emails
-    /// $1: retention_days (e.g., 30 for 30-day retention)
+    /// Cleanup old completed/failed emails (batched to avoid long locks)
+    /// $1: retention_days (integer, e.g., 30 for 30-day retention)
     pub const CLEANUP_OLD: &str = r#"
-        DELETE FROM email_queue
-        WHERE status IN ('completed', 'failed')
-          AND completed_at < NOW() - ($1 || ' days')::interval
+        DELETE FROM email_queue WHERE id IN (
+            SELECT id FROM email_queue
+            WHERE status IN ('completed', 'failed')
+              AND completed_at < NOW() - $1 * INTERVAL '1 day'
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -997,8 +1065,13 @@ pub mod idempotency {
         DELETE FROM idempotency_keys WHERE key = $1
     "#;
 
+    /// Batched to avoid long locks on large backlogs
     pub const CLEANUP_EXPIRED: &str = r#"
-        DELETE FROM idempotency_keys WHERE expires_at < NOW()
+        DELETE FROM idempotency_keys WHERE key IN (
+            SELECT key FROM idempotency_keys
+            WHERE expires_at < NOW()
+            LIMIT 1000
+        )
     "#;
 }
 
@@ -1062,6 +1135,7 @@ pub mod subscription {
                cancelled_at, cancel_at_period_end, metadata, payment_signature, created_at, updated_at
         FROM subscriptions WHERE tenant_id = $1 AND wallet = $2
         ORDER BY created_at DESC
+        LIMIT 1000
     "#;
 
     /// Per spec (08-storage.md): Query must filter by tenant_id for isolation
@@ -1104,6 +1178,7 @@ pub mod subscription {
         WHERE tenant_id = $1 AND status IN ('active', 'trialing', 'past_due')
           AND ($2::text IS NULL OR product_id = $2)
         ORDER BY created_at DESC
+        LIMIT 1000
     "#;
 
     /// Per spec (08-storage.md): Query must filter by tenant_id for isolation
@@ -1115,6 +1190,7 @@ pub mod subscription {
         FROM subscriptions
         WHERE tenant_id = $1 AND current_period_end <= $2 AND status IN ('active', 'trialing', 'past_due')
         ORDER BY current_period_end ASC
+        LIMIT 1000
     "#;
 
     /// List expiring x402/credits subscriptions eligible for expiry (limited).
@@ -1157,6 +1233,7 @@ pub mod subscription {
                cancelled_at, cancel_at_period_end, metadata, payment_signature, created_at, updated_at
         FROM subscriptions WHERE tenant_id = $1 AND stripe_customer_id = $2
         ORDER BY created_at DESC
+        LIMIT 1000
     "#;
 
     /// Per spec (08-storage.md): Query must filter by tenant_id for isolation
@@ -1167,6 +1244,7 @@ pub mod subscription {
                cancelled_at, cancel_at_period_end, metadata, payment_signature, created_at, updated_at
         FROM subscriptions WHERE tenant_id = $1 AND product_id = $2
         ORDER BY created_at DESC
+        LIMIT 1000
     "#;
 
     /// Count subscriptions by plan_id for inventory tracking
@@ -1407,8 +1485,9 @@ pub mod dlq {
         SELECT id, tenant_id, original_webhook_id, url, payload, payload_bytes, headers, event_type,
                final_error, total_attempts, first_attempt_at, last_attempt_at, moved_to_dlq_at
         FROM webhook_dlq
+        WHERE tenant_id = $1
         ORDER BY moved_to_dlq_at DESC
-        LIMIT $1
+        LIMIT $2
     "#;
 
     pub const GET_BY_ID: &str = r#"

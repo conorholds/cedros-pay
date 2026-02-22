@@ -88,6 +88,11 @@ export type CartInventoryStatus = {
 export interface CommerceAdapter {
     listProducts(params: ProductListParams): Promise<ListResult<Product>>;
     getProductBySlug(slug: string): Promise<Product | null>;
+    /**
+     * Optional batched product lookup used by inventory/cart verification hooks
+     * to avoid N per-item network calls.
+     */
+    getProductsByIds?(ids: string[]): Promise<Map<string, Product>>;
     listCategories(): Promise<Category[]>;
     getOrderHistory(): Promise<Order[]>;
     getOrderById?(orderId: string): Promise<Order | null>;

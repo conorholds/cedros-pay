@@ -14,14 +14,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 use crate::config::{
-    secret_fields_for_category, BatchUpsertItem, PostgresConfigRepository, REDACTED_PLACEHOLDER,
+    default_keys_for_category, secret_fields_for_category, BatchUpsertItem,
+    PostgresConfigRepository, KNOWN_CATEGORIES, REDACTED_PLACEHOLDER,
 };
 use crate::errors::{error_response, ErrorCode};
 use crate::handlers::response::json_error;
 use crate::middleware::TenantContext;
 
-/// Maximum limit for list queries to prevent resource exhaustion
-const MAX_LIST_LIMIT: i32 = 1000;
+use super::cap_limit;
 
 // ============================================================================
 // Request/Response Types
@@ -53,11 +53,6 @@ fn default_limit() -> i32 {
 
 fn default_redact() -> bool {
     true
-}
-
-/// Cap the limit to MAX_LIST_LIMIT to prevent resource exhaustion
-fn cap_limit(limit: i32) -> i32 {
-    limit.clamp(1, MAX_LIST_LIMIT)
 }
 
 #[derive(Debug, Serialize)]
@@ -179,18 +174,34 @@ pub async fn list_categories(
     let _limit = cap_limit(query.limit);
 
     match state.repo.list_categories(&tenant.tenant_id).await {
-        Ok(categories) => {
-            let response = ListCategoriesResponse {
-                count: categories.len(),
-                categories: categories
-                    .into_iter()
-                    .map(|c| CategoryMeta {
+        Ok(db_categories) => {
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut categories: Vec<CategoryMeta> = db_categories
+                .into_iter()
+                .map(|c| {
+                    seen.insert(c.category.clone());
+                    CategoryMeta {
                         has_secrets: !secret_fields_for_category(&c.category).is_empty(),
                         category: c.category,
                         key_count: c.key_count,
                         last_updated: c.last_updated.map(|d| d.to_rfc3339()),
-                    })
-                    .collect(),
+                    }
+                })
+                .collect();
+            // Append known categories not yet in DB
+            for &cat in KNOWN_CATEGORIES {
+                if !seen.contains(cat) {
+                    categories.push(CategoryMeta {
+                        has_secrets: !secret_fields_for_category(cat).is_empty(),
+                        category: cat.to_string(),
+                        key_count: 0,
+                        last_updated: None,
+                    });
+                }
+            }
+            let response = ListCategoriesResponse {
+                count: categories.len(),
+                categories,
             };
             Json(response).into_response()
         }
@@ -216,12 +227,28 @@ pub async fn get_config(
     match state.repo.get_config(&tenant.tenant_id, &category).await {
         Ok(entries) => {
             if entries.is_empty() {
-                let (status, body) = error_response(
-                    ErrorCode::ResourceNotFound,
-                    Some("Config category not found".to_string()),
-                    None,
-                );
-                return json_error(status, body).into_response();
+                let default_keys = default_keys_for_category(&category);
+                if default_keys.is_empty() {
+                    // Truly unknown category
+                    let (status, body) = error_response(
+                        ErrorCode::ResourceNotFound,
+                        Some("Config category not found".to_string()),
+                        None,
+                    );
+                    return json_error(status, body).into_response();
+                }
+                // Return default schema with null values for known categories
+                let config: serde_json::Map<String, JsonValue> = default_keys
+                    .iter()
+                    .map(|k| (k.to_string(), JsonValue::Null))
+                    .collect();
+                let response = GetConfigResponse {
+                    category,
+                    config: JsonValue::Object(config),
+                    updated_at: None,
+                    secrets_redacted: query.redact_secrets,
+                };
+                return Json(response).into_response();
             }
 
             // Merge entries into a single config object
@@ -291,38 +318,35 @@ pub async fn update_config(
         return json_error(status, body).into_response();
     };
 
-    // Upsert each key in the config
-    let mut update_count = 0;
-    for (key, value) in config_obj {
-        // Skip if value is [REDACTED] - preserve existing encrypted value
-        if value == REDACTED_PLACEHOLDER {
-            continue;
-        }
+    // Collect items for atomic batch upsert
+    let items: Vec<BatchUpsertItem> = config_obj
+        .into_iter()
+        .filter(|(_, value)| *value != REDACTED_PLACEHOLDER)
+        .map(|(key, value)| BatchUpsertItem {
+            category: category.clone(),
+            config_key: key,
+            value,
+            description: request.description.clone(),
+            updated_by: updated_by.map(|s| s.to_string()),
+        })
+        .collect();
 
-        match state
-            .repo
-            .upsert_config(
-                &tenant.tenant_id,
-                &key,
-                &category,
-                value,
-                request.description.as_deref(),
-                updated_by,
-            )
-            .await
-        {
-            Ok(_) => update_count += 1,
-            Err(e) => {
-                tracing::error!(error = %e, key = %key, "Failed to update config key");
-                let (status, body) = error_response(
-                    ErrorCode::InternalError,
-                    Some("Failed to update config".to_string()),
-                    None,
-                );
-                return json_error(status, body).into_response();
-            }
+    let update_count = match state
+        .repo
+        .batch_upsert_config(&tenant.tenant_id, items)
+        .await
+    {
+        Ok(n) => n,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to update config");
+            let (status, body) = error_response(
+                ErrorCode::InternalError,
+                Some("Failed to update config".to_string()),
+                None,
+            );
+            return json_error(status, body).into_response();
         }
-    }
+    };
 
     let response = UpdateConfigResponse {
         category,
@@ -535,12 +559,28 @@ mod tests {
         assert_eq!(cap_limit(0), 1);
         assert_eq!(cap_limit(-5), 1);
         assert_eq!(cap_limit(50), 50);
-        assert_eq!(cap_limit(1500), MAX_LIST_LIMIT);
+        assert_eq!(cap_limit(1500), 1000);
     }
 
     #[test]
     fn test_default_values() {
         assert_eq!(default_limit(), 100);
         assert!(default_redact());
+    }
+
+    #[test]
+    fn test_known_categories_have_default_keys() {
+        for &cat in KNOWN_CATEGORIES {
+            assert!(
+                !default_keys_for_category(cat).is_empty(),
+                "known category '{}' should have default keys",
+                cat
+            );
+        }
+    }
+
+    #[test]
+    fn test_unknown_category_has_no_default_keys() {
+        assert!(default_keys_for_category("nonexistent").is_empty());
     }
 }

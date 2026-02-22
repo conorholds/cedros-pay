@@ -7,44 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.17] - 2026-02-22
+
 ### Added
-- **Subscription Support** - Full subscription management for recurring payments
-  - New `SubscribeButton` component for Stripe subscription checkout (redirect-based)
-  - New `CryptoSubscribeButton` component for x402 crypto subscriptions
-  - New `useSubscription` hook for Stripe subscription state management
-  - New `useCryptoSubscription` hook for x402 crypto subscription payments
-  - New `SubscriptionManager` for subscription session creation and status checks
-  - Support for multiple billing intervals: weekly, monthly, yearly, and custom
-  - Trial days support for Stripe subscriptions
-  - Subscription status checking for x402 gating (backend-verified expiry)
-  - New subscription types: `BillingInterval`, `SubscriptionStatus`, `SubscriptionQuote`, etc.
-  - Added subscription-related translation keys for i18n support
-  - Subscription cancellation via `cancelSubscription()` method
-  - Stripe billing portal URL generation via `getBillingPortalUrl()` method
-  - x402 subscription activation via `activateX402Subscription()` method
-  - New types: `CancelSubscriptionRequest/Response`, `BillingPortalRequest/Response`, `ActivateX402SubscriptionRequest/Response`
-- **Subscription Management (Upgrade/Downgrade)** - Full plan change capabilities
-  - New `SubscriptionManagementPanel` component for self-service subscription management UI
-  - New `useSubscriptionManagement` hook for programmatic plan changes
-  - New `SubscriptionChangeManager` for upgrade/downgrade API operations
-  - Plan change preview with proration calculations before confirming
-  - Support for immediate changes or changes at period end
-  - Proration behavior control (`create_prorations`, `none`, `always_invoice`)
-  - Full subscription details retrieval
-  - New types: `ChangeSubscriptionRequest/Response`, `ChangePreviewRequest/Response`, `SubscriptionDetails`, `ProrationBehavior`
+- Subscription support with `SubscribeButton`, `CryptoSubscribeButton`, `useSubscription`, and `useCryptoSubscription`
+- Subscription management (upgrade/downgrade) with `SubscriptionManagementPanel` and plan change preview
 
 ### Fixed
-- Fixed E2E test failures (12 tests were failing)
-  - Fixed `vi.mock` hoisting issues in multi-provider, stripe-payment, and crypto-payment test files
-  - Added proper mocks for Solana wallet adapter and Stripe.js at top level
-  - Fixed test isolation by clearing deduplication cache between tests
-  - Skipped crypto-payment E2E tests that conflict with React concurrent rendering (logic tested elsewhere)
-  - Fixed Stripe payment test assertions to match actual redirect-based checkout behavior
+- Comprehensive security and correctness audit (43 items across backend and frontend)
+- Admin auth: enforce `isAdmin` flag, validate HTTPS on billing portal redirect, skip Content-Type on GET requests
+- Cart: validate server-merged items, prevent merge effect re-firing, release credits holds on payment failure
+- Payments: concurrent guard on subscription/refund hooks, double-submit guard on checkout, circuit breaker probe fix
+- Config: validate `serverUrl` protocol, sanitize PII regardless of telemetry state
+- DOMPurify: enforce `rel="noopener noreferrer"` on all sanitized links
+- Backend: auth bypass removal, nonce hardening, refund locking, worker crash recovery, query safety improvements
+- Performance: lazy-load boundaries, memoized context values, bounded retry/backoff, batched inventory lookups
+- Dead code and duplication cleanup across admin components and utilities
 
 ### Security
 - Fixed `glob` CLI command injection vulnerability (high severity)
-- Fixed `js-yaml` prototype pollution vulnerabilities (moderate severity) in main package and landing site
-- Note: `bigint-buffer` vulnerability (high severity) remains - no upstream patch available; affects dev dependencies only, not production bundles
+- Fixed `js-yaml` prototype pollution vulnerabilities (moderate severity)
 
 ## [1.0.5] - 2025-11-12
 

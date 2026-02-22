@@ -6,7 +6,13 @@ import { IWalletManager } from '../managers/WalletManager';
 import { ISubscriptionManager } from '../managers/SubscriptionManager';
 import { ISubscriptionChangeManager } from '../managers/SubscriptionChangeManager';
 import { ICreditsManager } from '../managers/CreditsManager';
-import { WalletPool } from '../utils/walletPool';
+/** Minimal interface matching WalletPool to avoid importing the module at parse time */
+export interface LazyWalletPool {
+    getAdapters(): unknown[];
+    cleanup(): Promise<void>;
+    isInitialized(): boolean;
+    getId(): string;
+}
 /**
  * Context value containing configuration and manager instances.
  *
@@ -22,7 +28,7 @@ export interface CedrosContextValue {
     subscriptionChangeManager: ISubscriptionChangeManager;
     creditsManager: ICreditsManager;
     /** Context-scoped wallet pool (for internal use by CedrosPay component) */
-    walletPool: WalletPool;
+    walletPool: LazyWalletPool;
     /** Cached Solana availability check result (null = not checked yet, string = error message, undefined = available) */
     solanaError: string | null | undefined;
 }

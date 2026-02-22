@@ -214,13 +214,33 @@ impl WalletHealthChecker {
             .insert(pubkey.to_string(), std::time::Instant::now());
     }
 
-    /// Start background health check task
-    pub fn start_background_checker(self: Arc<Self>, interval: Duration) {
+    /// Start background health check task.
+    ///
+    /// Accepts an optional shutdown receiver; when signalled the loop exits gracefully.
+    pub fn start_background_checker(
+        self: Arc<Self>,
+        interval: Duration,
+        mut shutdown_rx: Option<tokio::sync::watch::Receiver<bool>>,
+    ) {
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(interval);
 
             loop {
-                ticker.tick().await;
+                // Wait for next tick or shutdown signal
+                tokio::select! {
+                    _ = ticker.tick() => {}
+                    _ = async {
+                        if let Some(ref mut rx) = shutdown_rx {
+                            let _ = rx.changed().await;
+                        } else {
+                            std::future::pending::<()>().await;
+                        }
+                    } => {
+                        info!("Wallet health checker shutting down");
+                        break;
+                    }
+                }
+
                 let results = self.check_health().await;
 
                 let healthy = results

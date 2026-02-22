@@ -37,6 +37,15 @@ pub enum StorageError {
     Unknown(String),
 }
 
+impl StorageError {
+    /// Create a Database error, logging the raw cause for debugging.
+    /// Only the context string is stored in the error — raw DB details stay in logs.
+    pub fn internal(context: &str, cause: impl std::fmt::Display) -> Self {
+        tracing::error!(error = %cause, "{context}");
+        StorageError::Database(context.to_string())
+    }
+}
+
 pub type StorageResult<T> = Result<T, StorageError>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -342,6 +351,16 @@ pub trait Store: Send + Sync {
     ) -> StorageResult<()>;
     /// Delete refund quote with tenant isolation
     async fn delete_refund_quote(&self, tenant_id: &str, refund_id: &str) -> StorageResult<()>;
+    /// List credits refund requests with optional status filter and pagination.
+    /// Credits refunds have `original_purchase_id` starting with `credits:`.
+    async fn list_credits_refund_requests(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<(Vec<RefundQuote>, i64)>;
+
     /// Cleanup expired pending refund quotes (admin operation across all tenants)
     async fn cleanup_expired_refund_quotes(&self) -> StorageResult<u64>;
 
@@ -397,6 +416,16 @@ pub trait Store: Send + Sync {
         updated_at: DateTime<Utc>,
     ) -> StorageResult<()>;
     async fn append_order_history(&self, entry: OrderHistoryEntry) -> StorageResult<()>;
+    /// Atomically update order status and append history entry in a single transaction.
+    async fn update_order_status_with_history(
+        &self,
+        tenant_id: &str,
+        order_id: &str,
+        status: &str,
+        status_updated_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+        entry: OrderHistoryEntry,
+    ) -> StorageResult<()>;
     async fn list_order_history(
         &self,
         tenant_id: &str,
@@ -404,6 +433,13 @@ pub trait Store: Send + Sync {
         limit: i32,
     ) -> StorageResult<Vec<OrderHistoryEntry>>;
     async fn create_fulfillment(&self, fulfillment: Fulfillment) -> StorageResult<()>;
+    async fn get_fulfillment(
+        &self,
+        _tenant_id: &str,
+        _fulfillment_id: &str,
+    ) -> StorageResult<Option<Fulfillment>> {
+        Ok(None)
+    }
     async fn list_fulfillments(
         &self,
         tenant_id: &str,
@@ -521,6 +557,17 @@ pub trait Store: Send + Sync {
         reason: Option<&str>,
         actor: Option<&str>,
     ) -> StorageResult<HashMap<String, (i32, i32)>>;
+
+    /// Atomically adjust product inventory by delta (positive=add, negative=subtract).
+    /// Returns (quantity_before, quantity_after) on success.
+    /// Fails with Validation if resulting quantity would be negative or inventory is untracked.
+    /// Fails with NotFound if product does not exist.
+    async fn adjust_inventory_atomic(
+        &self,
+        tenant_id: &str,
+        product_id: &str,
+        delta: i32,
+    ) -> StorageResult<(i32, i32)>;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Shipping profiles + rates
@@ -764,6 +811,7 @@ pub trait Store: Send + Sync {
     async fn get_webhook(&self, webhook_id: &str) -> StorageResult<Option<PendingWebhook>>;
     async fn list_webhooks(
         &self,
+        tenant_id: &str,
         status: Option<WebhookStatus>,
         limit: i32,
     ) -> StorageResult<Vec<PendingWebhook>>;
@@ -771,6 +819,12 @@ pub trait Store: Send + Sync {
     async fn delete_webhook(&self, webhook_id: &str) -> StorageResult<()>;
     /// Cleanup old completed/failed webhooks older than retention_days
     async fn cleanup_old_webhooks(&self, retention_days: i32) -> StorageResult<u64>;
+
+    /// Count pending webhooks awaiting delivery (for backlog metrics).
+    /// Default returns 0; PostgresStore overrides with a real COUNT query.
+    async fn count_pending_webhooks(&self) -> StorageResult<i64> {
+        Ok(0)
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Email queue
@@ -806,12 +860,23 @@ pub trait Store: Send + Sync {
     /// - `Ok(false)` if a non-expired key already exists
     ///
     /// Implementations should prefer an atomic insert-if-absent when possible.
+    /// Atomically save an idempotency key only if it doesn't exist.
+    /// Returns Ok(true) if saved, Ok(false) if key already exists.
+    ///
+    /// **Important:** Implementations MUST override this with an atomic
+    /// INSERT ... ON CONFLICT DO NOTHING (or equivalent). The default
+    /// implementation is a non-atomic read-then-write fallback that may
+    /// allow duplicate processing under concurrent requests.
     async fn try_save_idempotency_key(
         &self,
         key: &str,
         response: IdempotencyResponse,
         ttl: Duration,
     ) -> StorageResult<bool> {
+        tracing::warn!(
+            key = %key,
+            "Using non-atomic try_save_idempotency_key default; implementors should override"
+        );
         if self.get_idempotency_key(key).await?.is_some() {
             return Ok(false);
         }
@@ -955,7 +1020,8 @@ pub trait Store: Send + Sync {
     // Dead Letter Queue
     // ─────────────────────────────────────────────────────────────────────────
     async fn move_to_dlq(&self, webhook: PendingWebhook, final_error: &str) -> StorageResult<()>;
-    async fn list_dlq(&self, limit: i32) -> StorageResult<Vec<DlqWebhook>>;
+    async fn list_dlq(&self, tenant_id: &str, limit: i32) -> StorageResult<Vec<DlqWebhook>>;
+    async fn get_dlq_entry(&self, dlq_id: &str) -> StorageResult<Option<DlqWebhook>>;
     async fn retry_from_dlq(&self, dlq_id: &str) -> StorageResult<()>;
     async fn delete_from_dlq(&self, dlq_id: &str) -> StorageResult<()>;
 

@@ -37,7 +37,7 @@ export function Skeleton({ style, width, height, ...props }: SkeletonProps) {
     <Animated.View
       style={[
         styles.skeleton,
-        { width, height },
+        { width: width as any, height: height as any },
         { opacity: pulseAnim },
         style,
       ]}

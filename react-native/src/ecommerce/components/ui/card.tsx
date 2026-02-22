@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, StyleProp, TextStyle } from 'react-native';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Card = React.forwardRef<View, CardProps>(({ children, style, ...props }, ref) => (
@@ -16,7 +16,7 @@ Card.displayName = 'Card';
 
 interface CardHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CardHeader = React.forwardRef<View, CardHeaderProps>(
@@ -61,7 +61,7 @@ CardDescription.displayName = 'CardDescription';
 
 interface CardContentProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CardContent = React.forwardRef<View, CardContentProps>(
@@ -76,7 +76,7 @@ CardContent.displayName = 'CardContent';
 
 interface CardFooterProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CardFooter = React.forwardRef<View, CardFooterProps>(

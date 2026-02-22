@@ -60,13 +60,18 @@ pub fn amount_matches_atomic(paid_atomic: i64, required_major: f64, decimals: u8
 
     // Calculate tolerance in atomic units (CART_AMOUNT_TOLERANCE * 10^decimals)
     // Use ceiling to ensure we don't reject valid payments at boundaries
-    let tolerance_atomic = (CART_AMOUNT_TOLERANCE * multiplier as f64).ceil() as i64;
+    let raw_tolerance = (CART_AMOUNT_TOLERANCE * multiplier as f64).ceil();
+    let tolerance_atomic = if raw_tolerance >= i64::MAX as f64 || !raw_tolerance.is_finite() {
+        i64::MAX
+    } else {
+        raw_tolerance as i64
+    };
     // Ensure at least 1 atomic unit tolerance for rounding
     let tolerance_atomic = tolerance_atomic.max(1);
 
-    // Use saturating_sub to prevent underflow in difference calculation
-    let diff = paid_atomic.saturating_sub(required_atomic).abs();
-    diff <= tolerance_atomic
+    // BUG-13: Use i128 to prevent overflow with saturating_sub().abs() near i64 boundaries
+    let diff = i128::from(paid_atomic) - i128::from(required_atomic);
+    diff.unsigned_abs() <= tolerance_atomic as u128
 }
 
 /// Cart tolerance with atomic units only (no float required amount).
@@ -179,6 +184,26 @@ mod tests {
             1_000_000_000,
             9
         ));
+    }
+
+    #[test]
+    fn test_amount_matches_atomic_high_decimals_no_overflow() {
+        // R3-001: With decimals=18, multiplier = 10^18, tolerance multiplication
+        // could overflow i64 without the guard. Verify it doesn't panic.
+        // tolerance = 1e-6 * 1e18 = 1e12, which fits i64.
+        assert!(amount_matches_atomic(1_000_000_000_000_000_000, 1.0, 18));
+        // Even with extreme required_major, the tolerance guard prevents wrapping.
+        assert!(!amount_matches_atomic(0, 1e18, 18));
+    }
+
+    #[test]
+    fn test_amount_matches_atomic_extreme_i64_no_panic() {
+        // BUG-13: saturating_sub(i64::MIN, positive).abs() would panic.
+        // With i128 arithmetic this should not panic and should return false.
+        assert!(!amount_matches_atomic(i64::MIN, 1.0, 6));
+        assert!(!amount_matches_atomic(i64::MAX, -1.0, 0));
+        // Both extremes
+        assert!(!amount_matches_atomic(i64::MIN, 9_000_000_000_000.0, 6));
     }
 
     #[test]

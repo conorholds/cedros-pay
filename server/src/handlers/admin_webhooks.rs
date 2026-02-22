@@ -1,4 +1,7 @@
 //! Admin webhook management handlers
+//!
+//! S-01: All handlers enforce tenant isolation via TenantContext extractor.
+//! Results are filtered by tenant_id and mutations verify tenant ownership.
 
 use std::sync::Arc;
 
@@ -10,10 +13,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
+use crate::middleware::TenantContext;
 use crate::storage::{Store, WebhookStatus};
 
-/// Maximum limit for list queries to prevent resource exhaustion
-const MAX_LIST_LIMIT: i32 = 1000;
+use super::cap_limit;
 
 // ============================================================================
 // Request/Response Types
@@ -28,11 +31,6 @@ pub struct ListWebhooksQuery {
 
 fn default_limit() -> i32 {
     100
-}
-
-/// Cap the limit to MAX_LIST_LIMIT to prevent resource exhaustion
-fn cap_limit(limit: i32) -> i32 {
-    limit.clamp(1, MAX_LIST_LIMIT)
 }
 
 #[derive(Debug, Serialize)]
@@ -83,6 +81,23 @@ pub struct DlqWebhookResponse {
     pub moved_to_dlq_at: String,
 }
 
+fn webhook_to_response(w: crate::storage::PendingWebhook) -> WebhookResponse {
+    WebhookResponse {
+        id: w.id,
+        tenant_id: w.tenant_id,
+        url: w.url,
+        event_type: w.event_type,
+        status: format!("{:?}", w.status).to_lowercase(),
+        attempts: w.attempts,
+        max_attempts: w.max_attempts,
+        last_error: w.last_error,
+        last_attempt_at: w.last_attempt_at.map(|t| t.to_rfc3339()),
+        next_attempt_at: w.next_attempt_at.map(|t| t.to_rfc3339()),
+        created_at: w.created_at.to_rfc3339(),
+        completed_at: w.completed_at.map(|t| t.to_rfc3339()),
+    }
+}
+
 // ============================================================================
 // Handlers
 // ============================================================================
@@ -90,6 +105,7 @@ pub struct DlqWebhookResponse {
 /// GET /admin/webhooks - List webhooks with optional status filter
 pub async fn list_webhooks<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Query(query): Query<ListWebhooksQuery>,
 ) -> impl IntoResponse {
     let status = query.status.as_ref().and_then(|s| match s.as_str() {
@@ -100,27 +116,11 @@ pub async fn list_webhooks<S: Store + 'static>(
         _ => None,
     });
 
-    match store.list_webhooks(status, cap_limit(query.limit)).await {
+    match store.list_webhooks(&tenant.tenant_id, status, cap_limit(query.limit)).await {
         Ok(webhooks) => {
             let response = ListWebhooksResponse {
                 count: webhooks.len(),
-                webhooks: webhooks
-                    .into_iter()
-                    .map(|w| WebhookResponse {
-                        id: w.id,
-                        tenant_id: w.tenant_id,
-                        url: w.url,
-                        event_type: w.event_type,
-                        status: format!("{:?}", w.status).to_lowercase(),
-                        attempts: w.attempts,
-                        max_attempts: w.max_attempts,
-                        last_error: w.last_error,
-                        last_attempt_at: w.last_attempt_at.map(|t| t.to_rfc3339()),
-                        next_attempt_at: w.next_attempt_at.map(|t| t.to_rfc3339()),
-                        created_at: w.created_at.to_rfc3339(),
-                        completed_at: w.completed_at.map(|t| t.to_rfc3339()),
-                    })
-                    .collect(),
+                webhooks: webhooks.into_iter().map(webhook_to_response).collect(),
             };
             Json(response).into_response()
         }
@@ -135,27 +135,15 @@ pub async fn list_webhooks<S: Store + 'static>(
 /// GET /admin/webhooks/{id} - Get webhook by ID
 pub async fn get_webhook<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Path(webhook_id): Path<String>,
 ) -> impl IntoResponse {
     match store.get_webhook(&webhook_id).await {
-        Ok(Some(w)) => {
-            let response = WebhookResponse {
-                id: w.id,
-                tenant_id: w.tenant_id,
-                url: w.url,
-                event_type: w.event_type,
-                status: format!("{:?}", w.status).to_lowercase(),
-                attempts: w.attempts,
-                max_attempts: w.max_attempts,
-                last_error: w.last_error,
-                last_attempt_at: w.last_attempt_at.map(|t| t.to_rfc3339()),
-                next_attempt_at: w.next_attempt_at.map(|t| t.to_rfc3339()),
-                created_at: w.created_at.to_rfc3339(),
-                completed_at: w.completed_at.map(|t| t.to_rfc3339()),
-            };
-            Json(response).into_response()
+        Ok(Some(w)) if w.tenant_id == tenant.tenant_id => {
+            Json(webhook_to_response(w)).into_response()
         }
-        Ok(None) => {
+        Ok(Some(_)) | Ok(None) => {
+            // S-01: Return 404 for cross-tenant access attempts (same as not-found)
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
                 Some("Webhook not found".into()),
@@ -174,8 +162,27 @@ pub async fn get_webhook<S: Store + 'static>(
 /// POST /admin/webhooks/{id}/retry - Retry a failed webhook
 pub async fn retry_webhook<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Path(webhook_id): Path<String>,
 ) -> impl IntoResponse {
+    // S-01: Verify tenant ownership before mutation
+    match store.get_webhook(&webhook_id).await {
+        Ok(Some(w)) if w.tenant_id == tenant.tenant_id => {}
+        Ok(_) => {
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("Webhook not found".into()),
+                None,
+            );
+            return (status, Json(body)).into_response();
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to get webhook for retry");
+            let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
+            return (status, Json(body)).into_response();
+        }
+    }
+
     match store.retry_webhook(&webhook_id).await {
         Ok(_) => {
             let response = serde_json::json!({
@@ -195,8 +202,27 @@ pub async fn retry_webhook<S: Store + 'static>(
 /// DELETE /admin/webhooks/{id} - Delete a webhook
 pub async fn delete_webhook<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Path(webhook_id): Path<String>,
 ) -> impl IntoResponse {
+    // S-01: Verify tenant ownership before mutation
+    match store.get_webhook(&webhook_id).await {
+        Ok(Some(w)) if w.tenant_id == tenant.tenant_id => {}
+        Ok(_) => {
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("Webhook not found".into()),
+                None,
+            );
+            return (status, Json(body)).into_response();
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to get webhook for delete");
+            let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
+            return (status, Json(body)).into_response();
+        }
+    }
+
     match store.delete_webhook(&webhook_id).await {
         Ok(_) => axum::http::StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
@@ -214,9 +240,10 @@ pub async fn delete_webhook<S: Store + 'static>(
 /// GET /admin/webhooks/dlq - List dead letter queue
 pub async fn list_dlq<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Query(query): Query<ListWebhooksQuery>,
 ) -> impl IntoResponse {
-    match store.list_dlq(cap_limit(query.limit)).await {
+    match store.list_dlq(&tenant.tenant_id, cap_limit(query.limit)).await {
         Ok(webhooks) => {
             let response = DlqListResponse {
                 count: webhooks.len(),
@@ -249,8 +276,27 @@ pub async fn list_dlq<S: Store + 'static>(
 /// POST /admin/webhooks/dlq/{id}/retry - Retry from DLQ
 pub async fn retry_from_dlq<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Path(dlq_id): Path<String>,
 ) -> impl IntoResponse {
+    // S-01: Verify tenant ownership before mutation via single-entry lookup
+    match store.get_dlq_entry(&dlq_id).await {
+        Ok(Some(entry)) if entry.tenant_id == tenant.tenant_id => {}
+        Ok(_) => {
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("DLQ entry not found".into()),
+                None,
+            );
+            return (status, Json(body)).into_response();
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to verify DLQ ownership");
+            let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
+            return (status, Json(body)).into_response();
+        }
+    }
+
     match store.retry_from_dlq(&dlq_id).await {
         Ok(_) => {
             let response = serde_json::json!({
@@ -270,8 +316,27 @@ pub async fn retry_from_dlq<S: Store + 'static>(
 /// DELETE /admin/webhooks/dlq/{id} - Delete from DLQ
 pub async fn delete_from_dlq<S: Store + 'static>(
     State(store): State<Arc<S>>,
+    tenant: TenantContext,
     Path(dlq_id): Path<String>,
 ) -> impl IntoResponse {
+    // S-01: Verify tenant ownership before mutation via single-entry lookup
+    match store.get_dlq_entry(&dlq_id).await {
+        Ok(Some(entry)) if entry.tenant_id == tenant.tenant_id => {}
+        Ok(_) => {
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("DLQ entry not found".into()),
+                None,
+            );
+            return (status, Json(body)).into_response();
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to verify DLQ ownership");
+            let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
+            return (status, Json(body)).into_response();
+        }
+    }
+
     match store.delete_from_dlq(&dlq_id).await {
         Ok(_) => axum::http::StatusCode::NO_CONTENT.into_response(),
         Err(e) => {

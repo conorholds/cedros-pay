@@ -142,39 +142,53 @@ impl<S: Store + 'static> HttpMessagingService<S> {
             }
         };
 
-        let mut request = self
-            .http_client
-            .post(&self.config.webhook_url)
-            .header("Content-Type", "application/json")
-            .body(payload_bytes.clone());
+        let signature = self.sign_payload(&payload_bytes);
 
-        // Add HMAC signature header
-        if let Some(signature) = self.sign_payload(&payload_bytes) {
-            request = request.header("X-Signature", format!("sha256={}", signature));
-        }
+        // R-05 fix: retry once with backoff on transient failure
+        let max_attempts = 2u32;
+        for attempt in 1..=max_attempts {
+            let req = self
+                .http_client
+                .post(&self.config.webhook_url)
+                .header("Content-Type", "application/json")
+                .body(payload_bytes.clone());
 
-        match request.send().await {
-            Ok(response) => {
-                if response.status().is_success() {
+            let req = if let Some(ref sig) = signature {
+                req.header("X-Signature", format!("sha256={}", sig))
+            } else {
+                req
+            };
+
+            match req.send().await {
+                Ok(response) if response.status().is_success() => {
                     tracing::info!(
                         order_id = %order.id,
                         status = %response.status(),
+                        attempt,
                         "Successfully sent order.created webhook"
                     );
-                } else {
+                    return;
+                }
+                Ok(response) => {
                     tracing::warn!(
                         order_id = %order.id,
                         status = %response.status(),
+                        attempt,
                         "Order.created webhook returned non-success status"
                     );
                 }
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        order_id = %order.id,
+                        attempt,
+                        "Failed to send order.created webhook"
+                    );
+                }
             }
-            Err(e) => {
-                tracing::error!(
-                    error = %e,
-                    order_id = %order.id,
-                    "Failed to send order.created webhook"
-                );
+
+            if attempt < max_attempts {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
     }

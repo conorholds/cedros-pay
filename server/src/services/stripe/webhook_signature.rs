@@ -28,6 +28,16 @@ pub(crate) fn verify_stripe_webhook_signature(
         });
     }
 
+    // SEC-08: Cap header length to prevent DoS via oversized signatures
+    const MAX_SIGNATURE_HEADER_LEN: usize = 4096;
+    const MAX_V1_SIGNATURES: usize = 10;
+    if signature_header.len() > MAX_SIGNATURE_HEADER_LEN {
+        return Err(ServiceError::Coded {
+            code: ErrorCode::InvalidSignature,
+            message: "signature header too large".into(),
+        });
+    }
+
     // Parse Stripe signature header: t=timestamp,v1=signature
     let mut timestamp: Option<i64> = None;
     let mut signatures: Vec<&str> = Vec::new();
@@ -40,6 +50,12 @@ pub(crate) fn verify_stripe_webhook_signature(
         if key == "t" {
             timestamp = value.parse().ok();
         } else if key == "v1" {
+            if signatures.len() >= MAX_V1_SIGNATURES {
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::InvalidSignature,
+                    message: "too many signatures".into(),
+                });
+            }
             signatures.push(value);
         }
     }
@@ -68,10 +84,14 @@ pub(crate) fn verify_stripe_webhook_signature(
     mac.update(&signed_payload);
     let expected = hex::encode(mac.finalize().into_bytes());
 
-    // Compare signatures using timing-safe constant-time comparison.
-    let signature_valid = signatures
+    // S-04: Compare signatures using constant-time fold to avoid short-circuit timing leak.
+    // Iterator::any() would short-circuit on first match, leaking positional information.
+    let signature_valid: bool = signatures
         .iter()
-        .any(|s| s.as_bytes().ct_eq(expected.as_bytes()).into());
+        .fold(subtle::Choice::from(0u8), |acc, s| {
+            acc | s.as_bytes().ct_eq(expected.as_bytes())
+        })
+        .into();
     if !signature_valid {
         return Err(ServiceError::Coded {
             code: ErrorCode::InvalidSignature,
@@ -102,5 +122,27 @@ mod tests {
 
         let header = format!("t={},v1={}", ts, expected);
         verify_stripe_webhook_signature(&payload, &header, secret).expect("verify");
+    }
+
+    #[test]
+    fn test_rejects_oversized_signature_header() {
+        let payload = b"{}";
+        let secret = "whsec_test";
+        // 4097 bytes exceeds the 4096 limit
+        let header = "t=1234567890,v1=".to_string() + &"a".repeat(4081);
+        assert!(header.len() > 4096);
+        let err = verify_stripe_webhook_signature(payload, &header, secret).unwrap_err();
+        assert!(err.to_string().contains("too large"), "got: {err}");
+    }
+
+    #[test]
+    fn test_rejects_too_many_v1_signatures() {
+        let payload = b"{}";
+        let secret = "whsec_test";
+        // 11 v1= entries exceeds the 10-signature limit
+        let sigs: Vec<String> = (0..11).map(|i| format!("v1=sig{i}")).collect();
+        let header = format!("t=1234567890,{}", sigs.join(","));
+        let err = verify_stripe_webhook_signature(payload, &header, secret).unwrap_err();
+        assert!(err.to_string().contains("too many"), "got: {err}");
     }
 }

@@ -210,6 +210,12 @@ pub struct Quote402Response {
 #[serde(rename_all = "camelCase")]
 pub struct ShopConfigResponse {
     pub checkout: ShopCheckoutConfigResponse,
+    /// Stripe configuration for frontend initialization
+    pub stripe: Option<ShopStripeConfigResponse>,
+    /// x402 (crypto) payment configuration
+    pub x402: Option<ShopX402ConfigResponse>,
+    /// Which payment methods are enabled
+    pub payment_methods: PaymentMethodsConfigResponse,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,14 +224,92 @@ pub struct ShopCheckoutConfigResponse {
     pub guest_checkout: bool,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopStripeConfigResponse {
+    /// Stripe publishable key (pk_test_... or pk_live_...)
+    pub publishable_key: String,
+    /// Stripe mode: "test" or "live"
+    pub mode: String,
+    /// Whether Stripe payments are enabled
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShopX402ConfigResponse {
+    /// Solana network (mainnet, devnet, etc.)
+    pub network: String,
+    /// Payment address for x402 transfers
+    pub payment_address: String,
+    /// Token mint address (for SPL tokens)
+    pub token_mint: String,
+    /// Token symbol (e.g., "USDC")
+    pub token_symbol: String,
+    /// Whether x402 payments are enabled
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodsConfigResponse {
+    pub stripe: bool,
+    pub x402: bool,
+    pub credits: bool,
+}
+
 /// GET /paywall/v1/shop - Public shop checkout config
+///
+/// Returns shop configuration including:
+/// - Checkout settings (guest checkout enabled)
+/// - Stripe configuration (publishable key, mode)
+/// - x402 crypto payment configuration
+/// - Enabled payment methods
+///
+/// This endpoint provides all necessary config for frontend payment initialization.
 pub async fn shop_config<S: Store + 'static>(
     State(state): State<Arc<AppState<S>>>,
     _tenant: TenantContext,
 ) -> impl IntoResponse {
+    let config = &state.paywall_service.config;
+
+    // Build Stripe config if enabled and has publishable key
+    let stripe_config = if config.stripe.enabled && !config.stripe.publishable_key.is_empty() {
+        Some(ShopStripeConfigResponse {
+            publishable_key: config.stripe.publishable_key.clone(),
+            mode: config.stripe.mode.clone(),
+            enabled: true,
+        })
+    } else {
+        None
+    };
+
+    // Build x402 config if enabled
+    let x402_config = if config.x402.enabled {
+        Some(ShopX402ConfigResponse {
+            network: config.x402.network.clone(),
+            payment_address: config.x402.payment_address.clone(),
+            token_mint: config.x402.token_mint.clone(),
+            token_symbol: config.x402.token_symbol.clone(),
+            enabled: true,
+        })
+    } else {
+        None
+    };
+
+    // Check credits enabled (from cedros_login config)
+    let credits_enabled = config.cedros_login.credits_enabled;
+
     let resp = ShopConfigResponse {
         checkout: ShopCheckoutConfigResponse {
-            guest_checkout: state.paywall_service.config.shop.checkout.guest_checkout,
+            guest_checkout: config.shop.checkout.guest_checkout,
+        },
+        stripe: stripe_config,
+        x402: x402_config,
+        payment_methods: PaymentMethodsConfigResponse {
+            stripe: config.stripe.enabled && !config.stripe.publishable_key.is_empty(),
+            x402: config.x402.enabled && !config.x402.payment_address.is_empty(),
+            credits: credits_enabled,
         },
     };
     (StatusCode::OK, Json(resp))

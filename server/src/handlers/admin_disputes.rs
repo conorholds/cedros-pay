@@ -17,8 +17,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::DisputeRecord;
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -58,10 +57,6 @@ pub struct ListDisputesResponse {
     pub disputes: Vec<DisputeRecord>,
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn normalize_status(status: &str) -> String {
     status.trim().to_lowercase()
 }
@@ -87,7 +82,7 @@ pub async fn list_disputes(
     tenant: TenantContext,
     Query(params): Query<ListDisputesQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     let status = params.status.as_deref().map(normalize_status);
     let source = params.source.as_deref().map(|s| s.trim().to_lowercase());

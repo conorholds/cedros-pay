@@ -60,7 +60,7 @@ export function ProductGrid({
     <FlatList
       data={products}
       renderItem={renderItem}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item: Product) => item.id}
       numColumns={numColumns}
       contentContainerStyle={[styles.container, style]}
       columnWrapperStyle={numColumns > 1 ? styles.row : undefined}

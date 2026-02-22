@@ -42,14 +42,10 @@ pub struct CollectionsAppState<S: Store> {
     pub store: Arc<S>,
 }
 
-const MAX_LIST_LIMIT: i32 = 1000;
+use super::cap_limit;
 
 fn default_limit() -> i32 {
     100
-}
-
-fn cap_limit(limit: i32) -> i32 {
-    limit.clamp(1, MAX_LIST_LIMIT)
 }
 
 fn collection_to_info(c: &crate::models::Collection) -> CollectionInfo {

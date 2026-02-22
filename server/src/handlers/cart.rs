@@ -478,7 +478,7 @@ pub async fn cart_checkout<S: Store + 'static>(
         }
     }
 
-    // Validate resource IDs in items
+    // Validate resource IDs and quantities in items (B-05)
     for (i, item) in req.items.iter().enumerate() {
         if let Some(ref resource) = item.resource {
             if let Err(e) = crate::errors::validation::validate_resource_id(resource) {
@@ -489,6 +489,29 @@ pub async fn cart_checkout<S: Store + 'static>(
                 );
                 return json_error(status, body);
             }
+        }
+        // B-05: Validate quantity bounds (matching cart_quote validation)
+        if item.quantity <= 0 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidQuantity,
+                Some(format!(
+                    "item {} quantity must be positive (got {})",
+                    i, item.quantity
+                )),
+                None,
+            );
+            return json_error(status, body);
+        }
+        if item.quantity > MAX_ITEM_QUANTITY {
+            let (status, body) = error_response(
+                ErrorCode::InvalidQuantity,
+                Some(format!(
+                    "item {} quantity cannot exceed {} (got {})",
+                    i, MAX_ITEM_QUANTITY, item.quantity
+                )),
+                None,
+            );
+            return json_error(status, body);
         }
     }
 

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ViewStyle,
+  StyleProp,
   TextStyle,
   ActivityIndicator,
 } from 'react-native';
@@ -18,7 +19,7 @@ export interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   textStyle?: TextStyle;
 }
 

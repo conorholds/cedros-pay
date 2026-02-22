@@ -7,7 +7,7 @@ import { CedrosConfig } from '../types';
  *
  * Returns a normalized config with serverUrl defaulted to window.location.origin
  */
-export declare function validateConfig(config: CedrosConfig): Required<CedrosConfig> & {
+export declare function validateConfig(config: CedrosConfig): CedrosConfig & {
     serverUrl: string;
 };
 //# sourceMappingURL=validateConfig.d.ts.map

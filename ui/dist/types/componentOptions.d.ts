@@ -1,5 +1,18 @@
-import { WalletAdapter } from '@solana/wallet-adapter-base';
 import { CartItem } from './index';
+/**
+ * Structural type matching @solana/wallet-adapter-base WalletAdapter.
+ * Using a local interface avoids a runtime import of @solana/wallet-adapter-base
+ * which Metro may resolve even for type-only imports.
+ */
+export interface WalletAdapterLike {
+    name: string;
+    connected: boolean;
+    publicKey: {
+        toBase58(): string;
+    } | null;
+    connect(): Promise<void>;
+    disconnect(): Promise<void>;
+}
 /**
  * Payment method types (extensible)
  */
@@ -139,7 +152,7 @@ export interface CallbackOptions {
  */
 export interface AdvancedOptions {
     /** Custom wallet adapters (overrides default pool) */
-    wallets?: WalletAdapter[];
+    wallets?: WalletAdapterLike[];
     /** Auto-detect wallets and skip modal if none found */
     autoDetectWallets?: boolean;
     /** URL to open for crypto testing (e.g., Storybook test page) */

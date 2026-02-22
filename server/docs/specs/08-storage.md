@@ -160,6 +160,13 @@ Storage interfaces and database schema.
 
 ## Database Schema
 
+### Migration Naming Policy
+
+- Migration filenames must use `YYYYMMDDHHMMSS_description.sql` (14-digit timestamp + snake_case).
+- Legacy migrations from the early history are fixed and explicitly allowlisted in `scripts/check-migration-naming.sh`.
+- All new migrations must use the active `3026...` sequence to keep lexicographic ordering stable and prevent accidental insertion before newer schema changes.
+- CI enforces this policy via `scripts/check-migration-naming.sh`.
+
 ### stripe_sessions
 
 ```sql

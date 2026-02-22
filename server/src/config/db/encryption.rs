@@ -152,6 +152,9 @@ impl ConfigEncryption {
     }
 
     /// Create new DEK for tenant
+    ///
+    /// Uses INSERT ... ON CONFLICT DO NOTHING to handle race conditions where
+    /// two concurrent requests try to create a DEK for the same tenant.
     async fn create_dek(
         &self,
         tenant_id: &str,
@@ -172,11 +175,12 @@ impl ConfigEncryption {
 
         let version = max_version.unwrap_or(0) + 1;
 
-        // Store in database
-        sqlx::query(
+        // Store in database (ON CONFLICT DO NOTHING handles concurrent creation)
+        let result = sqlx::query(
             r#"
             INSERT INTO encryption_keys (tenant_id, key_version, encrypted_dek, algorithm, active)
             VALUES ($1, $2, $3, 'AES-256-GCM', TRUE)
+            ON CONFLICT (tenant_id, key_version) DO NOTHING
             "#,
         )
         .bind(tenant_id)
@@ -184,6 +188,14 @@ impl ConfigEncryption {
         .bind(&encrypted_dek)
         .execute(&self.pool)
         .await?;
+
+        if result.rows_affected() == 0 {
+            // Another request created the DEK concurrently; load it
+            return self
+                .load_dek_from_db(tenant_id)
+                .await?
+                .ok_or_else(|| EncryptionError::NoDekForTenant(tenant_id.to_string()));
+        }
 
         Ok((version, dek))
     }

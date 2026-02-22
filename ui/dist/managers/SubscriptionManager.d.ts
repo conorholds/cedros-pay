@@ -1,4 +1,4 @@
-import { PaymentResult, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse } from '../types';
+import { PaymentResult, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse } from '../types';
 import { RouteDiscoveryManager } from './RouteDiscoveryManager';
 /**
  * Options for requesting a subscription quote (x402)
@@ -51,14 +51,6 @@ export interface ISubscriptionManager {
      */
     requestSubscriptionQuote(resource: string, interval: BillingInterval, options?: SubscriptionQuoteOptions): Promise<SubscriptionQuote>;
     /**
-     * Cancel a subscription
-     */
-    cancelSubscription(request: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse>;
-    /**
-     * Get Stripe billing portal URL for subscription management
-     */
-    getBillingPortalUrl(request: BillingPortalRequest): Promise<BillingPortalResponse>;
-    /**
      * Activate x402 subscription after payment verification
      */
     activateX402Subscription(request: ActivateX402SubscriptionRequest): Promise<ActivateX402SubscriptionResponse>;
@@ -73,13 +65,18 @@ export interface ISubscriptionManager {
  */
 export declare class SubscriptionManager implements ISubscriptionManager {
     private stripe;
+    private initPromise;
     private readonly publicKey;
     private readonly routeDiscovery;
     private readonly sessionRateLimiter;
     private readonly statusRateLimiter;
     private readonly circuitBreaker;
     constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager);
-    /** Initialize Stripe.js library */
+    /**
+     * Initialize Stripe.js library
+     *
+     * Concurrent callers share a single loadStripe() call via a cached promise.
+     */
     initialize(): Promise<void>;
     /** Internal helper: execute with rate limiting, circuit breaker, and retry */
     private executeWithResilience;
@@ -103,10 +100,6 @@ export declare class SubscriptionManager implements ISubscriptionManager {
      * Request a subscription quote for x402 crypto payment
      */
     requestSubscriptionQuote(resource: string, interval: BillingInterval, options?: SubscriptionQuoteOptions): Promise<SubscriptionQuote>;
-    /** Cancel a subscription */
-    cancelSubscription(request: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse>;
-    /** Get Stripe billing portal URL for subscription management */
-    getBillingPortalUrl(request: BillingPortalRequest): Promise<BillingPortalResponse>;
     /** Activate x402 subscription after payment verification */
     activateX402Subscription(request: ActivateX402SubscriptionRequest): Promise<ActivateX402SubscriptionResponse>;
 }

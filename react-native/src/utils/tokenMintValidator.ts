@@ -9,17 +9,10 @@
  * developers when they use an unrecognized token mint address.
  */
 
-// Token icons (local assets)
-import usdcIcon from '../assets/tokens/usdc.webp';
-import usdtIcon from '../assets/tokens/usdt.svg';
-import pyusdIcon from '../assets/tokens/pyusd.webp';
-import cashIcon from '../assets/tokens/cash.webp';
-
-/** Stablecoin metadata including symbol, decimals, and icon */
+/** Stablecoin metadata including symbol and decimals */
 export interface StablecoinMeta {
   symbol: string;
   decimals: number;
-  icon: string;
 }
 
 /** Known stablecoins with full metadata */
@@ -27,22 +20,18 @@ export const STABLECOIN_METADATA: Record<string, StablecoinMeta> = {
   'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': {
     symbol: 'USDC',
     decimals: 6,
-    icon: usdcIcon,
   },
   'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': {
     symbol: 'USDT',
     decimals: 6,
-    icon: usdtIcon,
   },
   '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo': {
     symbol: 'PYUSD',
     decimals: 6,
-    icon: pyusdIcon,
   },
   'CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH': {
     symbol: 'CASH',
     decimals: 6,
-    icon: cashIcon,
   },
 };
 

@@ -33,7 +33,11 @@ export declare namespace v1 {
      * Configuration for the Cedros Pay provider
      */
     interface CedrosConfig {
-        stripePublicKey: string;
+        /**
+         * Stripe publishable key. Required when card payments are enabled.
+         * May be omitted for crypto-only integrations when `showCard` is `false`.
+         */
+        stripePublicKey?: string;
         serverUrl?: string;
         solanaCluster: SolanaCluster;
         tokenMint?: string;
@@ -43,6 +47,13 @@ export declare namespace v1 {
         unstyled?: boolean;
         logLevel?: number;
         /**
+         * Whether to show the card (Stripe) payment button. Defaults to `true`.
+         * When set to `false`, `stripePublicKey` is not required.
+         *
+         * @default true
+         */
+        showCard?: boolean;
+        /**
          * SAFETY: Allow unknown token mints (NOT RECOMMENDED)
          *
          * By default, CedrosPay validates token mints against known stablecoins (USDC, USDT, PYUSD, CASH).
@@ -50,7 +61,7 @@ export declare namespace v1 {
          *
          * Set this to `true` ONLY if you are intentionally using a custom token, testnet token, or new stablecoin.
          *
-         * ⚠️ WARNING: Typos in token mint addresses cause PERMANENT loss of funds.
+         * WARNING: Typos in token mint addresses cause PERMANENT loss of funds.
          *
          * @default false
          */

@@ -717,30 +717,7 @@ async fn test_create_cart_credits_hold_idempotency_key_includes_user_id() {
     );
 }
 
-#[tokio::test]
-async fn test_store_cart_quote_with_retry_succeeds_after_transient_failure() {
-    use crate::storage::StorageError;
 
-    let attempts: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-    let attempts_state = attempts.clone();
-
-    store_cart_quote_with_retry("cart-1", move || {
-        let attempts = attempts_state.clone();
-        async move {
-            let mut guard = attempts.lock();
-            *guard += 1;
-            if *guard == 1 {
-                Err(StorageError::Database("boom".to_string()))
-            } else {
-                Ok(())
-            }
-        }
-    })
-    .await
-    .unwrap();
-
-    assert_eq!(*attempts.lock(), 2);
-}
 
 #[tokio::test]
 async fn test_authorize_credits_for_user_records_user_id() {
@@ -1383,7 +1360,7 @@ fn test_refund_succeeded_event_uses_refund_tenant() {
         signature: None,
     };
 
-    let event = super::build_refund_succeeded_event(&refund, "admin", "sig");
+    let event = super::build_refund_succeeded_event(&refund, "admin", "sig", chrono::Utc::now());
     assert_eq!(event.tenant_id, "tenant-1");
 }
 

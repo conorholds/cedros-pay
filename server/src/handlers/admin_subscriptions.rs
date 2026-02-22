@@ -213,6 +213,8 @@ async fn sync_plan_to_stripe(
     };
 
     // Create monthly price if not exists and price > 0
+    // NOTE: price_monthly_usd is f64 from JSON (no integer-cents alternative in public API).
+    // .round() mitigates IEEE 754 imprecision for currency values (≤2 decimal places).
     if plan.stripe_price_id_monthly.is_none() && plan.price_monthly_usd > 0.0 {
         let monthly_cents = (plan.price_monthly_usd * 100.0).round() as i64;
         match stripe
@@ -229,6 +231,7 @@ async fn sync_plan_to_stripe(
     }
 
     // Create annual price if not exists and price > 0
+    // Same f64→cents note as monthly above.
     if plan.stripe_price_id_annual.is_none() && plan.price_annual_usd > 0.0 {
         let annual_cents = (plan.price_annual_usd * 100.0).round() as i64;
         match stripe

@@ -37,7 +37,7 @@ fn parse_tenant_id(row: &PgRow, context: &str) -> StorageResult<String> {
         Err(e) => {
             warn!(context = context, error = %e, "tenant_id column missing or invalid");
             Err(StorageError::Database(format!(
-                "tenant_id column missing or invalid when parsing {context}: {e}"
+                "tenant_id column missing or invalid when parsing {context}"
             )))
         }
     }
@@ -48,7 +48,7 @@ fn parse_string_map(
     context: &str,
 ) -> StorageResult<HashMap<String, String>> {
     serde_json::from_value(value)
-        .map_err(|e| StorageError::Database(format!("failed to parse {}: {}", context, e)))
+        .map_err(|e| StorageError::internal(&format!("failed to parse {context}"), e))
 }
 
 pub fn parse_cart_quote(row: PgRow) -> StorageResult<CartQuote> {
@@ -63,7 +63,7 @@ pub fn parse_cart_quote(row: PgRow) -> StorageResult<CartQuote> {
     let wallet_paid_by: Option<String> = row.get("wallet_paid_by");
 
     let items: Vec<CartItem> = serde_json::from_value(items_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse items: {}", e)))?;
+        .map_err(|e| StorageError::internal("failed to parse items", e))?;
     let metadata = parse_string_map(metadata_json, "cart metadata")?;
 
     let asset = get_asset(&total_asset)
@@ -153,11 +153,11 @@ pub fn parse_order(row: PgRow) -> StorageResult<Order> {
     let status_updated_at: Option<DateTime<Utc>> = row.try_get("status_updated_at").ok();
 
     let items: Vec<OrderItem> = serde_json::from_value(items_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse order items: {e}")))?;
+        .map_err(|e| StorageError::internal("failed to parse order items", e))?;
     let shipping: Option<OrderShipping> = match shipping_json {
         Some(v) => serde_json::from_value(v)
             .map(Some)
-            .map_err(|e| StorageError::Database(format!("failed to parse order shipping: {e}")))?,
+            .map_err(|e| StorageError::internal("failed to parse order shipping", e))?,
         None => None,
     };
     let metadata = parse_string_map(metadata_json, "order metadata")?;
@@ -201,7 +201,7 @@ pub fn parse_order_history(row: PgRow) -> StorageResult<OrderHistoryEntry> {
 pub fn parse_fulfillment(row: PgRow) -> StorageResult<Fulfillment> {
     let items_json: serde_json::Value = row.get("items");
     let items: Vec<OrderItem> = serde_json::from_value(items_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse fulfillment items: {e}")))?;
+        .map_err(|e| StorageError::internal("failed to parse fulfillment items", e))?;
     let metadata_json: serde_json::Value = row.get("metadata");
     let metadata = parse_string_map(metadata_json, "fulfillment metadata")?;
 
@@ -225,7 +225,7 @@ pub fn parse_fulfillment(row: PgRow) -> StorageResult<Fulfillment> {
 pub fn parse_return_request(row: PgRow) -> StorageResult<ReturnRequest> {
     let items_json: serde_json::Value = row.get("items");
     let items: Vec<OrderItem> = serde_json::from_value(items_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse return items: {e}")))?;
+        .map_err(|e| StorageError::internal("failed to parse return items", e))?;
     let metadata_json: serde_json::Value = row.get("metadata");
     let metadata = parse_string_map(metadata_json, "return metadata")?;
 
@@ -275,7 +275,7 @@ pub fn parse_inventory_adjustment(row: PgRow) -> StorageResult<InventoryAdjustme
 pub fn parse_shipping_profile(row: PgRow) -> StorageResult<ShippingProfile> {
     let countries_json: serde_json::Value = row.get("countries");
     let countries: Vec<String> = serde_json::from_value(countries_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse shipping countries: {e}")))?;
+        .map_err(|e| StorageError::internal("failed to parse shipping countries", e))?;
 
     Ok(ShippingProfile {
         id: row.get("id"),
@@ -323,7 +323,7 @@ pub fn parse_tax_rate(row: PgRow) -> StorageResult<TaxRate> {
 pub fn parse_customer(row: PgRow) -> StorageResult<Customer> {
     let addresses_json: serde_json::Value = row.get("addresses");
     let addresses: Vec<CustomerAddress> = serde_json::from_value(addresses_json)
-        .map_err(|e| StorageError::Database(format!("failed to parse customer addresses: {e}")))?;
+        .map_err(|e| StorageError::internal("failed to parse customer addresses", e))?;
 
     Ok(Customer {
         id: row.get("id"),
@@ -380,7 +380,7 @@ pub fn parse_gift_card(row: PgRow) -> StorageResult<GiftCard> {
 pub fn parse_collection(row: PgRow) -> StorageResult<Collection> {
     let product_ids_json: serde_json::Value = row.get("product_ids");
     let product_ids: Vec<String> = serde_json::from_value(product_ids_json).map_err(|e| {
-        StorageError::Database(format!("failed to parse collection product_ids: {e}"))
+        StorageError::internal("failed to parse collection product_ids", e)
     })?;
 
     Ok(Collection {
@@ -506,7 +506,13 @@ pub fn parse_webhook(row: PgRow) -> StorageResult<PendingWebhook> {
         "processing" => WebhookStatus::Processing,
         "success" => WebhookStatus::Success,
         "failed" => WebhookStatus::Failed,
-        _ => WebhookStatus::Pending,
+        unknown => {
+            tracing::warn!(
+                status = %unknown,
+                "Unknown webhook status in database, defaulting to Pending"
+            );
+            WebhookStatus::Pending
+        }
     };
 
     let headers = parse_string_map(headers_json, "webhook headers")?;
@@ -538,7 +544,13 @@ pub fn parse_email(row: PgRow) -> StorageResult<PendingEmail> {
         "pending" => EmailStatus::Pending,
         "completed" => EmailStatus::Completed,
         "failed" => EmailStatus::Failed,
-        _ => EmailStatus::Pending,
+        unknown => {
+            tracing::warn!(
+                status = %unknown,
+                "Unknown email status in database, defaulting to Pending"
+            );
+            EmailStatus::Pending
+        }
     };
 
     Ok(PendingEmail {
@@ -576,12 +588,13 @@ pub fn parse_subscription(row: PgRow) -> StorageResult<Subscription> {
         "unpaid" => SubscriptionStatus::Unpaid,
         "expired" => SubscriptionStatus::Expired,
         unknown => {
-            // REL-010: Log warning for unknown status instead of silent default
+            // B-01: Fail-safe — unknown status defaults to Expired (not Active)
+            // to prevent granting unauthorized access on data corruption
             tracing::warn!(
                 status = %unknown,
-                "Unknown subscription status in database, defaulting to Active"
+                "Unknown subscription status in database, defaulting to Expired (fail-safe)"
             );
-            SubscriptionStatus::Active
+            SubscriptionStatus::Expired
         }
     };
 
@@ -589,7 +602,13 @@ pub fn parse_subscription(row: PgRow) -> StorageResult<Subscription> {
         "stripe" => PaymentMethod::Stripe,
         "x402" => PaymentMethod::X402,
         "credits" => PaymentMethod::Credits,
-        _ => PaymentMethod::Stripe,
+        unknown => {
+            tracing::warn!(
+                payment_method = %unknown,
+                "Unknown payment method in database, defaulting to Stripe"
+            );
+            PaymentMethod::Stripe
+        }
     };
 
     let billing_period = match billing_period_str.as_str() {
@@ -597,7 +616,13 @@ pub fn parse_subscription(row: PgRow) -> StorageResult<Subscription> {
         "week" => BillingPeriod::Week,
         "month" => BillingPeriod::Month,
         "year" => BillingPeriod::Year,
-        _ => BillingPeriod::Month,
+        unknown => {
+            tracing::warn!(
+                billing_period = %unknown,
+                "Unknown billing period in database, defaulting to Month"
+            );
+            BillingPeriod::Month
+        }
     };
 
     let metadata = parse_string_map(metadata_json, "subscription metadata")?;

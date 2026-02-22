@@ -6,21 +6,80 @@
 //! Pattern: Each function takes a pool, begins a transaction, performs
 //! all operations, then commits. If any operation fails, the entire
 //! transaction rolls back automatically.
+//!
+//! S-03: Queries use `map_table()` for configurable table names (payments,
+//! refund_quotes, products) to respect SchemaMapping. Tables not in
+//! SchemaMapping (orders, inventory_adjustments, etc.) use default names.
 
 use chrono::Utc;
 use sqlx::PgPool;
 
+use crate::config::SchemaMapping;
 use crate::errors::ErrorCode;
 use crate::models::{InventoryAdjustment, Order, PaymentTransaction, RefundQuote};
 use crate::services::{ServiceError, ServiceResult};
+
+/// Apply word-boundary-aware identifier replacement (same algorithm as PostgresStore).
+fn map_table(query: &str, from: &str, to: &str) -> String {
+    if from == to {
+        return query.to_string();
+    }
+    let mut out = String::with_capacity(query.len());
+    let bytes = query.as_bytes();
+    let mut i = 0;
+    while let Some(rel_pos) = query[i..].find(from) {
+        let start = i + rel_pos;
+        let end = start + from.len();
+        let before_ok =
+            start == 0 || !bytes[start - 1].is_ascii_alphanumeric() && bytes[start - 1] != b'_';
+        let after_ok =
+            end == bytes.len() || !bytes[end].is_ascii_alphanumeric() && bytes[end] != b'_';
+        out.push_str(&query[i..start]);
+        if before_ok && after_ok {
+            out.push_str(to);
+        } else {
+            out.push_str(from);
+        }
+        i = end;
+    }
+    out.push_str(&query[i..]);
+    out
+}
 
 /// Transactional operations for payment processing
 ///
 /// All methods use ACID transactions to ensure consistency
 /// across multiple tables and integration points.
+///
+/// Accepts an optional `SchemaMapping` to respect configurable table names
+/// for tables covered by the mapping (payments, refund_quotes, products).
 pub struct TransactionalOps;
 
 impl TransactionalOps {
+    /// Apply schema mapping to a query for the `payments` table.
+    fn payments_query(query: &str, tables: Option<&SchemaMapping>) -> String {
+        match tables {
+            Some(t) => map_table(query, "payments", &t.payments_table),
+            None => query.to_string(),
+        }
+    }
+
+    /// Apply schema mapping to a query for the `refund_quotes` table.
+    fn refund_query(query: &str, tables: Option<&SchemaMapping>) -> String {
+        match tables {
+            Some(t) => map_table(query, "refund_quotes", &t.refund_quotes_table),
+            None => query.to_string(),
+        }
+    }
+
+    /// Apply schema mapping to a query for the `products` table.
+    fn products_query(query: &str, tables: Option<&SchemaMapping>) -> String {
+        match tables {
+            Some(t) => map_table(query, "products", &t.products_table),
+            None => query.to_string(),
+        }
+    }
+
     /// Atomic: Record payment + create order + update inventory
     ///
     /// This ensures that either:
@@ -32,6 +91,7 @@ impl TransactionalOps {
     /// * `payment` - Payment transaction to record
     /// * `order` - Order to create
     /// * `inventory_adjustments` - Inventory changes to apply
+    /// * `tables` - Optional schema mapping for configurable table names
     ///
     /// # Returns
     /// Ok(true) if newly recorded, Ok(false) if already existed (idempotent)
@@ -40,6 +100,7 @@ impl TransactionalOps {
         payment: &PaymentTransaction,
         order: &Order,
         inventory_adjustments: &[InventoryAdjustment],
+        tables: Option<&SchemaMapping>,
     ) -> ServiceResult<bool> {
         let mut tx = pool
             .begin()
@@ -47,14 +108,16 @@ impl TransactionalOps {
             .map_err(|e| ServiceError::Internal(format!("Failed to begin transaction: {}", e)))?;
 
         // Step 1: Try to record payment (idempotent with ON CONFLICT)
-        let payment_result = sqlx::query(
+        let payment_sql = Self::payments_query(
             r#"
             INSERT INTO payments (signature, tenant_id, resource_id, wallet, user_id, amount, asset, created_at, metadata)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (tenant_id, signature) DO NOTHING
             RETURNING signature
-            "#
-        )
+            "#,
+            tables,
+        );
+        let payment_result = sqlx::query(&payment_sql)
         .bind(&payment.signature)
         .bind(&payment.tenant_id)
         .bind(&payment.resource_id)
@@ -77,13 +140,13 @@ impl TransactionalOps {
             return Ok(false);
         }
 
-        // Step 2: Create order
+        // Step 2: Create order (orders table is not configurable in SchemaMapping)
         let order_items_json = sqlx::types::Json(&order.items);
         let metadata_json = sqlx::types::Json(&order.metadata);
 
         sqlx::query(
             r#"
-            INSERT INTO orders (id, tenant_id, source, purchase_id, resource_id, user_id, customer, 
+            INSERT INTO orders (id, tenant_id, source, purchase_id, resource_id, user_id, customer,
                                status, items, amount, amount_asset, created_at, updated_at, metadata)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (tenant_id, id) DO NOTHING
@@ -111,7 +174,7 @@ impl TransactionalOps {
         for adjustment in inventory_adjustments {
             sqlx::query(
                 r#"
-                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta, 
+                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta,
                                                   quantity_before, quantity_after, reason, actor, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 "#
@@ -148,6 +211,7 @@ impl TransactionalOps {
         inventory_adjustments: &[InventoryAdjustment],
         order_id: &str,
         new_order_status: &str,
+        tables: Option<&SchemaMapping>,
     ) -> ServiceResult<()> {
         let mut tx = pool
             .begin()
@@ -155,13 +219,15 @@ impl TransactionalOps {
             .map_err(|e| ServiceError::Internal(format!("Failed to begin transaction: {}", e)))?;
 
         // Step 1: Mark refund as processed
-        sqlx::query(
+        let refund_sql = Self::refund_query(
             r#"
-            UPDATE refund_quotes 
+            UPDATE refund_quotes
             SET processed_at = NOW(), processed_by = $3
             WHERE tenant_id = $1 AND id = $2 AND processed_at IS NULL
             "#,
-        )
+            tables,
+        );
+        sqlx::query(&refund_sql)
         .bind(&refund.tenant_id)
         .bind(&refund.id)
         .bind("system")
@@ -173,7 +239,7 @@ impl TransactionalOps {
         for adjustment in inventory_adjustments {
             sqlx::query(
                 r#"
-                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta, 
+                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta,
                                                   quantity_before, quantity_after, reason, actor, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 "#
@@ -193,10 +259,10 @@ impl TransactionalOps {
             .map_err(|e| ServiceError::Internal(format!("Failed to record inventory restoration: {}", e)))?;
         }
 
-        // Step 3: Update order status
+        // Step 3: Update order status (orders table is not configurable in SchemaMapping)
         sqlx::query(
             r#"
-            UPDATE orders 
+            UPDATE orders
             SET status = $3, status_updated_at = NOW(), updated_at = NOW()
             WHERE tenant_id = $1 AND id = $2
             "#,
@@ -222,6 +288,7 @@ impl TransactionalOps {
         pool: &PgPool,
         tenant_id: &str,
         cart_id: &str,
+        tables: Option<&SchemaMapping>,
     ) -> ServiceResult<Vec<InventoryAdjustment>> {
         let mut tx = pool
             .begin()
@@ -268,19 +335,23 @@ impl TransactionalOps {
             .map_err(|e| ServiceError::Internal(format!("Failed to convert reservation: {}", e)))?;
 
             // Get current inventory for adjustment record
+            // S-02: Both variant and non-variant paths filter by tenant_id
             let (current_qty,): (i32,) = if let Some(ref vid) = variant_id {
                 sqlx::query_as(
-                    "SELECT inventory_quantity FROM product_variants WHERE product_id = $1 AND id = $2"
+                    "SELECT inventory_quantity FROM product_variants WHERE product_id = $1 AND id = $2 AND tenant_id = $3"
                 )
                 .bind(&product_id)
                 .bind(vid)
+                .bind(tenant_id)
                 .fetch_one(&mut *tx)
                 .await
                 .map_err(|e| ServiceError::Internal(format!("Failed to get variant inventory: {}", e)))?
             } else {
-                sqlx::query_as(
+                let products_sql = Self::products_query(
                     "SELECT inventory_quantity FROM products WHERE id = $1 AND tenant_id = $2",
-                )
+                    tables,
+                );
+                sqlx::query_as(&products_sql)
                 .bind(&product_id)
                 .bind(tenant_id)
                 .fetch_one(&mut *tx)
@@ -308,7 +379,7 @@ impl TransactionalOps {
 
             sqlx::query(
                 r#"
-                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta, 
+                INSERT INTO inventory_adjustments (id, tenant_id, product_id, variant_id, delta,
                                                   quantity_before, quantity_after, reason, actor, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 "#
@@ -326,6 +397,32 @@ impl TransactionalOps {
             .execute(&mut *tx)
             .await
             .map_err(|e| ServiceError::Internal(format!("Failed to record adjustment: {}", e)))?;
+
+            // Actually decrement the inventory quantity on the product/variant
+            if let Some(ref vid) = variant_id {
+                sqlx::query(
+                    "UPDATE product_variants SET inventory_quantity = $1 WHERE product_id = $2 AND id = $3 AND tenant_id = $4"
+                )
+                .bind(next_qty)
+                .bind(&product_id)
+                .bind(vid)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| ServiceError::Internal(format!("Failed to update variant inventory: {}", e)))?;
+            } else {
+                let update_sql = Self::products_query(
+                    "UPDATE products SET inventory_quantity = $1 WHERE id = $2 AND tenant_id = $3",
+                    tables,
+                );
+                sqlx::query(&update_sql)
+                .bind(next_qty)
+                .bind(&product_id)
+                .bind(tenant_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| ServiceError::Internal(format!("Failed to update product inventory: {}", e)))?;
+            }
 
             adjustments.push(adjustment);
         }
@@ -356,7 +453,7 @@ impl TransactionalOps {
         let now = Utc::now();
         let card_id = uuid::Uuid::new_v4().to_string();
 
-        // Create gift card
+        // Create gift card (gift_cards is not configurable in SchemaMapping)
         let insert_result = sqlx::query_as::<_, (String,)>(
             r#"
             INSERT INTO gift_cards (id, tenant_id, code, balance, currency, active, created_at, created_by)
@@ -411,35 +508,69 @@ impl TransactionalOps {
 
 #[cfg(test)]
 mod tests {
-    // Note: These tests would require a test database setup
-    // They serve as documentation of expected behavior
+    use super::*;
 
     #[test]
+    fn test_map_table_replaces_at_word_boundaries() {
+        let q = "SELECT * FROM payments WHERE payments.id = $1";
+        let mapped = map_table(q, "payments", "tenant_payments");
+        assert_eq!(
+            mapped,
+            "SELECT * FROM tenant_payments WHERE tenant_payments.id = $1"
+        );
+    }
+
+    #[test]
+    fn test_map_table_does_not_replace_inside_identifiers() {
+        let q = "SELECT payments_id FROM payments";
+        let mapped = map_table(q, "payments", "tenant_payments");
+        assert_eq!(mapped, "SELECT payments_id FROM tenant_payments");
+    }
+
+    #[test]
+    fn test_map_table_noop_when_same() {
+        let q = "SELECT * FROM payments";
+        let mapped = map_table(q, "payments", "payments");
+        assert_eq!(mapped, q);
+    }
+
+    // Integration test stubs — require a live Postgres database.
+    // Run with: cargo test -- --ignored transactional_ops
+
+    #[test]
+    #[ignore = "requires integration test database"]
     fn test_payment_order_inventory_atomicity() {
         // When record_payment_and_order is called:
         // - All three operations succeed together, OR
         // - All three fail and rollback
         // - Never a partial state
+        todo!("set up test database and verify atomicity");
     }
 
     #[test]
+    #[ignore = "requires integration test database"]
     fn test_refund_inventory_order_atomicity() {
         // When process_refund_and_restore_inventory is called:
         // - Refund marked, inventory restored, and order updated together
         // - Automatic rollback on any failure
+        todo!("set up test database and verify atomicity");
     }
 
     #[test]
+    #[ignore = "requires integration test database"]
     fn test_reservation_conversion_atomicity() {
         // When convert_reservations_to_inventory is called:
         // - All reservations converted together
         // - All inventory adjustments recorded together
+        todo!("set up test database and verify atomicity");
     }
 
     #[test]
+    #[ignore = "requires integration test database"]
     fn test_gift_card_creation_atomicity() {
         // When create_gift_card_with_balance is called:
         // - Card created AND initial adjustment recorded together
         // - Or neither (on conflict or error)
+        todo!("set up test database and verify atomicity");
     }
 }

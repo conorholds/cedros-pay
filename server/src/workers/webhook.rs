@@ -84,6 +84,16 @@ const BACKOFF_MULTIPLIER: u64 = 2;
 /// Maximum jitter in milliseconds to add to backoff
 const BACKOFF_JITTER_MAX_MS: u64 = 1000;
 
+fn build_webhook_http_client(timeout: Duration) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(timeout)
+        .redirect(reqwest::redirect::Policy::none())
+        .pool_max_idle_per_host(10)
+        .pool_idle_timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("webhook http client: {}", e))
+}
+
 impl<S: Store + 'static> WebhookWorker<S> {
     pub fn new(store: Arc<S>) -> Result<Self, String> {
         Self::new_with_config(
@@ -99,13 +109,7 @@ impl<S: Store + 'static> WebhookWorker<S> {
         cb_config: CircuitBreakerConfig,
     ) -> Result<Self, String> {
         let timeout = callbacks.timeout;
-        let http_client = reqwest::Client::builder()
-            .timeout(timeout)
-            .redirect(reqwest::redirect::Policy::none())
-            .pool_max_idle_per_host(10)
-            .pool_idle_timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|e| format!("webhook http client: {}", e))?;
+        let http_client = build_webhook_http_client(timeout)?;
         Ok(Self {
             store,
             // WK-002: Configure connection pool limits to prevent resource exhaustion
@@ -138,13 +142,7 @@ impl<S: Store + 'static> WebhookWorker<S> {
     ) -> Result<(Self, WebhookWorkerHandle), String> {
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
         let timeout = callbacks.timeout;
-        let http_client = reqwest::Client::builder()
-            .timeout(timeout)
-            .redirect(reqwest::redirect::Policy::none())
-            .pool_max_idle_per_host(10)
-            .pool_idle_timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|e| format!("webhook http client: {}", e))?;
+        let http_client = build_webhook_http_client(timeout)?;
         let worker = Self {
             store,
             // WK-002: Configure connection pool limits to prevent resource exhaustion
@@ -205,9 +203,22 @@ impl<S: Store + 'static> WebhookWorker<S> {
                     if let Err(e) = self.process_batch().await {
                         error!(error = %e, "Webhook batch processing failed");
                         // REL-002: Exponential backoff with jitter to prevent thundering herd
+                        // R-01 fix: wrap sleep in select! so shutdown signal is not blocked
                         let jitter = rand::random::<u64>() % BACKOFF_JITTER_MAX_MS;
                         let delay = Duration::from_secs(backoff_secs) + Duration::from_millis(jitter);
-                        tokio::time::sleep(delay).await;
+                        tokio::select! {
+                            _ = tokio::time::sleep(delay) => {}
+                            _ = async {
+                                if let Some(ref mut rx) = self.shutdown_rx {
+                                    let _ = rx.changed().await;
+                                } else {
+                                    std::future::pending::<()>().await
+                                }
+                            } => {
+                                info!("Webhook worker received shutdown signal during backoff");
+                                break;
+                            }
+                        }
                         backoff_secs = std::cmp::min(backoff_secs * BACKOFF_MULTIPLIER, MAX_BACKOFF_SECS);
                     } else {
                         // REL-002: Reset backoff on success
@@ -257,8 +268,17 @@ impl<S: Store + 'static> WebhookWorker<S> {
             .map_err(|e| e.to_string())?;
 
         // Per spec (21-observability.md): Record webhook queue metrics
-        // Note: We record the dequeued batch size, not total backlog.
         crate::observability::record_webhook_queue_size("dequeued", webhooks.len() as i64);
+
+        // OPS-06: Record true backlog size (pending + retryable) for queue depth metric
+        match self.store.count_pending_webhooks().await {
+            Ok(backlog) => {
+                crate::observability::record_webhook_queue_size("backlog", backlog);
+            }
+            Err(e) => {
+                debug!(error = %e, "Failed to count pending webhooks for backlog metric");
+            }
+        }
 
         if webhooks.is_empty() {
             debug!("No pending webhooks");
@@ -432,19 +452,23 @@ impl<S: Store + 'static> WebhookWorker<S> {
                     circuit_breaker.record_success();
                     Ok(())
                 } else {
-                    // SECURITY: Limit response body size to prevent memory exhaustion
-                    // from malicious endpoints returning very large error responses
-                    let body =
-                        Self::read_limited_body(response, Self::MAX_RESPONSE_BODY_SIZE).await;
                     // 4xx errors are client errors, don't count against circuit breaker
                     if status.as_u16() >= 500 {
                         circuit_breaker.record_failure();
                     }
-                    Err(format!(
-                        "HTTP {}: {}",
-                        status,
-                        body.chars().take(200).collect::<String>()
-                    ))
+                    // SECURITY: Only log response body at TRACE to avoid PII in stored errors.
+                    // The body may contain user data echoed back by the webhook endpoint.
+                    if tracing::enabled!(tracing::Level::TRACE) {
+                        let body =
+                            Self::read_limited_body(response, Self::MAX_RESPONSE_BODY_SIZE).await;
+                        tracing::trace!(
+                            status = status.as_u16(),
+                            body = %body.chars().take(200).collect::<String>(),
+                            "Webhook response body (TRACE only)"
+                        );
+                    }
+                    // Store only HTTP status in last_error (no response body — PII risk)
+                    Err(format!("HTTP {}", status))
                 }
             }
             Err(e) => {
@@ -455,10 +479,22 @@ impl<S: Store + 'static> WebhookWorker<S> {
         }
     }
 
+    /// R-02 fix: key circuit breaker by host/origin, not full URL, so that
+    /// failures on one path of a host correctly trip the breaker for all paths.
     fn circuit_breaker_for(&self, url: &str) -> SharedCircuitBreaker {
+        let key = url::Url::parse(url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| {
+                match u.port() {
+                    Some(p) => format!("{}:{}", h, p),
+                    None => h.to_string(),
+                }
+            }))
+            .unwrap_or_else(|| url.to_string());
+
         let mut breakers = self.circuit_breakers.lock();
-        if let Some(existing) = breakers.shift_remove(url) {
-            breakers.insert(url.to_string(), existing.clone());
+        if let Some(existing) = breakers.shift_remove(&key) {
+            breakers.insert(key, existing.clone());
             return existing;
         }
 
@@ -467,7 +503,7 @@ impl<S: Store + 'static> WebhookWorker<S> {
         }
 
         let breaker = new_circuit_breaker(self.circuit_breaker_config.clone());
-        breakers.insert(url.to_string(), breaker.clone());
+        breakers.insert(key, breaker.clone());
         breaker
     }
 
@@ -552,6 +588,8 @@ fn should_skip_mark_processing_error(err: &StorageError) -> bool {
 }
 
 /// Spawn webhook worker as a tokio task (no shutdown handle)
+/// OPS-05: Deprecated — use `WebhookWorker::with_shutdown_and_config` for graceful shutdown
+#[deprecated(note = "Use WebhookWorker::with_shutdown_and_config for graceful shutdown support")]
 pub fn spawn_webhook_worker<S: Store + 'static>(store: Arc<S>) {
     match WebhookWorker::new(store) {
         Ok(worker) => {
@@ -660,32 +698,41 @@ mod tests {
         assert!(body.starts_with("[truncated: 5 bytes] hello"));
     }
 
+    /// R-02: Circuit breaker is keyed by host, not full URL.
+    /// Failures on host A should not affect host B, but different paths
+    /// on the same host share a circuit breaker.
     #[tokio::test]
-    async fn test_circuit_breaker_is_per_destination() {
-        let app = Router::new()
-            .route(
-                "/fail",
-                post(|| async {
-                    Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::empty())
-                        .unwrap()
-                }),
-            )
-            .route(
-                "/ok",
-                post(|| async {
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .body(Body::empty())
-                        .unwrap()
-                }),
-            );
-
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
+    async fn test_circuit_breaker_is_per_host() {
+        // Host A: always fails
+        let fail_app = Router::new().route(
+            "/webhook",
+            post(|| async {
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::empty())
+                    .unwrap()
+            }),
+        );
+        let fail_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let fail_addr = fail_listener.local_addr().unwrap();
         tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            axum::serve(fail_listener, fail_app).await.unwrap();
+        });
+
+        // Host B: always succeeds
+        let ok_app = Router::new().route(
+            "/webhook",
+            post(|| async {
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty())
+                    .unwrap()
+            }),
+        );
+        let ok_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let ok_addr = ok_listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(ok_listener, ok_app).await.unwrap();
         });
 
         let mut cb_config = CircuitBreakerConfig::webhook();
@@ -698,20 +745,18 @@ mod tests {
             WebhookWorker::new_with_config(store, &CallbacksConfig::default(), cb_config).unwrap();
 
         let payload_bytes = serde_json::to_vec(&serde_json::json!({})).unwrap();
-        let fail_url = format!("http://{}/fail", addr);
-        let ok_url = format!("http://{}/ok", addr);
 
+        // Trip circuit breaker on host A
         let fail_result = worker
-            .deliver_webhook("webhook-fail", &fail_url, &payload_bytes, &HashMap::new())
+            .deliver_webhook("wh-fail", &format!("http://{}/webhook", fail_addr), &payload_bytes, &HashMap::new())
             .await;
         assert!(fail_result.is_err());
 
+        // Host B should still work (different host)
         let ok_result = worker
-            .deliver_webhook("webhook-ok", &ok_url, &payload_bytes, &HashMap::new())
+            .deliver_webhook("wh-ok", &format!("http://{}/webhook", ok_addr), &payload_bytes, &HashMap::new())
             .await;
-        if let Err(err) = ok_result {
-            panic!("expected success, got error: {err}");
-        }
+        assert!(ok_result.is_ok(), "expected success on different host");
     }
 
     #[test]

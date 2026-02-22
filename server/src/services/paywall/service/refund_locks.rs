@@ -43,7 +43,10 @@ impl RefundLockManager {
         let mut locks = self.locks.lock();
 
         // BUG-004: Evict old entries if we exceed threshold
-        if locks.len() >= REFUND_LOCK_MAX_ENTRIES {
+        // RS-LOW-4: Also run probabilistic cleanup (~1% of calls) to prevent stale accumulation
+        if locks.len() >= REFUND_LOCK_MAX_ENTRIES
+            || (locks.len() > 100 && rand::random::<u8>() < 3)
+        {
             self.cleanup_expired(&mut locks);
         }
 

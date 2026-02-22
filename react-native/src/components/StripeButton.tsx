@@ -222,7 +222,7 @@ export function StripeButton({
         </Text>
       )}
       {transactionId && (
-        <Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }}]>
+        <Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }]}>
           {t('ui.payment_successful')}
         </Text>
       )}

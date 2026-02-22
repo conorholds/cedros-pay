@@ -49,8 +49,11 @@ export declare class RouteDiscoveryManager implements IRouteDiscoveryManager {
     private readonly serverUrl;
     private routePrefix;
     private discoveryPromise;
+    private failedDiscoveryAt;
     private readonly maxRetries;
     private readonly baseDelayMs;
+    private readonly discoveryTimeoutMs;
+    private readonly failedDiscoveryTtlMs;
     constructor(serverUrl: string);
     /**
      * Discover route prefix from backend health endpoint

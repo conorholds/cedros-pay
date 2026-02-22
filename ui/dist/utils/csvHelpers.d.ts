@@ -18,45 +18,4 @@
  * parseCsv(undefined) // returns []
  */
 export declare function parseCsv(csv: string | null | undefined): string[];
-/**
- * Convert an array of values to a comma-separated string
- *
- * @param values - Array of values to join
- * @returns Comma-separated string
- *
- * @example
- * toCsv(["a", "b", "c"]) // returns "a, b, c"
- * toCsv([]) // returns ""
- *
- * @deprecated This function is not used in production code. Will be removed in next major version.
- */
-export declare function toCsv(values: string[]): string;
-/**
- * Add a value to a CSV string (avoiding duplicates)
- *
- * @param csv - Existing CSV string
- * @param value - Value to add
- * @returns Updated CSV string
- *
- * @example
- * addToCsv("a, b", "c") // returns "a, b, c"
- * addToCsv("a, b", "a") // returns "a, b" (no duplicate)
- *
- * @deprecated This function is not used in production code. Will be removed in next major version.
- */
-export declare function addToCsv(csv: string | null | undefined, value: string): string;
-/**
- * Remove a value from a CSV string
- *
- * @param csv - Existing CSV string
- * @param value - Value to remove
- * @returns Updated CSV string
- *
- * @example
- * removeFromCsv("a, b, c", "b") // returns "a, c"
- * removeFromCsv("a, b", "c") // returns "a, b" (no change)
- *
- * @deprecated This function is not used in production code. Will be removed in next major version.
- */
-export declare function removeFromCsv(csv: string | null | undefined, value: string): string;
 //# sourceMappingURL=csvHelpers.d.ts.map

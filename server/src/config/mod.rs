@@ -2,9 +2,9 @@ pub mod db;
 pub mod types;
 
 pub use db::{
-    secret_fields_for_category, BatchUpsertItem, ConfigCategoryMeta, ConfigEncryption, ConfigEntry,
-    ConfigHistoryEntry, ConfigRepositoryError, EncryptedValue, EncryptionError,
-    PostgresConfigRepository, REDACTED_PLACEHOLDER,
+    default_keys_for_category, secret_fields_for_category, BatchUpsertItem, ConfigCategoryMeta,
+    ConfigEncryption, ConfigEntry, ConfigHistoryEntry, ConfigRepositoryError, EncryptedValue,
+    EncryptionError, PostgresConfigRepository, KNOWN_CATEGORIES, REDACTED_PLACEHOLDER,
 };
 pub use types::{
     AdminConfig, ApiKeyConfig, ApiKeyEntry, ApiKeyTier, CallbacksConfig, CedrosLoginConfig,

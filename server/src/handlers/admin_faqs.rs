@@ -16,8 +16,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::Faq;
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,10 +67,6 @@ fn default_true() -> bool {
     true
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn validate_question(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -107,7 +102,7 @@ pub async fn list_faqs(
     tenant: TenantContext,
     Query(params): Query<ListFaqsQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     let active_only = params.active_only.unwrap_or(false);
 

@@ -120,7 +120,7 @@ export function ChatPanel({
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: ChatMessageData) => item.id}
         contentContainerStyle={styles.messagesList}
         showsVerticalScrollIndicator={true}
         ListFooterComponent={renderTypingIndicator}

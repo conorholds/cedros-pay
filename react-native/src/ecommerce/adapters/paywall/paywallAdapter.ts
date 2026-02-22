@@ -249,7 +249,7 @@ export function createPaywallCommerceAdapter(opts: {
 
   const getStorefrontSettings = async (): Promise<StorefrontConfig | null> => {
     try {
-      const data = (await fetchJson(opts.serverUrl, '/admin/config/storefront', opts.apiKey)) as { config?: StorefrontConfig };
+      const data = (await fetchJson(opts.serverUrl, '/admin/config/shop', opts.apiKey)) as { config?: StorefrontConfig };
       return data.config ?? null;
     } catch {
       // Config not available - return null to use defaults

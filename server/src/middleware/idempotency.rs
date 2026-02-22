@@ -10,7 +10,7 @@ use axum::{
     response::Response,
 };
 use chrono::Utc;
-use http_body_util::BodyExt;
+use http_body_util::{BodyExt, Limited};
 use sha2::{Digest, Sha256};
 
 use crate::constants::{HEADER_IDEMPOTENCY_KEY, IDEMPOTENCY_KEY_TTL, MAX_REQUEST_BODY_SIZE};
@@ -98,12 +98,20 @@ pub async fn idempotency_middleware<S: Store + 'static>(
         .unwrap_or_else(|| request.uri().path())
         .to_string();
 
-    // Extract body to compute hash for cache key
-    // This ensures the same idempotency key with different body is treated as different request
+    // Extract body with stream-based size limit to prevent DoS via large payloads.
+    // Limited enforces the size cap during streaming rather than buffering the full body first.
     let (parts, body) = request.into_parts();
-    let body_bytes = match body.collect().await {
+    let limited_body = Limited::new(body, MAX_REQUEST_BODY_SIZE);
+    let body_bytes = match limited_body.collect().await {
         Ok(collected) => collected.to_bytes(),
         Err(e) => {
+            let err_str = e.to_string();
+            if err_str.contains("length limit exceeded") {
+                return Response::builder()
+                    .status(StatusCode::PAYLOAD_TOO_LARGE)
+                    .body(Body::from("Request body too large"))
+                    .unwrap_or_else(|_| Response::new(Body::empty()));
+            }
             tracing::error!(error = %e, "Failed to read request body for idempotency");
             return Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -111,13 +119,6 @@ pub async fn idempotency_middleware<S: Store + 'static>(
                 .unwrap_or_else(|_| Response::new(Body::empty()));
         }
     };
-
-    if body_bytes.len() > MAX_REQUEST_BODY_SIZE {
-        return Response::builder()
-            .status(StatusCode::PAYLOAD_TOO_LARGE)
-            .body(Body::from("Request body too large"))
-            .unwrap_or_else(|_| Response::new(Body::empty()));
-    }
 
     // MW-002: Use full SHA256 hash to prevent birthday collision attacks
     // Previously truncated to 8 bytes (64 bits), which has ~50% collision at 2^32 requests

@@ -113,6 +113,26 @@ impl<S: Store + 'static> StripeWebhookProcessor<S> {
         self
     }
 
+    /// Validate tenant_id format from webhook metadata.
+    /// Prevents injection via malformed tenant_id values in Stripe session metadata.
+    fn validate_webhook_tenant_id(raw_tenant_id: &str) -> ServiceResult<String> {
+        if raw_tenant_id.len() > 128
+            || !raw_tenant_id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            warn!(
+                tenant_id_len = raw_tenant_id.len(),
+                "Rejected invalid tenant_id format in Stripe webhook metadata"
+            );
+            return Err(ServiceError::Coded {
+                code: ErrorCode::InvalidField,
+                message: "invalid tenant_id format in webhook metadata".into(),
+            });
+        }
+        Ok(raw_tenant_id.to_string())
+    }
+
     async fn resolve_user_id_for_customer(
         &self,
         metadata: &HashMap<String, String>,
@@ -269,7 +289,7 @@ impl<S: Store + 'static> StripeWebhookProcessor<S> {
                     message: "missing resource_id in Stripe session metadata".into(),
                 })?;
             let tenant_id = match session.metadata.get("tenant_id").cloned() {
-                Some(id) if !id.is_empty() => id,
+                Some(id) if !id.is_empty() => Self::validate_webhook_tenant_id(&id)?,
                 _ => {
                     if self.config.logging.environment == "production" {
                         return Err(ServiceError::Coded {

@@ -14,7 +14,6 @@ use solana_sdk::signer::Signer;
 use solana_sdk::transaction::VersionedTransaction;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tokio::time::timeout;
 use tracing::{debug, info};
 
 use crate::config::X402Config;
@@ -23,10 +22,15 @@ use crate::constants::{
     TX_CONFIRM_TIMEOUT,
 };
 
+use super::utils::{RpcAttemptError, rpc_attempt_with_timeout};
 use super::verifier::{parse_commitment, ServerWallet};
 
-/// Cached blockhash with expiration
-struct BlockhashCache {
+/// Cached blockhash entry with expiration.
+///
+/// This is a simple data struct for the gasless builder's internal cache.
+/// See `crate::services::BlockhashCache` for the shared service-level cache
+/// with single-flight deduplication (used by verifier/paywall endpoints).
+struct CachedBlockhashEntry {
     hash: Hash,
     last_valid_block_height: u64,
     fetched_at: Instant,
@@ -51,24 +55,6 @@ pub enum GaslessError {
     Timeout,
 }
 
-#[derive(Debug)]
-enum RpcAttemptError {
-    Timeout,
-    Failed(String),
-}
-
-async fn rpc_attempt_with_timeout<T, E, F>(dur: Duration, fut: F) -> Result<T, RpcAttemptError>
-where
-    F: std::future::Future<Output = Result<T, E>>,
-    E: std::fmt::Display,
-{
-    match timeout(dur, fut).await {
-        Ok(Ok(v)) => Ok(v),
-        Ok(Err(e)) => Err(RpcAttemptError::Failed(e.to_string())),
-        Err(_) => Err(RpcAttemptError::Timeout),
-    }
-}
-
 /// Build and submit gasless transactions for Solana.
 /// Note: Fields stored for internal state management. The struct is constructed
 /// but individual fields may not be accessed via public methods currently.
@@ -78,8 +64,13 @@ pub struct GaslessTransactionBuilder {
     compute_unit_limit: u32,
     compute_unit_price: u64,
     /// Cached blockhash to avoid fetching more than once per second (like Go does)
-    blockhash_cache: Arc<RwLock<Option<BlockhashCache>>>,
+    blockhash_cache: Arc<RwLock<Option<CachedBlockhashEntry>>>,
 }
+
+/// Memo Program v1 (legacy) pubkey, parsed once at startup.
+static MEMO_V1_PUBKEY: once_cell::sync::Lazy<Pubkey> = once_cell::sync::Lazy::new(|| {
+    Pubkey::from_str("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo").expect("valid memo v1 pubkey")
+});
 
 /// SEC-011: Validate that a transaction only uses allowed programs.
 ///
@@ -94,9 +85,7 @@ pub(crate) fn validate_transaction_programs(tx: &VersionedTransaction) -> Result
         solana_sdk::compute_budget::id(),   // Compute Budget Program
         spl_memo::id(),                     // Memo Program v2
         spl_associated_token_account::id(), // ATA Program
-        // Memo Program v1 (legacy)
-        Pubkey::from_str("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo")
-            .expect("valid memo v1 pubkey"),
+        *MEMO_V1_PUBKEY,                    // Memo Program v1 (legacy)
     ];
 
     let account_keys = match &tx.message {
@@ -209,13 +198,6 @@ impl GaslessTransactionBuilder {
         let mut instructions = self.build_compute_budget_instructions();
         instructions.push(create_ix);
 
-        let message = Message::new(&instructions, Some(&fee_payer.pubkey()));
-        let _tx = VersionedTransaction::from(solana_sdk::transaction::Transaction::new(
-            &[fee_payer],
-            message,
-            recent_blockhash,
-        ));
-
         // Send transaction
         let sig = match rpc_attempt_with_timeout(
             TX_CONFIRM_TIMEOUT,
@@ -327,7 +309,7 @@ impl GaslessTransactionBuilder {
         }
 
         // Update cache with our freshly fetched blockhash
-        *cache = Some(BlockhashCache {
+        *cache = Some(CachedBlockhashEntry {
             hash,
             last_valid_block_height,
             fetched_at: Instant::now(),
@@ -418,48 +400,6 @@ impl GaslessTransactionBuilder {
     /// Get first fee payer
     pub fn get_default_fee_payer(&self) -> Option<String> {
         self.server_wallets.first().map(|w| w.pubkey.to_string())
-    }
-
-    /// Send a pre-built transaction with server as fee payer
-    pub async fn send_gasless_transaction(
-        &self,
-        instructions: Vec<Instruction>,
-        _user_signer: &Pubkey,
-    ) -> Result<Signature, GaslessError> {
-        let server_wallet = self
-            .server_wallets
-            .first()
-            .ok_or(GaslessError::NoServerWallet)?;
-
-        let recent_blockhash = match rpc_attempt_with_timeout(
-            Duration::from_secs(2),
-            self.rpc_client.get_latest_blockhash(),
-        )
-        .await
-        {
-            Ok(bh) => bh,
-            Err(RpcAttemptError::Timeout) => return Err(GaslessError::Timeout),
-            Err(RpcAttemptError::Failed(e)) => return Err(GaslessError::RpcError(e)),
-        };
-
-        // Build compute budget + user instructions
-        let mut all_instructions = self.build_compute_budget_instructions();
-        all_instructions.extend(instructions);
-
-        // Server wallet is fee payer
-        let message = Message::new(&all_instructions, Some(&server_wallet.pubkey));
-
-        // This creates a transaction that needs the user to sign
-        // For fully gasless, server signs as fee payer
-        let tx = solana_sdk::transaction::Transaction::new_unsigned(message);
-
-        // Partially sign with server (as fee payer)
-        let mut tx = tx;
-        tx.partial_sign(&[&server_wallet.keypair], recent_blockhash);
-
-        // Return signature would come after user signs
-        // For now, return error as this needs the user signature
-        Err(GaslessError::SendFailed("requires user signature".into()))
     }
 
     /// Execute a refund transaction (server-signed transfer to recipient)

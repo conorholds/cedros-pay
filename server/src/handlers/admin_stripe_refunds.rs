@@ -15,15 +15,12 @@ use crate::handlers::admin::AdminState;
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 
+use super::cap_limit_opt;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListStripeRefundsQuery {
     pub limit: Option<i32>,
-}
-
-fn cap_limit(limit: Option<i32>) -> i32 {
-    // UI page size guardrail
-    limit.unwrap_or(50).clamp(1, 1000)
 }
 
 #[derive(Debug, Serialize)]
@@ -68,7 +65,7 @@ pub async fn list_stripe_refunds(
     tenant: TenantContext,
     Query(query): Query<ListStripeRefundsQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(query.limit);
+    let limit = cap_limit_opt(query.limit, 50);
     match state
         .store
         .list_pending_stripe_refund_requests(&tenant.tenant_id, limit)

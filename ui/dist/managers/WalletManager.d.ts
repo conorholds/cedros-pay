@@ -114,7 +114,8 @@ export declare class WalletManager implements IWalletManager {
      */
     buildTransaction(options: BuildTransactionOptions): Promise<Transaction>;
     /**
-     * Parse amount from x402 requirement (already in atomic units as string)
+     * Parse amount from x402 requirement (already in atomic units as string).
+     * Uses BigInt to avoid truncation/overflow for large atomic values.
      */
     private resolveAmountInMinorUnits;
     /**

@@ -25,7 +25,17 @@ type HmacSha256 = Hmac<Sha256>;
 fn canonical_json(value: &Value) -> Vec<u8> {
     let canonical = to_canonical_value(value);
     // Use compact formatting - no extra whitespace
-    serde_json::to_vec(&canonical).unwrap_or_default()
+    match serde_json::to_vec(&canonical) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tracing::error!(error = %e, "canonical JSON serialization failed, falling back to non-canonical");
+            // Fall back to serializing the original value (non-canonical but functional)
+            serde_json::to_vec(value).unwrap_or_else(|e2| {
+                tracing::error!(error = %e2, "fallback JSON serialization also failed");
+                Vec::new()
+            })
+        }
+    }
 }
 
 /// Recursively transform a Value into its canonical form.
@@ -581,7 +591,7 @@ mod tests {
             .subscription_created("tenant-1", "sub-1", "prod-1", Some("wallet"))
             .await;
 
-        let items = store.list_webhooks(None, 10).await.unwrap();
+        let items = store.list_webhooks("tenant-1", None, 10).await.unwrap();
         let wh = items.first().expect("webhook");
         let payload_event_id = wh
             .payload
@@ -606,7 +616,7 @@ mod tests {
             .refund_processed("tenant-1", "ch_1", 123, "USD")
             .await;
 
-        let items = store.list_webhooks(None, 10).await.unwrap();
+        let items = store.list_webhooks("tenant-1", None, 10).await.unwrap();
         let wh = items.first().expect("webhook");
         let payload_event_id = wh
             .payload

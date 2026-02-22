@@ -70,6 +70,122 @@ pub struct ConfigHistoryEntry {
     pub changed_by: Option<String>,
 }
 
+/// All known config categories.
+/// Used so list_categories and get_config return results from day one on fresh installs.
+pub const KNOWN_CATEGORIES: &[&str] = &[
+    "server",
+    "logging",
+    "stripe",
+    "x402",
+    "paywall",
+    "shop",
+    "coupons",
+    "subscriptions",
+    "callbacks",
+    "monitoring",
+    "rate_limit",
+    "circuit_breaker",
+    "admin",
+    "api_keys",
+    "cedros_login",
+    "messaging",
+    "ai",
+];
+
+/// Default config keys for each known category.
+/// Returns the keys the system understands so the admin dashboard can render empty forms.
+pub fn default_keys_for_category(category: &str) -> &'static [&'static str] {
+    match category {
+        "server" => &[
+            "public_url",
+            "route_prefix",
+            "cors_allowed_origins",
+            "trusted_proxy_cidrs",
+            "read_timeout",
+            "write_timeout",
+            "idle_timeout",
+            "admin_metrics_api_key",
+        ],
+        "logging" => &["level", "format", "environment"],
+        "stripe" => &[
+            "secret_key",
+            "webhook_secret",
+            "publishable_key",
+            "success_url",
+            "cancel_url",
+            "tax_rate_id",
+            "mode",
+        ],
+        "x402" => &[
+            "payment_address",
+            "token_mint",
+            "token_symbol",
+            "token_decimals",
+            "network",
+            "rpc_url",
+            "ws_url",
+            "memo_prefix",
+            "skip_preflight",
+            "commitment",
+            "gasless_enabled",
+            "auto_create_token_account",
+            "server_wallets",
+            "allowed_tokens",
+            "compute_unit_limit",
+            "compute_unit_price_micro_lamports",
+            "rounding_mode",
+        ],
+        "paywall" => &["product_cache_ttl", "quote_ttl", "product_source"],
+        "shop" => &["guest_checkout"],
+        "coupons" => &["cache_ttl", "coupon_source"],
+        "subscriptions" => &["enabled", "grace_period_hours"],
+        "callbacks" => &[
+            "payment_success_url",
+            "hmac_secret",
+            "timeout",
+            "body_template",
+            "headers",
+            "retry",
+        ],
+        "monitoring" => &[
+            "check_interval",
+            "low_balance_threshold",
+            "low_balance_alert_url",
+            "timeout",
+            "body_template",
+            "headers",
+        ],
+        "rate_limit" => &["global", "per_ip", "per_wallet"],
+        "circuit_breaker" => &["solana_rpc", "stripe_api", "webhook"],
+        "admin" => &["public_keys"],
+        "api_keys" => &["enabled"],
+        "cedros_login" => &[
+            "enabled",
+            "credits_enabled",
+            "base_url",
+            "api_key",
+            "timeout",
+            "jwt_issuer",
+            "jwt_audience",
+        ],
+        "messaging" => &[
+            "email_enabled",
+            "smtp_host",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "from_email",
+            "from_name",
+            "webhook_enabled",
+            "webhook_url",
+            "webhook_secret",
+            "webhook_timeout",
+        ],
+        "ai" => &["gemini_api_key", "openai_api_key"],
+        _ => &[],
+    }
+}
+
 /// Secret field definitions per category
 /// These fields will be encrypted when stored
 pub fn secret_fields_for_category(category: &str) -> HashSet<&'static str> {

@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});require("react/jsx-runtime");require("react");const e=require("./index-2N_CMVAv.js");exports.CouponsSection=e.CouponsSection;exports.ProductsSection=e.ProductsSection;exports.RefundsSection=e.RefundsSection;exports.SettingsSection=e.SettingsSection;exports.TransactionsSection=e.TransactionsSection;

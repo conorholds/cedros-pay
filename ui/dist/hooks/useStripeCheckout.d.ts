@@ -12,7 +12,7 @@ export declare function useStripeCheckout(): {
         resource: string;
         quantity?: number;
         variantId?: string;
-    }>, successUrl?: string, cancelUrl?: string, metadata?: Record<string, string>, customerEmail?: string, couponCode?: string) => Promise<import("../types").v1.PaymentResult>;
+    }>, successUrl?: string, cancelUrl?: string, metadata?: Record<string, string>, customerEmail?: string, couponCode?: string, customerName?: string, customerPhone?: string, shippingAddress?: Record<string, string>, billingAddress?: Record<string, string>, tipAmount?: number, shippingMethodId?: string, paymentMethodId?: string) => Promise<import("../types").v1.PaymentResult>;
     reset: () => void;
     status: import("../types").v1.PaymentStatus;
     error: string | null;

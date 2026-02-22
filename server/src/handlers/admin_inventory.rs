@@ -14,8 +14,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::InventoryAdjustment;
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,10 +29,6 @@ pub struct ListAdjustmentsResponse {
     pub adjustments: Vec<InventoryAdjustment>,
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 /// GET /admin/products/:id/inventory/adjustments
 pub async fn list_inventory_adjustments(
     State(state): State<Arc<AdminState>>,
@@ -41,7 +36,7 @@ pub async fn list_inventory_adjustments(
     Path(id): Path<String>,
     Query(params): Query<ListAdjustmentsQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
 
     match state

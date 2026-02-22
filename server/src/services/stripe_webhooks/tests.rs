@@ -173,6 +173,16 @@ impl Store for FailingCompleteIdempotencyStore {
         unimplemented!()
     }
 
+    async fn list_credits_refund_requests(
+        &self,
+        _tenant_id: &str,
+        _status: Option<&str>,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<(Vec<RefundQuote>, i64)> {
+        unimplemented!()
+    }
+
     async fn mark_refund_processed(
         &self,
         _tenant_id: &str,
@@ -277,6 +287,18 @@ impl Store for FailingCompleteIdempotencyStore {
 
     async fn append_order_history(
         &self,
+        _entry: crate::models::OrderHistoryEntry,
+    ) -> StorageResult<()> {
+        Ok(())
+    }
+
+    async fn update_order_status_with_history(
+        &self,
+        _tenant_id: &str,
+        _order_id: &str,
+        _status: &str,
+        _status_updated_at: DateTime<Utc>,
+        _updated_at: DateTime<Utc>,
         _entry: crate::models::OrderHistoryEntry,
     ) -> StorageResult<()> {
         Ok(())
@@ -445,6 +467,15 @@ impl Store for FailingCompleteIdempotencyStore {
         _actor: Option<&str>,
     ) -> StorageResult<std::collections::HashMap<String, (i32, i32)>> {
         Ok(std::collections::HashMap::new())
+    }
+
+    async fn adjust_inventory_atomic(
+        &self,
+        _tenant_id: &str,
+        _product_id: &str,
+        _delta: i32,
+    ) -> StorageResult<(i32, i32)> {
+        Ok((0, 0))
     }
 
     async fn create_shipping_profile(
@@ -816,6 +847,7 @@ impl Store for FailingCompleteIdempotencyStore {
 
     async fn list_webhooks(
         &self,
+        _tenant_id: &str,
         _status: Option<WebhookStatus>,
         _limit: i32,
     ) -> StorageResult<Vec<PendingWebhook>> {
@@ -988,7 +1020,11 @@ impl Store for FailingCompleteIdempotencyStore {
         unimplemented!()
     }
 
-    async fn list_dlq(&self, _limit: i32) -> StorageResult<Vec<DlqWebhook>> {
+    async fn list_dlq(&self, _tenant_id: &str, _limit: i32) -> StorageResult<Vec<DlqWebhook>> {
+        unimplemented!()
+    }
+
+    async fn get_dlq_entry(&self, _dlq_id: &str) -> StorageResult<Option<DlqWebhook>> {
         unimplemented!()
     }
 

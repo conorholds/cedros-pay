@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ViewStyle,
+  ImageResizeMode,
 } from 'react-native';
 import type { Product, ProductVariant } from '../../types';
 import type { ProductCardLayout, ImageCropPosition } from '../../hooks/useStorefrontSettings';
@@ -62,7 +63,7 @@ export function ProductCard({
           <View style={[styles.imageContainer, { aspectRatio: ASPECT_RATIOS[layout] }]}>
             <Image
               source={{ uri: product.images[0]?.url }}
-              style={[styles.image, { resizeMode }]}
+              style={[styles.image, { resizeMode: resizeMode as ImageResizeMode }]}
               accessibilityLabel={product.images[0]?.alt ?? product.title}
             />
           </View>

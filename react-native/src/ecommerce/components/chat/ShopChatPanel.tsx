@@ -118,7 +118,7 @@ export function ShopChatPanel({ style }: ShopChatPanelProps) {
         ref={listRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: ChatMessage) => item.id}
         contentContainerStyle={styles.messagesList}
         showsVerticalScrollIndicator={true}
         ListFooterComponent={

@@ -53,17 +53,25 @@ pub fn json_error(
 /// Use for cacheable GET endpoints (e.g., product lists, discovery)
 pub fn json_ok_cached<T: Serialize>(value: T, max_age_secs: u32) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    // Format is always valid ASCII, parse cannot fail
-    let cache_value = format!("public, max-age={}", max_age_secs)
+    // Cache is private because responses can be tenant/user scoped.
+    // Avoid shared intermediary caches serving content across tenants.
+    let cache_value = format!("private, max-age={}", max_age_secs)
         .parse()
         .expect("static cache-control format is always valid");
     headers.insert(header::CACHE_CONTROL, cache_value);
+    headers.insert(
+        header::VARY,
+        "Authorization, Host"
+            .parse()
+            .expect("static vary header format is always valid"),
+    );
     (StatusCode::OK, headers, to_json(value))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::response::IntoResponse;
     use serde::Serialize;
 
     #[derive(Serialize)]
@@ -98,5 +106,21 @@ mod tests {
         let (status, json) = json_response(StatusCode::CREATED, resp);
         assert_eq!(status, StatusCode::CREATED);
         assert_eq!(json.0["message"], "created");
+    }
+
+    #[test]
+    fn test_json_ok_cached_sets_private_cache_and_vary() {
+        let resp = TestResponse {
+            message: "cached".to_string(),
+        };
+        let response = json_ok_cached(resp, 120).into_response();
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL).unwrap(),
+            "private, max-age=120"
+        );
+        assert_eq!(
+            response.headers().get(header::VARY).unwrap(),
+            "Authorization, Host"
+        );
     }
 }

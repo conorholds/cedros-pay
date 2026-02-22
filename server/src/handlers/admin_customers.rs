@@ -16,8 +16,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{Customer, CustomerAddress};
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,10 +52,6 @@ pub struct ListCustomersResponse {
     pub customers: Vec<Customer>,
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn validate_email(email: &str) -> Result<(), String> {
     let trimmed = email.trim();
     if trimmed.is_empty() {
@@ -73,7 +68,7 @@ pub async fn list_customers(
     tenant: TenantContext,
     Query(params): Query<ListQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     match state
         .store

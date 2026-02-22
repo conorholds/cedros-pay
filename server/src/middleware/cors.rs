@@ -4,8 +4,8 @@ use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use crate::config::ConfigError;
 
 /// Build CORS layer from allowed origins and environment
-/// Per spec 10-middleware.md:
-/// - Allowed methods: GET, POST, DELETE, OPTIONS
+/// Per spec 10-middleware.md (updated to match actual routes):
+/// - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
 /// - Allowed headers: * (all)
 /// - Exposed headers: Location
 /// - Max-age: 300 seconds (5 minutes)
@@ -46,7 +46,7 @@ pub fn build_cors_layer_with_env(allowed_origins: &[String], environment: &str) 
     let is_production = environment == "production";
 
     let layer = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS])
         // Per spec (10-middleware.md line 16): Allowed headers = * (all)
         .allow_headers(Any)
         // Per spec (10-middleware.md line 17): Exposed headers = Location

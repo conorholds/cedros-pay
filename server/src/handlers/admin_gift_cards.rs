@@ -17,8 +17,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::GiftCard;
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,10 +70,6 @@ fn default_active() -> bool {
     true
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn normalize_code(value: Option<String>) -> Result<String, String> {
     match value {
         Some(code) => {
@@ -108,7 +103,7 @@ pub async fn list_gift_cards(
     tenant: TenantContext,
     Query(params): Query<ListGiftCardsQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     match state
         .store

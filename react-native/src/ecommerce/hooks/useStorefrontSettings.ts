@@ -6,20 +6,55 @@
  */
 
 import { useState, useEffect } from 'react';
-import type {
-  ProductPageSettings,
-  RelatedProductsMode,
-  CatalogFilterSettings,
-  CatalogSortSettings,
-  CheckoutDisplaySettings,
-  LayoutSettings,
-  ProductCardLayout,
-  ImageCropPosition,
-  ProductPageSectionSettings,
-  InventorySettings,
-} from '../../components/admin/types';
 import type { StorefrontConfig } from '../adapters/CommerceAdapter';
 import { useOptionalCedrosShop } from '../config/context';
+
+export type RelatedProductsMode = 'most_recent' | 'by_category' | 'manual' | 'ai';
+export type ProductCardLayout = 'large' | 'square' | 'compact';
+export type ImageCropPosition = 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+export interface CatalogFilterSettings {
+  tags: boolean;
+  priceRange: boolean;
+  inStock: boolean;
+}
+
+export interface CatalogSortSettings {
+  featured: boolean;
+  priceAsc: boolean;
+  priceDesc: boolean;
+}
+
+export interface CheckoutDisplaySettings {
+  promoCodes: boolean;
+}
+
+export interface LayoutSettings {
+  layout: ProductCardLayout;
+  imageCrop: ImageCropPosition;
+}
+
+export interface ProductPageSectionSettings {
+  showDescription: boolean;
+  showSpecs: boolean;
+  showShipping: boolean;
+  showRelatedProducts: boolean;
+}
+
+export interface InventorySettings {
+  preCheckoutVerification: boolean;
+  holdsEnabled: boolean;
+  holdDurationMinutes: number;
+}
+
+export interface ProductPageSettings {
+  sections: ProductPageSectionSettings;
+  relatedProducts: {
+    mode: RelatedProductsMode;
+    maxItems: number;
+    layout: LayoutSettings;
+  };
+}
 
 export interface ShopPageSettings {
   title: string;
@@ -194,5 +229,3 @@ export function useStorefrontSettings(_options: UseStorefrontSettingsOptions = {
 
   return { settings, isLoading };
 }
-
-export type { ProductPageSettings, RelatedProductsMode, CatalogFilterSettings, CatalogSortSettings, CheckoutDisplaySettings, LayoutSettings, ProductCardLayout, ImageCropPosition, ProductPageSectionSettings, InventorySettings };

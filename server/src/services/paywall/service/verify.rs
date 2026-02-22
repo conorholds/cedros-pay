@@ -228,19 +228,13 @@ impl PaywallService {
                 })
             }
             "refund" => {
-                // Refund verification
-                let refund_id = resource.strip_prefix("refund:").unwrap_or(&resource);
-                let _refund = self.process_refund(tenant_id, refund_id).await?;
-
-                Ok(PaymentVerificationResult {
-                    success: true,
-                    tx_hash: if sig.is_empty() {
-                        None
-                    } else {
-                        Some(sig.clone())
-                    },
-                    payer: if payer.is_empty() { None } else { Some(payer) },
-                    error: None,
+                // BUG-17 fix: Reject refund resource type in verify_payment.
+                // process_refund is a server-side privileged operation that sends funds
+                // on-chain. It must only be triggered through the dedicated admin refund
+                // endpoint with proper authorization, not through the public verify path.
+                Err(ServiceError::Coded {
+                    code: ErrorCode::InvalidResourceType,
+                    message: "refund verification must use the admin refund endpoint".into(),
                 })
             }
             "regular" | "" => {

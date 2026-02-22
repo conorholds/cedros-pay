@@ -292,7 +292,8 @@ impl ProductRepository for InMemoryProductRepository {
                 "out of stock".to_string(),
             ));
         }
-        let next = current - quantity;
+        // B-12: Floor at zero to match Postgres GREATEST(0, ...) behavior
+        let next = (current - quantity).max(0);
         product.inventory_quantity = Some(next);
         Ok(Some((current, next)))
     }
@@ -597,9 +598,9 @@ mod tests {
             .await
             .unwrap()
             .expect("tracked inventory");
-        assert_eq!(result, (1, -4));
+        assert_eq!(result, (1, 0));
 
         let updated = repo.get_product("tenant-a", "res-1").await.unwrap();
-        assert_eq!(updated.inventory_quantity, Some(-4));
+        assert_eq!(updated.inventory_quantity, Some(0));
     }
 }

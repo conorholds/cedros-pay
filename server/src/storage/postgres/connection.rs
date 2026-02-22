@@ -1,6 +1,6 @@
 //! PostgreSQL connection pool configuration and management
 
-use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::PgPool;
 use std::time::Duration;
 
@@ -19,6 +19,15 @@ pub struct PostgresConfig {
     pub acquire_timeout: Duration,
     pub idle_timeout: Duration,
     pub max_lifetime: Duration,
+    /// SSL mode for PostgreSQL connections. Defaults to `Prefer`.
+    /// Set to `Require` in production via POSTGRES_SSL_MODE=require.
+    pub ssl_mode: PgSslMode,
+    /// PostgreSQL statement_timeout in milliseconds (0 = no limit).
+    /// Prevents runaway queries from holding connections indefinitely.
+    pub statement_timeout_ms: u64,
+    /// PostgreSQL idle_in_transaction_session_timeout in milliseconds (0 = no limit).
+    /// Prevents abandoned transactions from holding locks.
+    pub idle_in_transaction_timeout_ms: u64,
 }
 
 impl Default for PostgresConfig {
@@ -36,6 +45,9 @@ impl Default for PostgresConfig {
             acquire_timeout: Duration::from_secs(5), // Fail fast for better user experience
             idle_timeout: Duration::from_secs(600),
             max_lifetime: Duration::from_secs(1800),
+            ssl_mode: PgSslMode::Prefer,
+            statement_timeout_ms: 30_000,             // 30 seconds
+            idle_in_transaction_timeout_ms: 60_000,   // 60 seconds
         }
     }
 }
@@ -78,13 +90,30 @@ impl PostgresConfig {
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(1800),
             ),
+            ssl_mode: match std::env::var("POSTGRES_SSL_MODE")
+                .unwrap_or_default()
+                .to_lowercase()
+                .as_str()
+            {
+                "require" => PgSslMode::Require,
+                "disable" => PgSslMode::Disable,
+                _ => PgSslMode::Prefer,
+            },
+            statement_timeout_ms: std::env::var("POSTGRES_STATEMENT_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(30_000),
+            idle_in_transaction_timeout_ms: std::env::var("POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(60_000),
         }
     }
 
     /// Create config from connection URL
     pub fn from_url(url: &str) -> Result<Self, StorageError> {
         let parsed = url::Url::parse(url)
-            .map_err(|e| StorageError::Database(format!("invalid URL: {}", e)))?;
+            .map_err(|e| StorageError::internal("invalid URL", e))?;
 
         Ok(Self {
             host: parsed.host_str().unwrap_or("localhost").to_string(),
@@ -106,12 +135,25 @@ pub struct PostgresPool {
 impl PostgresPool {
     /// Create a new connection pool
     pub async fn new(config: &PostgresConfig) -> Result<Self, StorageError> {
-        let options = PgConnectOptions::new()
+        let mut options = PgConnectOptions::new()
             .host(&config.host)
             .port(config.port)
             .database(&config.database)
             .username(&config.username)
-            .password(&config.password);
+            .password(&config.password)
+            .ssl_mode(config.ssl_mode);
+
+        // Set session-level timeouts to prevent runaway queries and abandoned transactions
+        if config.statement_timeout_ms > 0 {
+            options = options.options([
+                ("statement_timeout", config.statement_timeout_ms.to_string().as_str()),
+            ]);
+        }
+        if config.idle_in_transaction_timeout_ms > 0 {
+            options = options.options([
+                ("idle_in_transaction_session_timeout", config.idle_in_transaction_timeout_ms.to_string().as_str()),
+            ]);
+        }
 
         let pool = PgPoolOptions::new()
             .max_connections(config.max_connections)
@@ -121,7 +163,7 @@ impl PostgresPool {
             .max_lifetime(config.max_lifetime)
             .connect_with(options)
             .await
-            .map_err(|e| StorageError::Database(format!("connection failed: {}", e)))?;
+            .map_err(|e| StorageError::internal("connection failed", e))?;
 
         Ok(Self { pool })
     }
@@ -131,12 +173,31 @@ impl PostgresPool {
         &self.pool
     }
 
+    /// Create a PostgresPool from an existing PgPool
+    ///
+    /// This allows embedding applications to share their existing database pool
+    /// instead of creating a new one.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let existing_pool: sqlx::PgPool = // ... your app's pool
+    /// let cedros_pool = PostgresPool::from_pool(existing_pool);
+    /// ```
+    pub fn from_pool(pool: PgPool) -> Self {
+        Self { pool }
+    }
+
     /// Run database migrations
+    ///
+    /// Sets `ignore_missing = true` so the migrator tolerates foreign entries
+    /// in `_sqlx_migrations` from host apps that share the same database.
     pub async fn migrate(&self) -> Result<(), StorageError> {
-        sqlx::migrate!("./migrations")
+        let mut migrator = sqlx::migrate!("./migrations");
+        migrator.ignore_missing = true;
+        migrator
             .run(&self.pool)
             .await
-            .map_err(|e| StorageError::Database(format!("migration failed: {}", e)))
+            .map_err(|e| StorageError::internal("migration failed", e))
     }
 
     /// Check if the database is healthy
@@ -144,7 +205,7 @@ impl PostgresPool {
         sqlx::query("SELECT 1")
             .execute(&self.pool)
             .await
-            .map_err(|e| StorageError::Database(format!("health check failed: {}", e)))?;
+            .map_err(|e| StorageError::internal("health check failed", e))?;
         Ok(())
     }
 

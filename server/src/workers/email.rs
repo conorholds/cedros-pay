@@ -147,11 +147,37 @@ impl<S: Store + 'static> EmailWorker<S> {
         self
     }
 
+    /// Build a reusable SMTP transport from current config.
+    fn build_transport(
+        &self,
+    ) -> Result<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>, String> {
+        use lettre::{AsyncSmtpTransport, Tokio1Executor};
+
+        let mut zeroizing_creds = ZeroizingCredentials::new(
+            self.config.smtp_username.clone(),
+            self.config.smtp_password.clone(),
+        );
+        let creds = zeroizing_creds.take_credentials();
+
+        AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.config.smtp_host)
+            .map_err(|e| format!("smtp transport: {}", e))
+            .map(|builder| builder.port(self.config.smtp_port).credentials(creds).build())
+    }
+
     /// Start the email worker with graceful shutdown support
     pub async fn run(mut self) {
         let mut poll_timer = interval(self.poll_interval);
         poll_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let mut cycles_since_cleanup: u32 = 0;
+
+        // P-01 fix: build SMTP transport once and reuse across all sends
+        let mailer = match self.build_transport() {
+            Ok(m) => m,
+            Err(e) => {
+                error!(error = %e, "Failed to build SMTP transport; email worker exiting");
+                return;
+            }
+        };
 
         info!(
             "Email worker started with poll_interval={}s, cleanup every {} cycles ({} days retention)",
@@ -170,9 +196,22 @@ impl<S: Store + 'static> EmailWorker<S> {
 
             tokio::select! {
                 _ = poll_timer.tick() => {
-                    if let Err(e) = self.process_batch().await {
+                    if let Err(e) = self.process_batch(&mailer).await {
                         error!(error = %e, "Email batch processing failed");
-                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        // OPS-02: Make error backoff interruptible by shutdown signal
+                        let sleep = tokio::time::sleep(Duration::from_secs(5));
+                        tokio::pin!(sleep);
+                        if let Some(ref mut rx) = self.shutdown_rx {
+                            tokio::select! {
+                                _ = &mut sleep => {}
+                                _ = rx.changed() => {
+                                    info!("Email worker shutdown during error backoff");
+                                    break;
+                                }
+                            }
+                        } else {
+                            sleep.await;
+                        }
                     }
 
                     cycles_since_cleanup += 1;
@@ -208,7 +247,10 @@ impl<S: Store + 'static> EmailWorker<S> {
     }
 
     /// Process a batch of pending emails
-    async fn process_batch(&self) -> Result<(), String> {
+    async fn process_batch(
+        &self,
+        mailer: &lettre::AsyncSmtpTransport<lettre::Tokio1Executor>,
+    ) -> Result<(), String> {
         let emails = self
             .store
             .dequeue_emails(self.batch_size)
@@ -228,7 +270,7 @@ impl<S: Store + 'static> EmailWorker<S> {
                 continue;
             }
 
-            let result = self.send_email(&email).await;
+            let result = self.send_email(&email, mailer).await;
 
             match result {
                 Ok(_) => {
@@ -284,11 +326,15 @@ impl<S: Store + 'static> EmailWorker<S> {
         Ok(())
     }
 
-    /// Send a single email via SMTP
-    async fn send_email(&self, email: &PendingEmail) -> Result<(), String> {
+    /// Send a single email via the reusable SMTP transport
+    async fn send_email(
+        &self,
+        email: &PendingEmail,
+        mailer: &lettre::AsyncSmtpTransport<lettre::Tokio1Executor>,
+    ) -> Result<(), String> {
         use lettre::message::header::ContentType;
         use lettre::message::{Mailbox, MultiPart, SinglePart};
-        use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
+        use lettre::{AsyncTransport, Message};
 
         let from_mailbox: Mailbox = format!("{} <{}>", email.from_name, email.from_email)
             .parse()
@@ -300,7 +346,6 @@ impl<S: Store + 'static> EmailWorker<S> {
             .map_err(|e| format!("invalid to address: {}", e))?;
 
         let message = if let Some(ref html) = email.body_html {
-            // Multipart email with both text and HTML
             Message::builder()
                 .from(from_mailbox)
                 .to(to_mailbox)
@@ -320,7 +365,6 @@ impl<S: Store + 'static> EmailWorker<S> {
                 )
                 .map_err(|e| format!("build email: {}", e))?
         } else {
-            // Plain text only
             Message::builder()
                 .from(from_mailbox)
                 .to(to_mailbox)
@@ -330,25 +374,10 @@ impl<S: Store + 'static> EmailWorker<S> {
                 .map_err(|e| format!("build email: {}", e))?
         };
 
-        // L-005: Use zeroizing credentials wrapper to ensure password is cleared from memory
-        // after the SMTP connection is established.
-        let mut zeroizing_creds = ZeroizingCredentials::new(
-            self.config.smtp_username.clone(),
-            self.config.smtp_password.clone(),
-        );
-        let creds = zeroizing_creds.take_credentials();
-
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.config.smtp_host)
-            .map_err(|e| format!("smtp transport: {}", e))?
-            .port(self.config.smtp_port)
-            .credentials(creds)
-            .build();
-
-        // zeroizing_creds is dropped here, clearing username and password from memory
-
-        mailer
-            .send(message)
+        // OPS-03: Wrap SMTP send in timeout to prevent unbounded hangs
+        tokio::time::timeout(self.retry.timeout, mailer.send(message))
             .await
+            .map_err(|_| format!("smtp send timed out after {:?}", self.retry.timeout))?
             .map_err(|e| format!("smtp send: {}", e))?;
 
         Ok(())
@@ -383,21 +412,28 @@ impl<S: Store + 'static> EmailWorker<S> {
     }
 }
 
-/// Spawn email worker as a tokio task (no shutdown handle)
-pub fn spawn_email_worker<S: Store + 'static>(store: Arc<S>, config: MessagingConfig) {
+/// Spawn email worker as a tokio task, returning the handle for graceful shutdown.
+///
+/// Returns `None` if email is disabled or worker creation failed.
+pub fn spawn_email_worker<S: Store + 'static>(
+    store: Arc<S>,
+    config: MessagingConfig,
+) -> Option<EmailWorkerHandle> {
     if !config.email_enabled {
         info!("Email worker not started: email_enabled is false");
-        return;
+        return None;
     }
 
     match EmailWorker::with_shutdown(store, config) {
-        Ok((worker, _handle)) => {
-            tokio::spawn(async move {
+        Ok((worker, handle)) => {
+            let join_handle = tokio::spawn(async move {
                 worker.run().await;
             });
+            Some(handle.with_join_handle(join_handle))
         }
         Err(e) => {
             error!(error = %e, "Failed to create email worker");
+            None
         }
     }
 }

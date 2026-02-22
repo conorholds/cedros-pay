@@ -161,7 +161,7 @@ interface AccordionContentProps {
   style?: ViewStyle;
 }
 
-export const AccordionContent = React.forwardRef<Animated.View, AccordionContentProps>(
+export const AccordionContent = React.forwardRef<any, AccordionContentProps>(
   ({ children, style, ...props }, ref) => {
     const { value, type } = useAccordion();
     const itemValue = (props as { value?: string }).value || '';

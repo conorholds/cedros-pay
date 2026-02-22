@@ -241,16 +241,25 @@ impl WsConfirmationService {
 
                     if reconnect_attempts >= config.max_reconnect_attempts {
                         error!(
-                            "Failed to connect after {} attempts: {}",
+                            "Failed to connect after {} attempts: {}. Will retry after extended backoff.",
                             reconnect_attempts, e
                         );
-                        // Fail all pending confirmations
+                        // Fail all pending confirmations so callers aren't stuck
                         for (_, (_, tx, _)) in pending_subscriptions.drain() {
                             let _ = tx.send(ConfirmationResult::Failed {
                                 error: "connection failed".to_string(),
                             });
                         }
-                        break;
+                        // R-04 fix: extended backoff instead of permanent exit
+                        tokio::select! {
+                            _ = tokio::time::sleep(Duration::from_secs(60)) => {}
+                            _ = shutdown_rx.recv() => {
+                                info!("WebSocket manager shutting down during extended backoff");
+                                return;
+                            }
+                        }
+                        reconnect_attempts = 0;
+                        continue;
                     }
 
                     let backoff = config.reconnect_backoff * reconnect_attempts;

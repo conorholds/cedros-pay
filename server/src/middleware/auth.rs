@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::{body::Body, extract::Request, http::StatusCode, middleware::Next, response::Response};
+use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
 use axum::http::header::AUTHORIZATION;
@@ -69,34 +70,21 @@ impl AuthState {
 
     /// Validate API key using constant-time comparison to prevent timing attacks.
     /// Returns the tier + tenant allowlist if valid, None if invalid.
-    /// SECURITY: Uses constant-time comparison for all keys regardless of length (M-004 fix).
-    /// This prevents timing attacks that could reveal valid key lengths.
+    ///
+    /// SECURITY (RS-CRIT-1): Both candidate and stored keys are hashed with SHA-256
+    /// before comparison. This ensures constant-time behavior regardless of key length,
+    /// preventing attackers from discovering key length via timing analysis.
+    /// We iterate through all keys even after finding a match to avoid leaking
+    /// information about the number of configured keys.
     pub fn validate_api_key(&self, key: &str) -> Option<ApiKeyValidation> {
         debug_assert!(self.api_key_config.enabled);
 
-        // SECURITY: Constant-time comparison to prevent timing attacks.
-        // We compare all keys with constant-time operations regardless of length,
-        // and iterate through all keys even after finding a match to avoid
-        // leaking information about the number of configured keys.
-        let key_bytes = key.as_bytes();
+        let candidate_hash = Sha256::digest(key.as_bytes());
         let mut result: Option<ApiKeyValidation> = None;
 
         for entry in &self.api_keys {
-            let stored_bytes = entry.key.as_bytes();
-            // SECURITY (M-004): Always do constant-time comparison regardless of length.
-            // Comparing different lengths returns false in constant time.
-            let is_match = if key_bytes.len() == stored_bytes.len() {
-                key_bytes.ct_eq(stored_bytes).into()
-            } else {
-                // Different lengths - do a constant-time comparison of the first byte
-                // to ensure timing is similar to the equal-length case
-                let min_len = 1_usize;
-                let key_slice = &key_bytes[..min_len.min(key_bytes.len())];
-                let stored_slice = &stored_bytes[..min_len.min(stored_bytes.len())];
-                // This will always be false but takes similar time to real comparison
-                let _ = key_slice.ct_eq(stored_slice);
-                false
-            };
+            let stored_hash = Sha256::digest(entry.key.as_bytes());
+            let is_match: bool = candidate_hash.ct_eq(&stored_hash).into();
 
             if is_match {
                 result = Some(ApiKeyValidation {
@@ -122,12 +110,16 @@ pub async fn auth_middleware(request: Request<Body>, next: Next) -> Response {
     next.run(request).await
 }
 
+/// Maximum length for X-Wallet header to prevent rate limiter memory exhaustion
+const MAX_WALLET_LEN: usize = 64;
+
 /// Extract authentication context from request headers
 fn extract_auth_context(request: &Request<Body>) -> AuthContext {
     let wallet = request
         .headers()
         .get(HEADER_WALLET)
         .and_then(|v| v.to_str().ok())
+        .filter(|s| s.len() <= MAX_WALLET_LEN)
         .map(|s| s.to_string());
 
     let api_key = request
@@ -149,10 +141,6 @@ pub async fn api_key_middleware(
     mut request: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    if request.uri().path() == "/metrics" {
-        return Ok(next.run(request).await);
-    }
-
     if !state.api_key_config.enabled {
         return Ok(next.run(request).await);
     }
@@ -217,7 +205,7 @@ pub async fn admin_middleware<S: Store + 'static>(
     match verify_admin_from_headers(&request, &state.auth.admin_public_keys) {
         SignatureVerifyResult::Valid { signer } => {
             // Ed25519 auth successful - consume nonce for replay protection
-            let tenant_id = get_tenant_id_for_admin(&request);
+            let tenant_id = get_tenant_id_for_admin(&request)?;
 
             let nonce_id = request
                 .headers()
@@ -259,14 +247,20 @@ pub async fn admin_middleware<S: Store + 'static>(
         if let Some(auth_header) = request.headers().get(AUTHORIZATION) {
             if let Ok(auth_str) = auth_header.to_str() {
                 if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                    if let Ok(claims) = cedros_login.validate_jwt(token).await {
-                        if claims.is_admin() {
-                            tracing::debug!(user_id = %claims.sub, "Admin request authenticated via JWT");
-                            return Ok(next.run(request).await);
+                    match cedros_login.validate_jwt(token).await {
+                        Ok(claims) => {
+                            if claims.is_admin() {
+                                tracing::debug!(user_id = %claims.sub, "Admin request authenticated via JWT");
+                                return Ok(next.run(request).await);
+                            }
+                            // JWT valid but user is not a system admin
+                            tracing::warn!(user_id = %claims.sub, "JWT user is not a system admin");
+                            return Err(StatusCode::FORBIDDEN);
                         }
-                        // JWT valid but user is not a system admin
-                        tracing::warn!(user_id = %claims.sub, "JWT user is not a system admin");
-                        return Err(StatusCode::FORBIDDEN);
+                        Err(e) => {
+                            tracing::warn!(error = %e, "JWT validation failed");
+                            return Err(StatusCode::UNAUTHORIZED);
+                        }
                     }
                 }
             }
@@ -278,20 +272,29 @@ pub async fn admin_middleware<S: Store + 'static>(
     Err(StatusCode::UNAUTHORIZED)
 }
 
-/// Extract tenant ID for admin operations
-fn get_tenant_id_for_admin(request: &Request<Body>) -> &str {
-    match request.extensions().get::<TenantContext>() {
-        Some(t) => t.tenant_id.as_str(),
-        None => {
-            tracing::warn!(
+/// Extract tenant ID for admin operations.
+/// SECURITY: Fail closed — reject if TenantContext is absent rather than
+/// silently defaulting to "default" tenant.
+fn get_tenant_id_for_admin(request: &Request<Body>) -> Result<&str, StatusCode> {
+    request
+        .extensions()
+        .get::<TenantContext>()
+        .map(|t| t.tenant_id.as_str())
+        .ok_or_else(|| {
+            tracing::error!(
                 path = %request.uri().path(),
-                "Admin request missing TenantContext, using 'default' tenant"
+                "Admin request missing TenantContext — rejecting"
             );
-            "default"
-        }
-    }
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
+/// Determine the expected nonce purpose for an admin request.
+///
+/// MAINTENANCE: When adding new admin endpoints, add a matching entry here.
+/// Returns `None` (fail-closed) for unrecognized routes, which causes auth rejection.
+/// Uses starts_with/ends_with matching — ordering matters for routes with shared prefixes.
+/// Test coverage: known routes, unknown routes (fail-closed), suffix collision rejection.
 fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static str> {
     let path = request.uri().path();
     let method = request.method();
@@ -313,7 +316,10 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         return Some("webhook_delete");
     }
 
-    if method == axum::http::Method::POST && path.ends_with("/retry") {
+    if method == axum::http::Method::POST
+        && path.starts_with("/admin/webhooks/")
+        && path.ends_with("/retry")
+    {
         return Some("webhook_retry");
     }
 
@@ -365,10 +371,16 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         return Some("admin_products_delete");
     }
 
-    if method == axum::http::Method::GET && path.ends_with("/inventory/adjustments") {
+    if method == axum::http::Method::GET
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/inventory/adjustments")
+    {
         return Some("admin_inventory_adjustments_list");
     }
-    if method == axum::http::Method::POST && path.ends_with("/inventory/adjust") {
+    if method == axum::http::Method::POST
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/inventory/adjust")
+    {
         return Some("admin_inventory_adjust");
     }
 
@@ -543,7 +555,10 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
     if method == axum::http::Method::GET && path == "/admin/refunds" {
         return Some("admin_refunds_list");
     }
-    if method == axum::http::Method::POST && path.ends_with("/process") {
+    if method == axum::http::Method::POST
+        && path.starts_with("/admin/refunds/")
+        && path.ends_with("/process")
+    {
         return Some("admin_refunds_process");
     }
 
@@ -598,11 +613,13 @@ async fn validate_and_consume_admin_nonce<S: Store>(
         return Err("nonce_already_used".to_string());
     }
 
-    // Empty stored purpose is wildcard.
-    if !nonce.purpose.is_empty()
-        && !expected_purpose.is_empty()
-        && nonce.purpose != expected_purpose
-    {
+    // SECURITY: Reject empty purpose on either side. An empty stored purpose
+    // must not act as a wildcard — it would allow a single nonce to authorize
+    // any admin endpoint.
+    if nonce.purpose.is_empty() || expected_purpose.is_empty() {
+        return Err("invalid_nonce_purpose".to_string());
+    }
+    if nonce.purpose != expected_purpose {
         return Err("invalid_nonce_purpose".to_string());
     }
 
@@ -647,7 +664,7 @@ mod tests {
     use crate::middleware::TrustedProxy;
 
     #[tokio::test]
-    async fn test_api_key_middleware_skips_metrics() {
+    async fn test_api_key_middleware_requires_key_for_metrics() {
         let api_key_config = ApiKeyConfig {
             enabled: true,
             keys: vec![crate::config::types::ApiKeyEntry {
@@ -665,7 +682,9 @@ mod tests {
                 api_key_middleware,
             ));
 
+        // Without API key → 401
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/metrics")
@@ -674,7 +693,19 @@ mod tests {
             )
             .await
             .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
+        // With valid API key → 200
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics")
+                    .header("X-API-Key", "test-key")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -902,6 +933,35 @@ mod tests {
             .body(Body::empty())
             .unwrap();
 
+        assert_eq!(super::admin_nonce_purpose_for_request(&req), None);
+    }
+
+    /// S-06: Verify that ends_with patterns are scoped to the correct path prefix
+    /// so that e.g. POST /admin/orders/abc/retry doesn't match webhook_retry.
+    #[test]
+    fn test_admin_nonce_purpose_rejects_wrong_prefix_with_matching_suffix() {
+        // POST /admin/orders/abc/retry should NOT match webhook_retry
+        let req = Request::builder()
+            .method(axum::http::Method::POST)
+            .uri("/admin/orders/abc/retry")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(super::admin_nonce_purpose_for_request(&req), None);
+
+        // POST /admin/orders/abc/process should NOT match admin_refunds_process
+        let req = Request::builder()
+            .method(axum::http::Method::POST)
+            .uri("/admin/orders/abc/process")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(super::admin_nonce_purpose_for_request(&req), None);
+
+        // GET /admin/coupons/abc/inventory/adjustments should NOT match
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/coupons/abc/inventory/adjustments")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(super::admin_nonce_purpose_for_request(&req), None);
     }
 }

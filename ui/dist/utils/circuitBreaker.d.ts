@@ -30,10 +30,12 @@ export declare enum CircuitState {
     HALF_OPEN = "HALF_OPEN"
 }
 export interface CircuitBreakerConfig {
-    /** Number of consecutive failures before opening circuit */
+    /** Number of failures within the window before opening circuit */
     failureThreshold: number;
     /** Time in ms to wait before attempting recovery (OPEN → HALF_OPEN) */
     timeout: number;
+    /** Sliding window in ms for counting failures (default: timeout * 2). Failures older than this are discarded. */
+    failureWindow?: number;
     /** Optional name for logging/debugging */
     name?: string;
 }

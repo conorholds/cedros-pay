@@ -95,4 +95,6 @@ export { ReceiptTemplate } from './templates/ReceiptTemplate';
 export type { ReceiptTemplateProps } from './templates/ReceiptTemplate';
 export { SubscriptionTemplate } from './templates/SubscriptionTemplate';
 export { useCedrosPayCheckoutAdapter } from './integrations/cedros-pay/useCedrosPayCheckoutAdapter';
+/** @experimental No backend integration; stub only. API will change without notice. */
+export { ShopChatPanel } from './components/chat/ShopChatPanel';
 //# sourceMappingURL=index.d.ts.map

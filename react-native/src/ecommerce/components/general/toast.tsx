@@ -143,7 +143,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         pointerEvents="box-none"
       >
         <View style={styles.container} pointerEvents="box-none">
-          <View style={styles.toastList} pointerEvents="box-auto">
+          <View style={styles.toastList} pointerEvents="auto">
             {toasts.map((t) => (
               <ToastItem key={t.id} data={t} onDismiss={() => dismissToast(t.id)} />
             ))}

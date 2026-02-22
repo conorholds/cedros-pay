@@ -233,6 +233,9 @@ impl PaywallService {
         let lock = self.refund_locks.get_lock(refund_id);
         let _guard = lock.lock().await;
 
+        // BUG-08: Single timestamp for the entire refund operation
+        let now = Utc::now();
+
         let mut refund = self
             .store
             .get_refund_quote(tenant_id, refund_id)
@@ -247,7 +250,7 @@ impl PaywallService {
             })?;
 
         // Check expiry
-        if Utc::now() > refund.expires_at {
+        if now > refund.expires_at {
             return Err(ServiceError::Coded {
                 code: ErrorCode::QuoteExpired,
                 message: "refund quote expired".into(),
@@ -291,7 +294,21 @@ impl PaywallService {
             message: "invalid token mint address".into(),
         })?;
 
-        // Execute refund transaction
+        // SAFETY: Persist "processing" state BEFORE on-chain send to prevent double-spend.
+        // If we crash after send but before persist, the refund is already marked finalized.
+        refund.processed_at = Some(now);
+        refund.processed_by = gasless_builder.get_default_fee_payer();
+        self.store
+            .store_refund_quote(refund.clone())
+            .await
+            .map_err(|e| {
+                ServiceError::Internal(format!(
+                    "failed to mark refund {} as processing: {}",
+                    refund_id, e
+                ))
+            })?;
+
+        // Execute refund transaction (safe: DB already marks this as in-flight)
         let signature = gasless_builder
             .execute_refund(
                 &recipient_pubkey,
@@ -312,45 +329,39 @@ impl PaywallService {
                 _ => ServiceError::Internal(format!("refund execution error: {}", e)),
             })?;
 
-        // Update refund with signature
-        refund.processed_at = Some(Utc::now());
-        refund.processed_by = gasless_builder.get_default_fee_payer();
+        // Persist signature after successful on-chain send
         refund.signature = Some(signature.to_string());
+        if let Err(e) = self.store.store_refund_quote(refund.clone()).await {
+            // On-chain tx succeeded but DB update failed — log critical for manual reconciliation.
+            // The refund is marked finalized (processed_at set) so it won't be double-spent.
+            error!(
+                refund_id = %refund_id,
+                signature = %signature,
+                error = %e,
+                "CRITICAL: refund sent on-chain but signature not persisted — needs manual reconciliation"
+            );
+        }
 
-        self.store
-            .store_refund_quote(refund.clone())
-            .await
-            .map_err(|e| {
-                ServiceError::Internal(format!(
-                    "failed to persist processed refund {}: {}",
-                    refund_id, e
-                ))
-            })?;
-
-        // Send webhook notification
-        // Per spec (20-webhooks.md): Use default tenant for refunds (no tenant context)
-        let event = PaymentEvent {
+        // Send webhook notification using RefundEvent (not PaymentEvent)
+        let refund_event = crate::models::RefundEvent {
             event_id: crate::x402::utils::generate_event_id(),
             event_type: "refund.succeeded".into(),
-            event_timestamp: Utc::now(),
+            event_timestamp: now,
             tenant_id: refund.tenant_id.clone(),
-            resource_id: refund.original_purchase_id.clone(),
-            method: "x402-refund".into(),
-            stripe_session_id: None,
-            stripe_customer: None,
-            fiat_amount_cents: None,
-            fiat_currency: None,
-            crypto_atomic_amount: Some(refund.amount.atomic),
-            crypto_token: Some(refund.amount.asset.code.clone()),
-            wallet: Some(refund.recipient_wallet.clone()),
-            user_id: None, // Refunds don't track user_id
-            proof_signature: Some(signature.to_string()),
-            metadata: HashMap::new(),
-            paid_at: Utc::now(),
+            refund_id: refund.id.clone(),
+            original_purchase_id: refund.original_purchase_id.clone(),
+            recipient_wallet: refund.recipient_wallet.clone(),
+            atomic_amount: refund.amount.atomic,
+            token: refund.amount.asset.code.clone(),
+            processed_by: refund.processed_by.clone().unwrap_or_default(),
+            signature: signature.to_string(),
+            reason: refund.reason.clone(),
+            metadata: refund.metadata.clone(),
+            refunded_at: now,
         };
 
-        self.call_payment_callback(&event).await;
-        self.notifier.payment_succeeded(event).await;
+        self.call_refund_callback(&refund_event).await;
+        self.notifier.refund_succeeded(refund_event).await;
 
         info!(
             refund_id = %refund_id,
@@ -398,7 +409,11 @@ impl PaywallService {
         // Mark refund as denied by setting a denial reason
         // We set processed_at to mark it as closed, but no signature means denied
         refund.processed_at = Some(Utc::now());
-        refund.reason = reason.map(|r| r.to_string());
+        // B-11: Only overwrite the customer's original reason if admin provides one.
+        // This preserves the audit trail of why the customer requested the refund.
+        if let Some(r) = reason {
+            refund.reason = Some(r.to_string());
+        }
         refund.signature = None; // No signature indicates denial
 
         self.store.store_refund_quote(refund).await.map_err(|e| {
@@ -534,6 +549,14 @@ impl PaywallService {
         refund_id: &str,
         payment_header: &str,
     ) -> ServiceResult<AuthorizationResult> {
+        // BUG-04 fix: Acquire lock to prevent concurrent authorize_refund calls
+        // from firing duplicate webhooks. Matches process_refund/deny_refund pattern.
+        let lock = self.refund_locks.get_lock(refund_id);
+        let _guard = lock.lock().await;
+
+        // BUG-08: Single timestamp for the entire authorize operation
+        let now = Utc::now();
+
         // Parse payment proof
         let proof =
             crate::x402::parse_payment_proof(payment_header).map_err(|e| ServiceError::Coded {
@@ -585,7 +608,7 @@ impl PaywallService {
         }
 
         // Check expiry
-        if Utc::now() > refund.expires_at {
+        if now > refund.expires_at {
             return Err(ServiceError::Coded {
                 code: ErrorCode::QuoteExpired,
                 message: "refund quote expired - please re-approve".into(),
@@ -607,8 +630,16 @@ impl PaywallService {
         }
 
         let proof_wallet = &proof.payer;
-        // Empty payer must fail - cannot bypass auth by omitting wallet
-        if proof_wallet.is_empty() || !server_wallets.iter().any(|w| w == proof_wallet) {
+        // Empty payer must fail - cannot bypass auth by omitting wallet.
+        // SECURITY: Use constant-time comparison via SHA-256 hashing to avoid
+        // leaking which server wallet is configured through timing side-channels.
+        let payer_hash = Sha256::digest(proof_wallet.as_bytes());
+        let is_server_wallet: bool = server_wallets.iter().fold(false, |acc, w| {
+            let wallet_hash = Sha256::digest(w.as_bytes());
+            let matches: bool = payer_hash.ct_eq(&wallet_hash).into();
+            acc | matches
+        });
+        if proof_wallet.is_empty() || !is_server_wallet {
             return Err(ServiceError::Coded {
                 code: ErrorCode::InvalidPayer,
                 message: "refund must be executed by server wallet".into(),
@@ -694,7 +725,7 @@ impl PaywallService {
         }
 
         // Mark refund as processed
-        refund.processed_at = Some(Utc::now());
+        refund.processed_at = Some(now);
         refund.processed_by = Some(result.wallet.clone());
         refund.signature = Some(result.signature.clone());
 
@@ -708,7 +739,7 @@ impl PaywallService {
                 ))
             })?;
 
-        let event = build_refund_succeeded_event(&refund, &result.wallet, &result.signature);
+        let event = build_refund_succeeded_event(&refund, &result.wallet, &result.signature, now);
 
         self.call_refund_callback(&event).await;
         self.notifier.refund_succeeded(event).await;
@@ -735,11 +766,12 @@ fn build_refund_succeeded_event(
     refund: &RefundQuote,
     processed_by: &str,
     signature: &str,
+    now: chrono::DateTime<Utc>,
 ) -> crate::models::RefundEvent {
     crate::models::RefundEvent {
         event_id: crate::x402::utils::generate_event_id(),
         event_type: "refund.succeeded".into(),
-        event_timestamp: Utc::now(),
+        event_timestamp: now,
         tenant_id: refund.tenant_id.clone(),
         refund_id: refund.id.clone(),
         original_purchase_id: refund.original_purchase_id.clone(),
@@ -750,6 +782,6 @@ fn build_refund_succeeded_event(
         signature: signature.to_string(),
         reason: refund.reason.clone(),
         metadata: HashMap::new(),
-        refunded_at: Utc::now(),
+        refunded_at: now,
     }
 }

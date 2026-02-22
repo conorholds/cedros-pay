@@ -44,7 +44,7 @@ export interface IAdminAuthManager {
     /** Set wallet signer for wallet-based auth */
     setWalletSigner(signer: WalletSigner | null): void;
     /** Set cedros-login JWT for JWT-based auth */
-    setCedrosLoginAuth(token: string | null, isAdmin: boolean): void;
+    setCedrosLoginAuth(token: string | null, isAdmin?: boolean): void;
     /** Create auth headers for admin request */
     createAuthHeaders(purpose: string): Promise<AdminAuthHeaders | JwtAuthHeaders>;
     /** Fetch with admin auth headers */
@@ -60,12 +60,12 @@ export declare class AdminAuthManager implements IAdminAuthManager {
     private readonly serverUrl;
     private walletSigner;
     private jwtToken;
-    private isAdmin;
+    private isAdminUser;
     constructor(serverUrl: string);
     getAuthMethod(): AdminAuthMethod;
     isAuthenticated(): boolean;
     setWalletSigner(signer: WalletSigner | null): void;
-    setCedrosLoginAuth(token: string | null, isAdmin: boolean): void;
+    setCedrosLoginAuth(token: string | null, isAdmin?: boolean): void;
     createAuthHeaders(purpose: string): Promise<AdminAuthHeaders | JwtAuthHeaders>;
     private createWalletAuthHeaders;
     private createJwtAuthHeaders;

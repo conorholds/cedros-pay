@@ -594,6 +594,7 @@ fn tier_to_string(tier: &ApiKeyTier) -> String {
 }
 
 /// Rate limiting middleware without connection info (for testing)
+#[cfg(test)]
 pub async fn rate_limit_middleware_no_addr(
     axum::extract::State(limiter): axum::extract::State<Arc<RateLimiter>>,
     request: Request<Body>,

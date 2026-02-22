@@ -351,110 +351,15 @@ impl PaywallService {
 
         // Persist order + decrement inventory (best-effort). This is separate from payment
         // recording so that later idempotent replays can fill gaps.
-        let mut order_metadata = HashMap::new();
-        if !cart.applied_coupons.is_empty() {
-            order_metadata.insert(
-                "coupon_codes".to_string(),
-                cart.applied_coupons.join(","),
-            );
-        }
-        if let Some(code) = cart.metadata.get("gift_card_code") {
-            order_metadata.insert("gift_card_code".to_string(), code.clone());
-        }
-        if let Some(amount) = cart.metadata.get("gift_card_applied_amount") {
-            order_metadata.insert("gift_card_applied_amount".to_string(), amount.clone());
-        }
-        if let Some(currency) = cart.metadata.get("gift_card_currency") {
-            order_metadata.insert("gift_card_currency".to_string(), currency.clone());
-        }
-
-        let items: Vec<OrderItem> = cart
-            .items
-            .iter()
-            .map(|i| OrderItem {
-                product_id: i.resource_id.clone(),
-                variant_id: i.variant_id.clone(),
-                quantity: i.quantity,
-            })
-            .collect();
-
-        let now = Utc::now();
-        let order_id = uuid::Uuid::new_v4().to_string();
-        let order = Order {
-            id: order_id.clone(),
-            tenant_id: tenant_id.to_string(),
-            source: "x402".to_string(),
-            purchase_id: result.signature.clone(),
-            resource_id: format!("cart:{}", cart.id),
-            user_id: user_id_for_event.clone(),
-            customer: Some(result.wallet.clone()),
-            status: "paid".to_string(),
-            items: items.clone(),
-            amount: cart.total.atomic,
-            amount_asset: cart.total.asset.code.clone(),
-            customer_email: None,
-            customer_name: None,
-            receipt_url: Some(format!("/receipt/{}", order_id)),
-            shipping: None,
-            metadata: order_metadata,
-            created_at: now,
-            updated_at: Some(now),
-            status_updated_at: Some(now),
-        };
-
-        // Clone order for messaging notification before moving into store
-        let order_for_messaging = order.clone();
-
-        match self.store.try_store_order(order).await {
-            Ok(true) => {
-                // Send order notifications (fire-and-forget)
-                self.notify_order_created(&order_for_messaging).await;
-
-                // M-001: Batch inventory update to eliminate N+1 queries
-                // Build list of inventory updates from cart items with positive quantity
-                let inventory_updates: Vec<(String, Option<String>, i32)> = items
-                    .iter()
-                    .filter(|item| item.quantity > 0)
-                    .map(|item| (item.product_id.clone(), item.variant_id.clone(), item.quantity))
-                    .collect();
-
-                if !inventory_updates.is_empty() {
-                    match self
-                        .store
-                        .update_inventory_batch(
-                            tenant_id,
-                            inventory_updates,
-                            Some("cart_paid"),
-                            Some("system"),
-                        )
-                        .await
-                    {
-                        Ok(results) => {
-                            debug!(
-                                updated_count = results.len(),
-                                tenant_id = %tenant_id,
-                                cart_id = %cart.id,
-                                "Batch inventory update completed"
-                            );
-                        }
-                        Err(e) => {
-                            warn!(
-                                error = %e,
-                                tenant_id = %tenant_id,
-                                cart_id = %cart.id,
-                                "Batch inventory update failed"
-                            );
-                        }
-                    }
-                }
-            }
-            Ok(false) => {
-                debug!(signature = %result.signature, cart_id = %cart.id, "Order already exists; skipping inventory decrement");
-            }
-            Err(e) => {
-                warn!(error = %e, tenant_id = %tenant_id, signature = %result.signature, cart_id = %cart.id, "Failed to store order");
-            }
-        }
+        self.persist_cart_order_and_inventory(
+            tenant_id,
+            &cart,
+            &result.signature,
+            Some(result.wallet.clone()),
+            user_id_for_event.clone(),
+            "x402",
+        )
+        .await;
 
         // Increment coupon usage atomically for all applied coupons - prevents race conditions
         // Also track per-customer usage using wallet as customer_id
@@ -998,32 +903,52 @@ impl PaywallService {
             self.apply_gift_card_redemption_atomic(tenant_id, &cart).await;
         }
 
+        // BUG-06 fix: mark_cart_paid BEFORE deleting hold. If mark_cart_paid fails,
+        // the hold remains valid and can be retried. Previously, deleting the hold first
+        // left a window where the hold was gone but the cart was not yet marked paid.
+        let paid_by = wallet
+            .unwrap_or(user_id_override.unwrap_or("credits"));
+        match self.store.mark_cart_paid(tenant_id, cart_id, paid_by).await {
+            Ok(()) => {}
+            Err(crate::storage::StorageError::NotFound) => {
+                warn!(cart_id = %cart_id, "Cart disappeared or already paid during credits capture");
+            }
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    hold_id = %hold_id,
+                    cart_id = %cart_id,
+                    "CRITICAL: Failed to persist cart paid marker after credits capture"
+                );
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::DatabaseError,
+                    message: "failed to persist cart paid marker".into(),
+                });
+            }
+        }
+
         if let Err(e) = self.store.delete_credits_hold(tenant_id, hold_id).await {
             tracing::warn!(error = %e, hold_id = %hold_id, "Failed to delete credits hold binding");
         }
 
-        // Update cart with payer wallet
-        let mut updated_cart = cart.clone();
-        updated_cart.wallet_paid_by = wallet.map(String::from);
-        if let Err(e) = store_cart_quote_with_retry(cart_id, || {
-            let updated_cart = updated_cart.clone();
-            async move { self.store.store_cart_quote(updated_cart).await }
-        })
-        .await
+        // B-02 fix: Convert inventory reservations and persist order (matching x402 path)
+        if let Err(e) = self
+            .store
+            .convert_inventory_reservations(tenant_id, cart_id, Utc::now())
+            .await
         {
-            // CRITICAL: Hold was captured and payment recorded but cart state did not update.
-            // This increases the risk of a second payment for the same cart.
-            tracing::error!(
-                error = %e,
-                hold_id = %hold_id,
-                cart_id = %cart_id,
-                "CRITICAL: Failed to persist cart paid marker after credits capture"
-            );
-            return Err(ServiceError::Coded {
-                code: ErrorCode::DatabaseError,
-                message: "failed to persist cart paid marker".into(),
-            });
+            warn!(error = %e, cart_id = %cart_id, "Failed to convert inventory reservations after cart credits payment");
         }
+
+        self.persist_cart_order_and_inventory(
+            tenant_id,
+            &cart,
+            &signature,
+            wallet.map(String::from),
+            user_id_for_event.clone(),
+            "credits",
+        )
+        .await;
 
         // Increment coupon usage atomically for all applied coupons
         // Also track per-customer usage using user_id or wallet as customer_id
@@ -1151,6 +1076,118 @@ impl PaywallService {
         })
     }
 
+    /// Persist order and decrement inventory for a completed cart payment (best-effort).
+    /// Shared by x402 and credits cart paths to ensure consistent behavior (B-02 fix).
+    async fn persist_cart_order_and_inventory(
+        &self,
+        tenant_id: &str,
+        cart: &CartQuote,
+        purchase_id: &str,
+        customer: Option<String>,
+        user_id: Option<String>,
+        source: &str,
+    ) {
+        let mut order_metadata = HashMap::new();
+        if !cart.applied_coupons.is_empty() {
+            order_metadata.insert("coupon_codes".to_string(), cart.applied_coupons.join(","));
+        }
+        if let Some(code) = cart.metadata.get("gift_card_code") {
+            order_metadata.insert("gift_card_code".to_string(), code.clone());
+        }
+        if let Some(amount) = cart.metadata.get("gift_card_applied_amount") {
+            order_metadata.insert("gift_card_applied_amount".to_string(), amount.clone());
+        }
+        if let Some(currency) = cart.metadata.get("gift_card_currency") {
+            order_metadata.insert("gift_card_currency".to_string(), currency.clone());
+        }
+
+        let items: Vec<OrderItem> = cart
+            .items
+            .iter()
+            .map(|i| OrderItem {
+                product_id: i.resource_id.clone(),
+                variant_id: i.variant_id.clone(),
+                quantity: i.quantity,
+            })
+            .collect();
+
+        let now = Utc::now();
+        let order_id = uuid::Uuid::new_v4().to_string();
+        let order = Order {
+            id: order_id.clone(),
+            tenant_id: tenant_id.to_string(),
+            source: source.to_string(),
+            purchase_id: purchase_id.to_string(),
+            resource_id: format!("cart:{}", cart.id),
+            user_id,
+            customer,
+            status: "paid".to_string(),
+            items: items.clone(),
+            amount: cart.total.atomic,
+            amount_asset: cart.total.asset.code.clone(),
+            customer_email: None,
+            customer_name: None,
+            receipt_url: Some(format!("/receipt/{}", order_id)),
+            shipping: None,
+            metadata: order_metadata,
+            created_at: now,
+            updated_at: Some(now),
+            status_updated_at: Some(now),
+        };
+
+        let order_for_messaging = order.clone();
+        match self.store.try_store_order(order).await {
+            Ok(true) => {
+                self.notify_order_created(&order_for_messaging).await;
+                let inventory_updates: Vec<(String, Option<String>, i32)> = items
+                    .iter()
+                    .filter(|item| item.quantity > 0)
+                    .map(|item| (item.product_id.clone(), item.variant_id.clone(), item.quantity))
+                    .collect();
+                if !inventory_updates.is_empty() {
+                    match self
+                        .store
+                        .update_inventory_batch(tenant_id, inventory_updates, Some("cart_paid"), Some("system"))
+                        .await
+                    {
+                        Ok(results) => {
+                            debug!(
+                                updated_count = results.len(),
+                                tenant_id = %tenant_id,
+                                cart_id = %cart.id,
+                                "Batch inventory update completed"
+                            );
+                        }
+                        Err(e) => {
+                            warn!(
+                                error = %e,
+                                tenant_id = %tenant_id,
+                                cart_id = %cart.id,
+                                "Batch inventory update failed"
+                            );
+                        }
+                    }
+                }
+            }
+            Ok(false) => {
+                debug!(
+                    purchase_id = %purchase_id,
+                    cart_id = %cart.id,
+                    "Order already exists; skipping inventory decrement"
+                );
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    tenant_id = %tenant_id,
+                    purchase_id = %purchase_id,
+                    cart_id = %cart.id,
+                    "Failed to store order"
+                );
+            }
+        }
+    }
+
     /// Atomically apply gift card redemption using balance deduction.
     /// SECURITY: Uses try_adjust_gift_card_balance to prevent race condition / over-redemption (H-001 fix).
     async fn apply_gift_card_redemption_atomic(&self, tenant_id: &str, cart: &CartQuote) {
@@ -1209,42 +1246,3 @@ impl PaywallService {
     }
 }
 
-async fn store_cart_quote_with_retry<F, Fut>(
-    cart_id: &str,
-    mut store_op: F,
-) -> crate::storage::StorageResult<()>
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = crate::storage::StorageResult<()>>,
-{
-    let mut last_error = None;
-    for attempt in 0..3 {
-        match store_op().await {
-            Ok(()) => {
-                if attempt > 0 {
-                    tracing::info!(
-                        attempt = attempt + 1,
-                        cart_id = %cart_id,
-                        "Cart quote update succeeded after retry"
-                    );
-                }
-                return Ok(());
-            }
-            Err(e) => {
-                last_error = Some(e);
-                if attempt < 2 {
-                    let delay_ms = 100 * (1 << attempt);
-                    tracing::warn!(
-                        attempt = attempt + 1,
-                        delay_ms,
-                        cart_id = %cart_id,
-                        "Cart quote update failed, retrying"
-                    );
-                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
-                }
-            }
-        }
-    }
-
-    Err(last_error.unwrap_or_else(|| crate::storage::StorageError::Unknown("unknown error".into())))
-}

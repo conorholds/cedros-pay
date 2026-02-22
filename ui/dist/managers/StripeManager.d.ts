@@ -3,6 +3,9 @@ import { RouteDiscoveryManager } from './RouteDiscoveryManager';
 import { NormalizedCartItem } from '../utils/cartHelpers';
 /**
  * Options for processing a cart checkout
+ *
+ * All fields beyond `items` are optional and forwarded as-is to the backend
+ * cart checkout endpoint. The backend may ignore fields it does not support.
  */
 export interface ProcessCartCheckoutOptions {
     items: NormalizedCartItem[];
@@ -10,7 +13,16 @@ export interface ProcessCartCheckoutOptions {
     cancelUrl?: string;
     metadata?: Record<string, string>;
     customerEmail?: string;
+    customerName?: string;
+    customerPhone?: string;
+    /** Serialized shipping address forwarded to the backend */
+    shippingAddress?: Record<string, string>;
+    /** Serialized billing address forwarded to the backend */
+    billingAddress?: Record<string, string>;
     couponCode?: string;
+    tipAmount?: number;
+    shippingMethodId?: string;
+    paymentMethodId?: string;
 }
 /**
  * Public interface for Stripe payment management.
@@ -81,6 +93,7 @@ export interface IStripeManager {
  */
 export declare class StripeManager implements IStripeManager {
     private stripe;
+    private initPromise;
     private readonly publicKey;
     private readonly routeDiscovery;
     private readonly rateLimiter;
@@ -88,6 +101,8 @@ export declare class StripeManager implements IStripeManager {
     constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager);
     /**
      * Initialize Stripe.js library
+     *
+     * Concurrent callers share a single loadStripe() call via a cached promise.
      */
     initialize(): Promise<void>;
     /**

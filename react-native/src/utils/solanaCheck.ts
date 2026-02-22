@@ -43,7 +43,7 @@ export async function requireSolana(): Promise<void> {
 function getSolanaInstallError(): string {
   return (
     'Solana dependencies not installed. To use crypto payments, install them with:\n\n' +
-    'npm install @solana/web3.js @solana/spl-token @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-wallets @solana/wallet-adapter-base\n\n' +
+    'npm install @solana/web3.js @solana/spl-token @solana/wallet-adapter-react @solana/wallet-adapter-base @solana/wallet-adapter-phantom @solana/wallet-adapter-solflare\n\n' +
     'Or if you only need Stripe payments, hide the crypto button with:\n' +
     '<CedrosPay showCrypto={false} />'
   );

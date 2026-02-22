@@ -190,8 +190,6 @@ export function PaymentMethodBadge({
   style,
   textStyle,
 }: PaymentMethodBadgeProps) {
-  const theme = useCedrosTheme();
-
   const isStripe = paymentMethod === 'stripe';
   const hasDiscount = isStripe ? product.hasStripeCoupon : product.hasCryptoCoupon;
   const discountPercent = isStripe

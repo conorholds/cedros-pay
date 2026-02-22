@@ -11,12 +11,16 @@ use tower::{Layer, Service};
 // Using Lazy to avoid repeated parsing and eliminate runtime .unwrap() calls
 static HEADER_NOSNIFF: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("nosniff"));
 static HEADER_DENY: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("DENY"));
-static HEADER_XSS_PROTECTION: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("1; mode=block"));
+static HEADER_CSP: Lazy<HeaderValue> =
+    Lazy::new(|| HeaderValue::from_static("default-src 'none'"));
 static HEADER_REFERRER_POLICY: Lazy<HeaderValue> =
     Lazy::new(|| HeaderValue::from_static("strict-origin-when-cross-origin"));
 static HEADER_HSTS: Lazy<HeaderValue> =
     Lazy::new(|| HeaderValue::from_static("max-age=31536000; includeSubDomains"));
+static HEADER_CACHE_CONTROL: Lazy<HeaderValue> =
+    Lazy::new(|| HeaderValue::from_static("no-store"));
+static HEADER_PERMISSIONS_POLICY: Lazy<HeaderValue> =
+    Lazy::new(|| HeaderValue::from_static("camera=(), microphone=(), geolocation=()"));
 
 /// Generate a request ID per spec (16-formats.md)
 /// Format: "req_" + hex(16 random bytes)
@@ -73,10 +77,16 @@ where
             // Using pre-parsed static values to avoid runtime unwrap() panics
             headers.insert(header::X_CONTENT_TYPE_OPTIONS, HEADER_NOSNIFF.clone());
             headers.insert(header::X_FRAME_OPTIONS, HEADER_DENY.clone());
-            // Note: CSP header removed - not in spec (10-middleware.md)
-            headers.insert("X-XSS-Protection", HEADER_XSS_PROTECTION.clone());
+            headers.insert(header::CONTENT_SECURITY_POLICY, HEADER_CSP.clone());
             headers.insert(header::REFERRER_POLICY, HEADER_REFERRER_POLICY.clone());
             headers.insert(header::STRICT_TRANSPORT_SECURITY, HEADER_HSTS.clone());
+            // SEC-05: Prevent caching of payment/auth responses by intermediaries
+            headers.insert(header::CACHE_CONTROL, HEADER_CACHE_CONTROL.clone());
+            // SEC-05: Restrict browser features for payment API responses
+            headers.insert(
+                axum::http::HeaderName::from_static("permissions-policy"),
+                HEADER_PERMISSIONS_POLICY.clone(),
+            );
 
             Ok(response)
         })

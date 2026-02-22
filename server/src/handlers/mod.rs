@@ -4,12 +4,18 @@ pub mod admin_ai_assistant;
 pub mod admin_chats;
 pub mod admin_collections;
 pub mod admin_config;
+pub mod admin_coupons;
+pub mod admin_coupons_stripe;
 pub mod admin_customers;
 pub mod admin_disputes;
 pub mod admin_faqs;
 pub mod admin_gift_cards;
 pub mod admin_inventory;
 pub mod admin_orders;
+pub mod admin_products;
+pub mod admin_products_stripe;
+pub mod admin_products_types;
+pub mod admin_refunds;
 pub mod admin_returns;
 pub mod admin_shipping;
 pub mod admin_stripe_refunds;
@@ -72,4 +78,17 @@ pub fn validate_metadata_map_size(
         ));
     }
     Ok(())
+}
+
+/// Maximum allowed limit for list endpoints.
+pub(crate) const MAX_LIST_LIMIT: i32 = 1000;
+
+/// Cap a pagination limit to [1, MAX_LIST_LIMIT].
+pub(crate) fn cap_limit(limit: i32) -> i32 {
+    limit.clamp(1, MAX_LIST_LIMIT)
+}
+
+/// Cap an optional pagination limit to [1, MAX_LIST_LIMIT], using `default` if None.
+pub(crate) fn cap_limit_opt(limit: Option<i32>, default: i32) -> i32 {
+    limit.unwrap_or(default).clamp(1, MAX_LIST_LIMIT)
 }

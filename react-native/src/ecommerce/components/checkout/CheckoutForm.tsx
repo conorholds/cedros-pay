@@ -17,15 +17,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent } from '../ui/card';
 
-interface FieldErrorProps {
-  message?: string;
-}
-
-function FieldError({ message }: FieldErrorProps) {
-  if (!message) return null;
-  return <Text style={styles.fieldError}>{message}</Text>;
-}
-
 interface CheckoutFormProps {
   style?: ViewStyle;
 }
@@ -152,7 +143,7 @@ export function CheckoutForm({ style }: CheckoutFormProps) {
             <Input
               keyboardType="decimal-pad"
               value={String(checkout.values.tipAmount ?? 0)}
-              onChangeText={(text) => checkout.setField('tipAmount', Number(text) || 0)}
+              onChangeText={(text: string) => checkout.setField('tipAmount', Number(text) || 0)}
             />
           </View>
         </View>
@@ -165,7 +156,7 @@ export function CheckoutForm({ style }: CheckoutFormProps) {
             <Label>Order notes (optional)</Label>
             <Input
               value={checkout.values.notes ?? ''}
-              onChangeText={(text) => checkout.setField('notes', text)}
+              onChangeText={(text: string) => checkout.setField('notes', text)}
               placeholder="Delivery instructions, gift note..."
             />
           </View>

@@ -378,6 +378,8 @@ impl HealthChecker {
     }
 
     /// Run the health check loop (legacy method without ownership transfer or shutdown)
+    /// OPS-09: Deprecated — use `run_arc` with shutdown channel instead
+    #[deprecated(note = "Use run_arc with shutdown channel for graceful shutdown")]
     pub async fn run_ref(&self, interval: Duration) {
         loop {
             self.check_rpc().await;

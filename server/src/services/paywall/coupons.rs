@@ -69,6 +69,8 @@ pub async fn select_coupons_for_payment(
                 .unwrap_or(true)
             && (coupon.payment_method.is_empty()
                 || coupon.payment_method.eq_ignore_ascii_case(pm_str))
+            // BUG-15: Skip first_purchase_only coupons — no customer context to verify eligibility
+            && !coupon.first_purchase_only
         {
             result.push(coupon);
         }
@@ -77,7 +79,9 @@ pub async fn select_coupons_for_payment(
     // Add manual coupon if provided (comes last per spec)
     if let Some(manual) = manual_coupon {
         // Validate manual coupon
+        // BUG-15: Skip first_purchase_only coupons — no customer context to verify eligibility
         if manual.active
+            && !manual.first_purchase_only
             && manual.starts_at.map(|s| s <= now).unwrap_or(true)
             && manual.expires_at.map(|e| e > now).unwrap_or(true)
             && manual

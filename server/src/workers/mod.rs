@@ -18,4 +18,5 @@ pub use lifecycle::{
     WorkerRegistration,
 };
 pub use subscription::{SubscriptionWorker, SubscriptionWorkerHandle};
+#[allow(deprecated)]
 pub use webhook::{spawn_webhook_worker, WebhookWorker, WebhookWorkerHandle};

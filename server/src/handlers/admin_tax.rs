@@ -16,8 +16,8 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::TaxRate;
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
+
 const MAX_TAX_BPS: i32 = 10_000;
 
 #[derive(Debug, Deserialize)]
@@ -60,10 +60,6 @@ fn default_active() -> bool {
     true
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn normalize_country(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.len() != 2 || !trimmed.chars().all(|c| c.is_ascii_alphabetic()) {
@@ -103,7 +99,7 @@ pub async fn list_tax_rates(
     tenant: TenantContext,
     Query(params): Query<ListQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     match state
         .store

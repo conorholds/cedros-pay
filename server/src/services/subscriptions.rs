@@ -45,6 +45,19 @@ pub struct StripeSubscriptionUpdate {
     pub billing_interval: Option<i32>,
 }
 
+/// Request to create a new x402 crypto subscription
+#[derive(Debug)]
+pub struct CreateX402SubscriptionParams {
+    pub tenant_id: String,
+    pub wallet: String,
+    pub product_id: String,
+    pub billing_period: BillingPeriod,
+    pub billing_interval: i32,
+    pub payment_signature: Option<String>,
+    pub metadata: Option<std::collections::HashMap<String, String>>,
+    pub plan_id: Option<String>,
+}
+
 /// Result of a subscription plan change
 /// Per spec (18-services-subscriptions.md): Includes proration amount
 #[derive(Debug)]
@@ -167,6 +180,31 @@ impl<S: Store> SubscriptionService<S> {
         self.store.clone()
     }
 
+    fn subscription_has_access(
+        &self,
+        sub: &Subscription,
+        now: chrono::DateTime<Utc>,
+        grace_duration: ChronoDuration,
+    ) -> bool {
+        match sub.status {
+            SubscriptionStatus::Active => {
+                if sub.current_period_end > now {
+                    true
+                } else {
+                    matches!(sub.payment_method, PaymentMethod::X402 | PaymentMethod::Credits)
+                        && sub.current_period_end + grace_duration > now
+                }
+            }
+            SubscriptionStatus::Trialing => {
+                sub.trial_end
+                    .map_or(sub.current_period_end > now, |te| te > now)
+            }
+            SubscriptionStatus::PastDue => sub.current_period_end > now,
+            SubscriptionStatus::Cancelled => sub.current_period_end > now,
+            SubscriptionStatus::Expired | SubscriptionStatus::Unpaid => false,
+        }
+    }
+
     // ========================================================================
     // Creation
     // ========================================================================
@@ -249,7 +287,7 @@ impl<S: Store> SubscriptionService<S> {
             wallet: Some(wallet.to_string()),
             user_id,
             product_id: product_id.to_string(),
-            plan_id: None, // TODO: Pass plan_id from request when frontend sends it
+            plan_id: None, // Stripe subscriptions derive plan from Stripe webhook metadata
             payment_method: PaymentMethod::Stripe,
             stripe_subscription_id: Some(stripe_subscription_id.to_string()),
             stripe_customer_id: Some(stripe_customer_id.to_string()),
@@ -285,19 +323,32 @@ impl<S: Store> SubscriptionService<S> {
     /// to prevent duplicate subscriptions for the same payment.
     pub async fn create_x402_subscription(
         &self,
-        tenant_id: &str,
-        wallet: &str,
-        product_id: &str,
-        billing_period: BillingPeriod,
-        billing_interval: i32,
-        payment_signature: Option<&str>,
+        req: CreateX402SubscriptionParams,
     ) -> ServiceResult<Subscription> {
+        let CreateX402SubscriptionParams {
+            tenant_id,
+            wallet,
+            product_id,
+            billing_period,
+            billing_interval,
+            payment_signature,
+            metadata,
+            plan_id,
+        } = req;
+
+        if billing_interval <= 0 {
+            return Err(ServiceError::Coded {
+                code: crate::errors::ErrorCode::InvalidField,
+                message: "billing_interval must be a positive integer".into(),
+            });
+        }
+
         // SECURITY (H-004): Check if payment signature already used for a subscription.
         // This prevents creating duplicate subscriptions for the same payment.
-        if let Some(sig) = payment_signature {
+        if let Some(ref sig) = payment_signature {
             if let Some(existing) = self
                 .store
-                .get_subscription_by_payment_signature(tenant_id, sig)
+                .get_subscription_by_payment_signature(&tenant_id, sig)
                 .await
                 .map_err(|e| ServiceError::Internal(e.to_string()))?
             {
@@ -314,7 +365,7 @@ impl<S: Store> SubscriptionService<S> {
         // Check if wallet already has active subscription for this product (idempotency)
         let existing = self
             .store
-            .get_subscriptions_by_wallet(tenant_id, wallet)
+            .get_subscriptions_by_wallet(&tenant_id, &wallet)
             .await
             .map_err(|e| ServiceError::Internal(e.to_string()))?;
 
@@ -331,7 +382,7 @@ impl<S: Store> SubscriptionService<S> {
             );
             return self
                 .extend_x402_subscription(
-                    tenant_id,
+                    &tenant_id,
                     &active_sub.id,
                     billing_period,
                     billing_interval,
@@ -344,15 +395,15 @@ impl<S: Store> SubscriptionService<S> {
         let period_end = calculate_period_end(now, &billing_period, billing_interval);
 
         // Resolve user_id from wallet via cedros-login (if configured)
-        let user_id = self.resolve_user_id_from_wallet(wallet).await;
+        let user_id = self.resolve_user_id_from_wallet(&wallet).await;
 
         let subscription = Subscription {
             id: id.clone(),
-            tenant_id: tenant_id.to_string(),
-            wallet: Some(wallet.to_string()),
+            tenant_id: tenant_id.clone(),
+            wallet: Some(wallet.clone()),
             user_id,
-            product_id: product_id.to_string(),
-            plan_id: None, // TODO: Pass plan_id from request when frontend sends it
+            product_id: product_id.clone(),
+            plan_id,
             payment_method: PaymentMethod::X402,
             stripe_subscription_id: None,
             stripe_customer_id: None,
@@ -366,8 +417,8 @@ impl<S: Store> SubscriptionService<S> {
             cancelled_at: None,
             created_at: Some(now),
             updated_at: Some(now),
-            payment_signature: payment_signature.map(|s| s.to_string()),
-            metadata: std::collections::HashMap::new(),
+            payment_signature,
+            metadata: metadata.unwrap_or_default(),
         };
 
         self.store
@@ -376,7 +427,7 @@ impl<S: Store> SubscriptionService<S> {
             .map_err(|e| ServiceError::Internal(e.to_string()))?;
 
         self.notifier
-            .subscription_created(tenant_id, &subscription.id, product_id, Some(wallet))
+            .subscription_created(&tenant_id, &subscription.id, &product_id, Some(&wallet))
             .await;
 
         self.call_subscription_created_callback(&subscription).await;
@@ -396,7 +447,16 @@ impl<S: Store> SubscriptionService<S> {
         product_id: &str,
         billing_period: BillingPeriod,
         billing_interval: i32,
+        metadata: Option<std::collections::HashMap<String, String>>,
+        plan_id: Option<String>,
     ) -> ServiceResult<Subscription> {
+        if billing_interval <= 0 {
+            return Err(ServiceError::Coded {
+                code: crate::errors::ErrorCode::InvalidField,
+                message: "billing_interval must be a positive integer".into(),
+            });
+        }
+
         // Check if wallet already has active subscription for this product (idempotency)
         let existing = self
             .store
@@ -438,7 +498,7 @@ impl<S: Store> SubscriptionService<S> {
             wallet: Some(wallet.to_string()),
             user_id,
             product_id: product_id.to_string(),
-            plan_id: None, // TODO: Pass plan_id from request when frontend sends it
+            plan_id,
             payment_method: PaymentMethod::Credits,
             stripe_subscription_id: None,
             stripe_customer_id: None,
@@ -453,7 +513,7 @@ impl<S: Store> SubscriptionService<S> {
             payment_signature: None, // Credits subscriptions use hold_id for idempotency
             created_at: Some(now),
             updated_at: Some(now),
-            metadata: std::collections::HashMap::new(),
+            metadata: metadata.unwrap_or_default(),
         };
 
         self.store
@@ -496,46 +556,36 @@ impl<S: Store> SubscriptionService<S> {
                 continue;
             }
 
-            // Per spec (18-services-subscriptions.md): Access check logic table
-            // - Active: in period = true, grace period = true (x402 only)
-            // - Trialing: in period = true, grace period = false
-            // - PastDue: in period = true, grace period = false
-            // - Cancelled: in period = true, grace period = false
-            // - Expired: false
-            let has_access = match sub.status {
-                SubscriptionStatus::Active => {
-                    // Active: grants access within period, or within grace period for x402/credits
-                    if sub.current_period_end > now {
-                        true
-                    } else {
-                        // Period ended but still in grace period (x402/credits - non-recurring payments)
-                        matches!(
-                            sub.payment_method,
-                            PaymentMethod::X402 | PaymentMethod::Credits
-                        ) && sub.current_period_end + grace_duration > now
-                    }
-                }
-                SubscriptionStatus::Trialing => {
-                    // Trialing: grants access only within trial/period, no grace period
-                    // Per spec: check trial_end if set, otherwise check current_period_end
-                    sub.trial_end
-                        .map_or(sub.current_period_end > now, |te| te > now)
-                }
-                SubscriptionStatus::PastDue => {
-                    // PastDue: grants access only within period, NO grace period
-                    // Per spec 18-services-subscriptions.md: "Grace period only applies when Status == Active"
-                    sub.current_period_end > now
-                }
-                SubscriptionStatus::Cancelled => {
-                    // Cancelled subscriptions retain access until their paid period ends
-                    // This applies whether cancelled immediately or at period end -
-                    // the user paid for this period and should get to use it
-                    sub.current_period_end > now
-                }
-                SubscriptionStatus::Expired | SubscriptionStatus::Unpaid => false,
-            };
+            if self.subscription_has_access(&sub, now, grace_duration) {
+                return Ok((true, Some(sub)));
+            }
+        }
 
-            if has_access {
+        Ok((false, None))
+    }
+
+    /// Check if Stripe customer has active subscription access to a product.
+    pub async fn has_access_by_stripe_customer_id(
+        &self,
+        tenant_id: &str,
+        stripe_customer_id: &str,
+        product_id: &str,
+    ) -> ServiceResult<(bool, Option<Subscription>)> {
+        let subscriptions = self
+            .store
+            .get_subscriptions_by_stripe_customer_id(tenant_id, stripe_customer_id)
+            .await
+            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+
+        let now = Utc::now();
+        let grace_duration = ChronoDuration::hours(self.grace_period_hours());
+
+        for sub in subscriptions {
+            if sub.product_id != product_id {
+                continue;
+            }
+
+            if self.subscription_has_access(&sub, now, grace_duration) {
                 return Ok((true, Some(sub)));
             }
         }
@@ -566,35 +616,7 @@ impl<S: Store> SubscriptionService<S> {
         let now = Utc::now();
         let grace_duration = ChronoDuration::hours(self.grace_period_hours());
 
-        let has_access = match sub.status {
-            SubscriptionStatus::Active => {
-                // Active: grants access within period, or within grace period for x402/credits
-                if sub.current_period_end > now {
-                    true
-                } else {
-                    matches!(
-                        sub.payment_method,
-                        PaymentMethod::X402 | PaymentMethod::Credits
-                    ) && sub.current_period_end + grace_duration > now
-                }
-            }
-            SubscriptionStatus::Trialing => {
-                // Trialing: grants access only within trial period, no grace period
-                // Per spec 18-services-subscriptions.md: check trial_end if set, otherwise current_period_end
-                sub.trial_end
-                    .map_or(sub.current_period_end > now, |te| te > now)
-            }
-            SubscriptionStatus::PastDue => {
-                // PastDue: grants access only within period, NO grace period per spec 18-services-subscriptions.md
-                // Spec states: "Grace period only applies when Status == StatusActive"
-                sub.current_period_end > now
-            }
-            SubscriptionStatus::Cancelled => {
-                // Cancelled subscriptions retain access until their paid period ends
-                sub.current_period_end > now
-            }
-            SubscriptionStatus::Expired | SubscriptionStatus::Unpaid => false,
-        };
+        let has_access = self.subscription_has_access(&sub, now, grace_duration);
 
         Ok(has_access)
     }
@@ -771,8 +793,12 @@ impl<S: Store> SubscriptionService<S> {
             .get_by_stripe_subscription_id(tenant_id, stripe_sub_id)
             .await?;
         match sub {
-            Some(s) if s.is_active() => Ok((true, Some(s))),
-            Some(s) => Ok((false, Some(s))),
+            Some(s) => {
+                // Use subscription_has_access with zero grace (Stripe manages its own grace)
+                let now = Utc::now();
+                let has = self.subscription_has_access(&s, now, ChronoDuration::zero());
+                Ok((has, Some(s)))
+            }
             None => Ok((false, None)),
         }
     }
@@ -1438,20 +1464,49 @@ mod tests {
                 .with_payment_callback(callback.clone());
 
         service
-            .create_x402_subscription(
-                "default",
-                "wallet-1",
-                "prod-1",
-                BillingPeriod::Month,
-                1,
-                None,
-            )
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: None,
+                metadata: None,
+                plan_id: None,
+            })
             .await
             .unwrap();
 
         let events = notifier.events().lock().clone();
         assert!(events.contains(&"subscription.created".to_string()));
         assert_eq!(*callback.created.lock(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_x402_persists_metadata() {
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let service =
+            SubscriptionService::new(Arc::new(Config::default()), store, notifier as Arc<dyn Notifier>);
+
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert("source".to_string(), "api".to_string());
+
+        let sub = service
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: None,
+                metadata: Some(metadata),
+                plan_id: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(sub.metadata.get("source").map(String::as_str), Some("api"));
     }
 
     #[tokio::test]
@@ -1555,14 +1610,16 @@ mod tests {
         );
 
         let created = service
-            .create_x402_subscription(
-                "default",
-                "wallet-1",
-                "prod-1",
-                BillingPeriod::Month,
-                1,
-                None,
-            )
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: None,
+                metadata: None,
+                plan_id: None,
+            })
             .await
             .unwrap();
 

@@ -235,14 +235,8 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         cart_id: &str,
         wallet: &str,
     ) -> StorageResult<bool> {
-        let cache_key = Self::tenant_key(tenant_id, cart_id);
-
-        if self.config.enabled {
-            if let Some(cached) = self.cart_cache.get(&cache_key) {
-                return Ok(cached.wallet_paid_by.as_deref() == Some(wallet));
-            }
-        }
-
+        // Always hit the database for access checks — cached cart may have stale
+        // wallet_paid_by from before mark_cart_paid was called (e.g. by another instance).
         self.inner.has_cart_access(tenant_id, cart_id, wallet).await
     }
 
@@ -296,6 +290,18 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         limit: i32,
     ) -> StorageResult<Vec<RefundQuote>> {
         self.inner.list_pending_refunds(tenant_id, limit).await
+    }
+
+    async fn list_credits_refund_requests(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<(Vec<RefundQuote>, i64)> {
+        self.inner
+            .list_credits_refund_requests(tenant_id, status, limit, offset)
+            .await
     }
 
     async fn mark_refund_processed(
@@ -426,6 +432,27 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         self.inner.append_order_history(entry).await
     }
 
+    async fn update_order_status_with_history(
+        &self,
+        tenant_id: &str,
+        order_id: &str,
+        status: &str,
+        status_updated_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+        entry: OrderHistoryEntry,
+    ) -> StorageResult<()> {
+        self.inner
+            .update_order_status_with_history(
+                tenant_id,
+                order_id,
+                status,
+                status_updated_at,
+                updated_at,
+                entry,
+            )
+            .await
+    }
+
     async fn list_order_history(
         &self,
         tenant_id: &str,
@@ -439,6 +466,14 @@ impl<S: Store + 'static> Store for CachedStore<S> {
 
     async fn create_fulfillment(&self, fulfillment: Fulfillment) -> StorageResult<()> {
         self.inner.create_fulfillment(fulfillment).await
+    }
+
+    async fn get_fulfillment(
+        &self,
+        tenant_id: &str,
+        fulfillment_id: &str,
+    ) -> StorageResult<Option<Fulfillment>> {
+        self.inner.get_fulfillment(tenant_id, fulfillment_id).await
     }
 
     async fn list_fulfillments(
@@ -619,6 +654,17 @@ impl<S: Store + 'static> Store for CachedStore<S> {
     ) -> StorageResult<std::collections::HashMap<String, (i32, i32)>> {
         self.inner
             .update_inventory_batch(tenant_id, updates, reason, actor)
+            .await
+    }
+
+    async fn adjust_inventory_atomic(
+        &self,
+        tenant_id: &str,
+        product_id: &str,
+        delta: i32,
+    ) -> StorageResult<(i32, i32)> {
+        self.inner
+            .adjust_inventory_atomic(tenant_id, product_id, delta)
             .await
     }
 
@@ -1092,10 +1138,11 @@ impl<S: Store + 'static> Store for CachedStore<S> {
 
     async fn list_webhooks(
         &self,
+        tenant_id: &str,
         status: Option<WebhookStatus>,
         limit: i32,
     ) -> StorageResult<Vec<PendingWebhook>> {
-        self.inner.list_webhooks(status, limit).await
+        self.inner.list_webhooks(tenant_id, status, limit).await
     }
 
     async fn retry_webhook(&self, webhook_id: &str) -> StorageResult<()> {
@@ -1376,6 +1423,32 @@ impl<S: Store + 'static> Store for CachedStore<S> {
             .await
     }
 
+    /// DB-06a fix: Override batch status update to invalidate cache for each ID.
+    /// Without this, the batch path (used by expire_overdue) bypassed cache invalidation.
+    async fn update_subscription_statuses(
+        &self,
+        tenant_id: &str,
+        ids: &[String],
+        status: SubscriptionStatus,
+    ) -> StorageResult<()> {
+        // Invalidate cache for each subscription BEFORE the batch write
+        for id in ids {
+            let cache_key = Self::tenant_key(tenant_id, id);
+            if let Some(sub) = self.subscription_cache.get(&cache_key) {
+                if let Some(ref wallet) = sub.wallet {
+                    let wallet_key =
+                        Self::wallet_product_key(tenant_id, wallet, &sub.product_id);
+                    self.subscription_by_wallet_cache.invalidate(&wallet_key);
+                }
+            }
+            self.subscription_cache.invalidate(&cache_key);
+        }
+
+        self.inner
+            .update_subscription_statuses(tenant_id, ids, status)
+            .await
+    }
+
     async fn delete_subscription(&self, tenant_id: &str, id: &str) -> StorageResult<()> {
         // Get subscription BEFORE delete to know wallet/product for cache invalidation
         let sub = self.inner.get_subscription(tenant_id, id).await?;
@@ -1438,8 +1511,12 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         self.inner.move_to_dlq(webhook, final_error).await
     }
 
-    async fn list_dlq(&self, limit: i32) -> StorageResult<Vec<DlqWebhook>> {
-        self.inner.list_dlq(limit).await
+    async fn list_dlq(&self, tenant_id: &str, limit: i32) -> StorageResult<Vec<DlqWebhook>> {
+        self.inner.list_dlq(tenant_id, limit).await
+    }
+
+    async fn get_dlq_entry(&self, dlq_id: &str) -> StorageResult<Option<DlqWebhook>> {
+        self.inner.get_dlq_entry(dlq_id).await
     }
 
     async fn retry_from_dlq(&self, dlq_id: &str) -> StorageResult<()> {

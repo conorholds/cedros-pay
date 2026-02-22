@@ -32,27 +32,9 @@ use crate::observability::{record_solana_rpc_call, record_solana_tx_confirmation
 use crate::services::BlockhashCache;
 
 use super::transaction_queue::TransactionQueue;
-use super::utils::is_rate_limit_error;
+use super::utils::{is_rate_limit_error, RpcAttemptError, rpc_attempt_with_timeout};
 use super::wallet_health::WalletHealthChecker;
 use super::ws_confirmation::{WsConfirmConfig, WsConfirmationService};
-
-#[derive(Debug)]
-enum RpcAttemptError {
-    Timeout,
-    Failed(String),
-}
-
-async fn rpc_attempt_with_timeout<T, E, F>(dur: Duration, fut: F) -> Result<T, RpcAttemptError>
-where
-    F: std::future::Future<Output = Result<T, E>>,
-    E: std::fmt::Display,
-{
-    match timeout(dur, fut).await {
-        Ok(Ok(v)) => Ok(v),
-        Ok(Err(e)) => Err(RpcAttemptError::Failed(e.to_string())),
-        Err(_) => Err(RpcAttemptError::Timeout),
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum VerifierError {
@@ -641,6 +623,24 @@ impl SolanaVerifier {
     /// Send transaction with retry and circuit breaker protection
     /// Per spec (22-x402-verifier.md lines 255-266): Different retry policies for different errors
     async fn send_transaction(
+        &self,
+        tx: &VersionedTransaction,
+    ) -> Result<Signature, VerifierError> {
+        /// Overall timeout for the send retry loop (30s).
+        /// Individual retries are bounded by MAX_TX_RETRIES / MAX_NETWORK_TIMEOUT_RETRIES,
+        /// but this provides an absolute ceiling to prevent unbounded RPC delays.
+        const SEND_OVERALL_TIMEOUT: Duration = Duration::from_secs(30);
+
+        match timeout(SEND_OVERALL_TIMEOUT, self.send_transaction_inner(tx)).await {
+            Ok(result) => result,
+            Err(_) => {
+                record_solana_rpc_call("sendTransaction", false, SEND_OVERALL_TIMEOUT.as_secs_f64());
+                Err(VerifierError::Network("send transaction overall timeout".into()))
+            }
+        }
+    }
+
+    async fn send_transaction_inner(
         &self,
         tx: &VersionedTransaction,
     ) -> Result<Signature, VerifierError> {
@@ -1358,15 +1358,30 @@ fn is_network_timeout_error(err: &str) -> bool {
 
 /// Check for HTTP 5xx server errors that indicate RPC is unhealthy (HIGH-007)
 /// These errors should trip the circuit breaker as they indicate server-side issues.
+///
+/// B-04: Uses contextual patterns to avoid false positives on strings like
+/// "transferred 500 tokens" or addresses containing "502".
 fn is_server_error(err: &str) -> bool {
-    err.contains("500")
-        || err.contains("502")
-        || err.contains("503")
-        || err.contains("504")
-        || err.contains("internal server error")
-        || err.contains("bad gateway")
-        || err.contains("service unavailable")
-        || err.contains("gateway timeout")
+    let err_lower = err.to_lowercase();
+    // Match HTTP status codes with surrounding context
+    err_lower.contains("status 500")
+        || err_lower.contains("status: 500")
+        || err_lower.contains("http 500")
+        || err_lower.contains("status 502")
+        || err_lower.contains("status: 502")
+        || err_lower.contains("http 502")
+        || err_lower.contains("status 503")
+        || err_lower.contains("status: 503")
+        || err_lower.contains("http 503")
+        || err_lower.contains("status 504")
+        || err_lower.contains("status: 504")
+        || err_lower.contains("http 504")
+        // Match descriptive error messages
+        || err_lower.contains("internal server error")
+        || err_lower.contains("bad gateway")
+        || err_lower.contains("service unavailable")
+        || err_lower.contains("gateway timeout")
+        || err_lower.contains("server error")
 }
 
 /// Check for already processed error
@@ -1651,5 +1666,27 @@ mod tests {
         };
         let result = SolanaVerifier::required_amount_atomic(&req, 9).expect("valid conversion");
         assert_eq!(result, 0u64);
+    }
+
+    // B-04: is_server_error false-positive tests
+    #[test]
+    fn test_is_server_error_detects_real_errors() {
+        assert!(is_server_error("HTTP 500 Internal Server Error"));
+        assert!(is_server_error("status: 502"));
+        assert!(is_server_error("status 503 received"));
+        assert!(is_server_error("http 504 gateway timeout"));
+        assert!(is_server_error("internal server error"));
+        assert!(is_server_error("bad gateway"));
+        assert!(is_server_error("service unavailable"));
+    }
+
+    #[test]
+    fn test_is_server_error_rejects_false_positives() {
+        // These should NOT match — they contain "500" etc. but not as HTTP status codes
+        assert!(!is_server_error("transferred 500 tokens"));
+        assert!(!is_server_error("account balance is 502.5"));
+        assert!(!is_server_error("address 7abc503def"));
+        assert!(!is_server_error("processed 504 transactions today"));
+        assert!(!is_server_error("amount: 1500"));
     }
 }

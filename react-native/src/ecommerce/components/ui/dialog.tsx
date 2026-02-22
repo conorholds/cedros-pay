@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ViewStyle,
+  StyleProp,
   TextStyle,
   Pressable,
   Dimensions,
@@ -62,7 +63,7 @@ export function DialogTrigger({ children }: DialogTriggerProps) {
 
 interface DialogContentProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const DialogContent = React.forwardRef<View, DialogContentProps>(
@@ -91,7 +92,7 @@ DialogContent.displayName = 'DialogContent';
 
 interface DialogHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function DialogHeader({ children, style, ...props }: DialogHeaderProps) {
@@ -104,7 +105,7 @@ export function DialogHeader({ children, style, ...props }: DialogHeaderProps) {
 
 interface DialogFooterProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function DialogFooter({ children, style, ...props }: DialogFooterProps) {

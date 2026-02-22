@@ -95,6 +95,11 @@ export interface ICreditsManager {
      */
     authorizeCartPayment(options: ProcessCreditsCartPaymentOptions): Promise<CreditsPaymentResult>;
     /**
+     * Release a previously created credits hold.
+     * This should be used when checkout fails after hold creation.
+     */
+    releaseHold(holdId: string, authToken: string): Promise<void>;
+    /**
      * Complete credits payment flow: create hold and authorize
      * Convenience method that combines createHold + authorizePayment
      * @param resource - Resource being purchased
@@ -137,6 +142,7 @@ export declare class CreditsManager implements ICreditsManager {
     createCartHold(options: CreateCartCreditsHoldOptions): Promise<CreditsHoldResponse>;
     authorizePayment(options: ProcessCreditsPaymentOptions): Promise<CreditsPaymentResult>;
     authorizeCartPayment(options: ProcessCreditsCartPaymentOptions): Promise<CreditsPaymentResult>;
+    releaseHold(holdId: string, authToken: string): Promise<void>;
     /**
      * Process a complete credits payment (convenience method)
      * Combines createHold + authorizePayment in one call

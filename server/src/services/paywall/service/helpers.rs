@@ -185,22 +185,32 @@ impl PaywallService {
         let mut coupons = Vec::new();
 
         // Get auto-apply coupons
-        if let Ok(auto) = self.coupons.list_coupons(tenant_id).await {
-            for c in auto {
-                if c.auto_apply && self.coupon_applies_to(&c, resource, payment_method) {
-                    coupons.push(c);
+        match self.coupons.list_coupons(tenant_id).await {
+            Ok(auto) => {
+                for c in auto {
+                    if c.auto_apply && self.coupon_applies_to(&c, resource, payment_method) {
+                        coupons.push(c);
+                    }
                 }
+            }
+            Err(e) => {
+                warn!(error = %e, tenant_id = %tenant_id, "Failed to list coupons — proceeding without auto-apply coupons");
             }
         }
 
         // Get explicit coupon
         if let Some(code) = coupon_code {
-            if let Ok(c) = self.coupons.get_coupon(tenant_id, code).await {
-                if self.coupon_applies_to(&c, resource, payment_method) {
-                    // Avoid duplicates
-                    if !coupons.iter().any(|x| x.code == c.code) {
-                        coupons.push(c);
+            match self.coupons.get_coupon(tenant_id, code).await {
+                Ok(c) => {
+                    if self.coupon_applies_to(&c, resource, payment_method) {
+                        // Avoid duplicates
+                        if !coupons.iter().any(|x| x.code == c.code) {
+                            coupons.push(c);
+                        }
                     }
+                }
+                Err(e) => {
+                    warn!(error = %e, tenant_id = %tenant_id, code = %code, "Failed to get coupon — proceeding without it");
                 }
             }
         }

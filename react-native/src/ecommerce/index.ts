@@ -88,9 +88,7 @@ export {
 export {
   Dialog,
   DialogTrigger,
-  DialogPortal,
   DialogClose,
-  DialogOverlay,
   DialogContent,
   DialogHeader,
   DialogFooter,
@@ -101,8 +99,6 @@ export {
   Sheet,
   SheetTrigger,
   SheetClose,
-  SheetPortal,
-  SheetOverlay,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -158,7 +154,6 @@ export type { CheckoutSuccessPageProps } from './components/checkout/CheckoutSuc
 export { CheckoutCancelPage } from './components/checkout/CheckoutCancelPage';
 export type { CheckoutCancelPageProps } from './components/checkout/CheckoutCancelPage';
 export { InventoryVerificationDialog } from './components/checkout/InventoryVerificationDialog';
-export type { InventoryVerificationDialogProps } from './components/checkout/InventoryVerificationDialog';
 
 // Orders components
 export { OrderList } from './components/orders/OrderList';
@@ -167,7 +162,6 @@ export { OrderDetails } from './components/orders/OrderDetails';
 
 // Templates
 export { ShopTemplate } from './templates/ShopTemplate';
-export type { CedrosShopRoutes } from './templates/ShopTemplate';
 export { CategoryTemplate } from './templates/CategoryTemplate';
 export { ProductTemplate } from './templates/ProductTemplate';
 export { CartTemplate } from './templates/CartTemplate';

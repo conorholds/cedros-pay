@@ -16,8 +16,7 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{ShippingProfile, ShippingRate};
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 50;
+use super::cap_limit_opt;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,10 +92,6 @@ fn default_active() -> bool {
     true
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn normalize_countries(mut countries: Vec<String>) -> Result<Vec<String>, String> {
     if countries.is_empty() {
         return Err("countries must not be empty".to_string());
@@ -121,7 +116,7 @@ pub async fn list_profiles(
     tenant: TenantContext,
     Query(params): Query<ListQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     match state
         .store
@@ -323,7 +318,7 @@ pub async fn list_rates(
     Path(profile_id): Path<String>,
     Query(params): Query<ListQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 50);
     let offset = params.offset.unwrap_or(0).max(0);
     match state
         .store
@@ -401,6 +396,20 @@ pub async fn update_rate(
         return json_error(status, body);
     }
 
+    // Fetch existing rate to preserve created_at in the response
+    let existing_rates = match state.store.list_shipping_rates(&tenant.tenant_id, &req.profile_id, 1000, 0).await {
+        Ok(rates) => rates,
+        Err(e) => {
+            let (status, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some(format!("Failed to fetch shipping rates: {e}")),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+    let original_created_at = existing_rates.iter().find(|r| r.id == rate_id).map(|r| r.created_at);
+
     let now = Utc::now();
     let rate = ShippingRate {
         id: rate_id.clone(),
@@ -413,7 +422,7 @@ pub async fn update_rate(
         min_subtotal: req.min_subtotal,
         max_subtotal: req.max_subtotal,
         active: req.active,
-        created_at: now,
+        created_at: original_created_at.unwrap_or(now),
         updated_at: now,
     };
 

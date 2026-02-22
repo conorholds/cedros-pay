@@ -1,12 +1,12 @@
 /**
  * Cedros Pay - Internationalization (i18n)
  *
- * Dynamic translation system that automatically loads languages
- * based on JSON files in the translations/ folder.
+ * Static translation system compatible with Metro bundler.
+ * All translations are statically required so Metro can resolve them at build time.
  *
  * Features:
- * - Zero-config language detection (uses browser locale)
- * - Dynamic loading (only loads the language you need)
+ * - Zero-config language detection (uses device locale)
+ * - Static requires (Metro-compatible, no dynamic import())
  * - Automatic fallback to English
  * - Type-safe translation keys
  * - Manual locale override via CedrosProvider
@@ -72,76 +72,75 @@ export interface Translations {
 }
 
 /**
- * Supported locales (dynamically determined by files in translations/ folder)
- * Locale codes follow BCP 47 standard (e.g., 'en', 'es', 'zh', 'ja', 'pt', 'fr')
+ * Supported locales
  */
 export type Locale = string;
 
 /**
- * Translation cache to avoid re-importing
+ * Static translation map — Metro requires all imports to be statically resolvable.
+ * Each entry is a lazy getter so we only parse the JSON when first accessed.
+ */
+const TRANSLATION_MAP: Record<string, () => Translations> = {
+  en: () => require('./translations/en.json'),
+  ar: () => require('./translations/ar.json'),
+  bn: () => require('./translations/bn.json'),
+  de: () => require('./translations/de.json'),
+  es: () => require('./translations/es.json'),
+  fil: () => require('./translations/fil.json'),
+  fr: () => require('./translations/fr.json'),
+  he: () => require('./translations/he.json'),
+  id: () => require('./translations/id.json'),
+  in: () => require('./translations/in.json'),
+  it: () => require('./translations/it.json'),
+  jp: () => require('./translations/jp.json'),
+  kr: () => require('./translations/kr.json'),
+  ms: () => require('./translations/ms.json'),
+  nl: () => require('./translations/nl.json'),
+  pa: () => require('./translations/pa.json'),
+  pl: () => require('./translations/pl.json'),
+  pt: () => require('./translations/pt.json'),
+  ru: () => require('./translations/ru.json'),
+  ta: () => require('./translations/ta.json'),
+  th: () => require('./translations/th.json'),
+  tr: () => require('./translations/tr.json'),
+  uk: () => require('./translations/uk.json'),
+  ur: () => require('./translations/ur.json'),
+  vn: () => require('./translations/vn.json'),
+  zh: () => require('./translations/zh.json'),
+};
+
+/**
+ * Translation cache to avoid re-parsing JSON
  */
 const translationCache: Map<Locale, Translations> = new Map();
 
 /**
- * Available locales (populated dynamically)
+ * Load a translation synchronously via static require.
  */
-let availableLocales: Locale[] | null = null;
-
-/**
- * Dynamically import a translation file
- *
- * @param locale - Locale code (e.g., 'en', 'es', 'zh')
- * @returns Translation object or null if not found
- */
-async function loadTranslation(locale: Locale): Promise<Translations | null> {
-  // Check cache first
+function loadTranslation(locale: Locale): Translations | null {
   if (translationCache.has(locale)) {
     return translationCache.get(locale)!;
   }
 
-  try {
-    // Dynamic import based on locale
-    // Vite will bundle all JSON files in translations/ folder
-    const translation = await import(`./translations/${locale}.json`);
-    const data: Translations = translation.default || translation;
+  const loader = TRANSLATION_MAP[locale];
+  if (!loader) {
+    return null;
+  }
 
-    // Cache it
+  try {
+    const data = loader();
     translationCache.set(locale, data);
     return data;
-  } catch (error) {
-    // Translation file doesn't exist
+  } catch {
     return null;
   }
 }
 
 /**
- * Get list of available locales by discovering translation files dynamically
- * Uses Vite's import.meta.glob to find all translation JSON files
- *
- * @returns Array of available locale codes
+ * Get list of available locales
  */
 export async function getAvailableLocales(): Promise<Locale[]> {
-  if (availableLocales) {
-    return availableLocales;
-  }
-
-  // Dynamically discover all translation files using Vite's glob import
-  // This will include all JSON files in the translations/ directory
-  const translationModules = import.meta.glob('./translations/*.json');
-
-  // Extract locale codes from file paths
-  const available: Locale[] = [];
-  for (const path in translationModules) {
-    // Extract locale from path like "./translations/en.json" -> "en" or "./translations/fil.json" -> "fil"
-    // Supports 2-letter codes (en, es), 3-letter codes (fil), and region codes (en-US)
-    const match = path.match(/\.\/translations\/([a-z]{2,3}(?:-[A-Z]{2})?)\.json$/);
-    if (match) {
-      available.push(match[1]);
-    }
-  }
-
-  availableLocales = available.length > 0 ? available : ['en']; // Fallback to English
-  return availableLocales;
+  return Object.keys(TRANSLATION_MAP);
 }
 
 /**
@@ -155,29 +154,25 @@ export function detectLocale(deviceLocale?: string): Locale {
   if (deviceLocale) {
     return deviceLocale.split('-')[0].toLowerCase();
   }
-  return 'en'; // Default, let the app provide locale via react-native-localize
+  return 'en';
 }
 
 /**
- * Load translations for a specific locale with fallback to English
- *
- * @param locale - Requested locale (e.g., 'es', 'zh')
- * @returns Translations object (always succeeds, falls back to English)
+ * Load translations for a specific locale with fallback to English.
+ * Now synchronous internally but keeps async signature for API compat.
  */
 export async function loadLocale(locale: Locale): Promise<Translations> {
-  // Try requested locale
-  let translation = await loadTranslation(locale);
+  const translation = loadTranslation(locale);
   if (translation) {
     return translation;
   }
 
   // Fallback to English
-  translation = await loadTranslation('en');
-  if (translation) {
-    return translation;
+  const fallback = loadTranslation('en');
+  if (fallback) {
+    return fallback;
   }
 
-  // Ultimate fallback (should never happen if en.json exists)
   throw new Error('Critical: No translation files found, not even en.json');
 }
 
@@ -188,32 +183,24 @@ export type TranslateFn = (key: string, params?: Record<string, string>) => stri
 
 /**
  * Create a translation function for a specific locale
- *
- * @param translations - Loaded translations object
- * @returns Translation function
  */
 export function createTranslator(translations: Translations): TranslateFn {
   return (key: string, params?: Record<string, string>): string => {
-    // Parse key path (e.g., "ui.pay_with_card" or "errors.insufficient_funds_token.message")
     const parts = key.split('.');
     let value: unknown = translations;
 
-    // Navigate the object tree
     for (const part of parts) {
       if (value && typeof value === 'object' && part in value) {
         value = (value as Record<string, unknown>)[part];
       } else {
-        // Key not found, return the key itself as fallback
         return key;
       }
     }
 
-    // Value should be a string at this point
     if (typeof value !== 'string') {
       return key;
     }
 
-    // Replace parameters if provided (e.g., {amount} -> "$5.00")
     if (params) {
       return Object.entries(params).reduce(
         (str, [paramKey, paramValue]) => str.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), paramValue),
@@ -227,11 +214,6 @@ export function createTranslator(translations: Translations): TranslateFn {
 
 /**
  * Get error message in current locale
- *
- * @param errorCode - Error code string (e.g., 'insufficient_funds_token')
- * @param translations - Current translations
- * @param includeAction - Whether to include action guidance
- * @returns Localized error message
  */
 export function getLocalizedError(
   errorCode: string,
@@ -241,7 +223,6 @@ export function getLocalizedError(
   const error = translations.errors[errorCode];
 
   if (!error) {
-    // Fallback to English error messages
     const fallback = getUserFriendlyError(errorCode);
     return includeAction && fallback.action
       ? `${fallback.message} ${fallback.action}`

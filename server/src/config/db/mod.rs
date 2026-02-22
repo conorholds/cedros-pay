@@ -10,6 +10,7 @@ pub mod repository;
 
 pub use encryption::{ConfigEncryption, EncryptedValue, EncryptionError};
 pub use repository::{
-    secret_fields_for_category, BatchUpsertItem, ConfigCategoryMeta, ConfigEntry,
-    ConfigHistoryEntry, ConfigRepositoryError, PostgresConfigRepository, REDACTED_PLACEHOLDER,
+    default_keys_for_category, secret_fields_for_category, BatchUpsertItem, ConfigCategoryMeta,
+    ConfigEntry, ConfigHistoryEntry, ConfigRepositoryError, PostgresConfigRepository,
+    KNOWN_CATEGORIES, REDACTED_PLACEHOLDER,
 };

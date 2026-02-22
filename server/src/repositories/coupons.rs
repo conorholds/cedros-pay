@@ -70,6 +70,20 @@ pub trait CouponRepository: Send + Sync {
             .collect())
     }
 
+    /// List coupons with SQL-level pagination (avoids loading all into memory).
+    async fn list_coupons_paginated(
+        &self,
+        tenant_id: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<(Vec<Coupon>, i64), CouponRepositoryError> {
+        // Default: fall back to list_coupons with in-memory pagination
+        let all = self.list_coupons(tenant_id).await?;
+        let total = all.len() as i64;
+        let page = all.into_iter().skip(offset).take(limit).collect();
+        Ok((page, total))
+    }
+
     async fn create_coupon(&self, coupon: Coupon) -> Result<(), CouponRepositoryError>;
     async fn update_coupon(&self, coupon: Coupon) -> Result<(), CouponRepositoryError>;
     async fn increment_usage(

@@ -6,8 +6,6 @@ export interface ConfigEditorProps {
     isLoading?: boolean;
     onSave: (config: Record<string, unknown>) => Promise<void>;
     onValidate?: (config: Record<string, unknown>) => Promise<ValidateConfigResponse>;
-    /** @deprecated No longer used - autosave is always enabled */
-    onCancel?: () => void;
 }
 export declare function ConfigEditor({ category, config, originalConfig, isLoading, onSave, }: ConfigEditorProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=ConfigEditor.d.ts.map

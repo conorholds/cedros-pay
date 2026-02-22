@@ -1,12 +1,5 @@
-/**
- * Admin Dashboard Section Components (Part 2)
- *
- * Coupons, Refunds sections + re-export Settings.
- *
- * @deprecated Import directly from './CouponsSection' or './RefundsSection' instead.
- * This file is kept for backwards compatibility.
- */
+import { SettingsSectionProps } from './SettingsSection';
 export { CouponsSection } from './CouponsSection';
 export { RefundsSection } from './RefundsSection';
-export { SettingsSection } from './SettingsSection';
+export declare function SettingsSection(props: SettingsSectionProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=sections-more.d.ts.map

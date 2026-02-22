@@ -12,7 +12,6 @@
  */
 
 import {
-  View,
   ScrollView,
   StyleSheet,
   ViewStyle,

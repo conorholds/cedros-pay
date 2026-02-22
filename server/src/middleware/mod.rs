@@ -32,8 +32,7 @@ pub use idempotency::{
 pub use logging::{layer as logging_layer, structured_logging_middleware, truncate_address};
 pub use panic_recovery::{PanicRecoveryLayer, PanicRecoveryService};
 pub use rate_limit::{
-    rate_limit_middleware, rate_limit_middleware_no_addr, RateLimitResult, RateLimiter,
-    RateLimiterCleanupHandle,
+    rate_limit_middleware, RateLimitResult, RateLimiter, RateLimiterCleanupHandle,
 };
 pub use real_ip::TrustedProxy;
 pub use real_ip::{extract_real_ip, get_real_ip, real_ip_middleware, RealIp};

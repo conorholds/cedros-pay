@@ -834,6 +834,40 @@ impl Config {
             }
         }
 
+        // SEC-12: Validate trusted proxy CIDRs at startup
+        for cidr in &self.server.trusted_proxy_cidrs {
+            let (net_str, prefix_str) = match cidr.split_once('/') {
+                Some((n, p)) => (n.trim(), Some(p.trim())),
+                None => (cidr.trim(), None),
+            };
+            if net_str.parse::<std::net::IpAddr>().is_err() {
+                return Err(ConfigError::Validation(format!(
+                    "server.trusted_proxy_cidrs contains invalid IP: '{cidr}'"
+                )));
+            }
+            if let Some(p) = prefix_str {
+                if p.parse::<u8>().is_err() {
+                    return Err(ConfigError::Validation(format!(
+                        "server.trusted_proxy_cidrs contains invalid prefix: '{cidr}'"
+                    )));
+                }
+            }
+        }
+
+        // OPS-10: Validate SMTP config when email is enabled
+        if self.messaging.email_enabled {
+            if self.messaging.smtp_host.trim().is_empty() {
+                return Err(ConfigError::Validation(
+                    "messaging.smtp_host is required when email_enabled=true".into(),
+                ));
+            }
+            if self.messaging.from_email.trim().is_empty() {
+                return Err(ConfigError::Validation(
+                    "messaging.from_email is required when email_enabled=true".into(),
+                ));
+            }
+        }
+
         Ok(())
     }
 

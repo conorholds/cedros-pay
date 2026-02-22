@@ -16,8 +16,8 @@ use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{is_valid_order_transition, Fulfillment, Order, OrderHistoryEntry, OrderItem};
 
-const MAX_LIST_LIMIT: i32 = 1000;
-const DEFAULT_LIST_LIMIT: i32 = 20;
+use super::cap_limit_opt;
+
 const HISTORY_LIMIT: i32 = 100;
 const FULFILLMENT_LIMIT: i32 = 100;
 
@@ -98,10 +98,6 @@ pub struct FulfillmentResponse {
     pub fulfillment: Fulfillment,
 }
 
-fn cap_limit(limit: Option<i32>) -> i32 {
-    limit.unwrap_or(DEFAULT_LIST_LIMIT).clamp(1, MAX_LIST_LIMIT)
-}
-
 fn normalize_status(status: &str) -> String {
     status.trim().to_lowercase()
 }
@@ -134,6 +130,7 @@ fn fulfillment_to_order_status(status: &str) -> Option<&'static str> {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 
@@ -289,13 +286,120 @@ mod tests {
             .unwrap();
         assert_eq!(history.len(), 1);
     }
+
+    #[tokio::test]
+    async fn test_create_fulfillment_invalid_transition_does_not_persist_fulfillment() {
+        let store = Arc::new(InMemoryStore::new());
+        let state = Arc::new(AdminState {
+            store: store.clone(),
+            product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
+            coupon_repo: Arc::new(InMemoryCouponRepository::new(Vec::new())),
+            stripe_client: None,
+        });
+        let order = base_order("processing");
+        store.try_store_order(order.clone()).await.unwrap();
+
+        let tenant = TenantContext::default();
+        let request = CreateFulfillmentRequest {
+            status: Some("shipped".to_string()),
+            items: vec![OrderItem {
+                product_id: "prod-1".to_string(),
+                variant_id: None,
+                quantity: 1,
+            }],
+            carrier: Some("ups".to_string()),
+            tracking_number: Some("1Z".to_string()),
+            tracking_url: None,
+            shipped_at: None,
+            delivered_at: None,
+            metadata: HashMap::new(),
+            actor: Some("admin".to_string()),
+            note: Some("boxed".to_string()),
+        };
+
+        let response = create_fulfillment(
+            State(state),
+            tenant.clone(),
+            Path(order.id.clone()),
+            Json(request),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let fulfillments = store
+            .list_fulfillments(&tenant.tenant_id, &order.id, 10)
+            .await
+            .unwrap();
+        assert!(fulfillments.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_update_fulfillment_status_invalid_transition_does_not_mutate_fulfillment() {
+        let store = Arc::new(InMemoryStore::new());
+        let state = Arc::new(AdminState {
+            store: store.clone(),
+            product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
+            coupon_repo: Arc::new(InMemoryCouponRepository::new(Vec::new())),
+            stripe_client: None,
+        });
+
+        let order = base_order("processing");
+        store.try_store_order(order.clone()).await.unwrap();
+        let now = Utc::now();
+        let fulfillment = Fulfillment {
+            id: "ful-1".to_string(),
+            tenant_id: "default".to_string(),
+            order_id: order.id.clone(),
+            status: "pending".to_string(),
+            carrier: None,
+            tracking_number: None,
+            tracking_url: None,
+            items: order.items.clone(),
+            shipped_at: None,
+            delivered_at: None,
+            metadata: HashMap::new(),
+            created_at: now,
+            updated_at: Some(now),
+        };
+        store.create_fulfillment(fulfillment).await.unwrap();
+
+        let tenant = TenantContext::default();
+        let request = UpdateFulfillmentStatusRequest {
+            status: "shipped".to_string(),
+            carrier: Some("ups".to_string()),
+            tracking_number: Some("1Z".to_string()),
+            tracking_url: None,
+            shipped_at: None,
+            delivered_at: None,
+            actor: Some("admin".to_string()),
+            note: Some("cannot ship from processing".to_string()),
+        };
+
+        let response = update_fulfillment_status(
+            State(state),
+            tenant.clone(),
+            Path("ful-1".to_string()),
+            Json(request),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let updated = store
+            .get_fulfillment(&tenant.tenant_id, "ful-1")
+            .await
+            .unwrap()
+            .expect("fulfillment");
+        assert_eq!(updated.status, "pending");
+    }
 }
 pub async fn list_orders(
     State(state): State<Arc<AdminState>>,
     tenant: TenantContext,
     Query(params): Query<ListOrdersQuery>,
 ) -> impl IntoResponse {
-    let limit = cap_limit(params.limit);
+    let limit = cap_limit_opt(params.limit, 20);
     let offset = params.offset.unwrap_or(0).max(0);
     let status = params.status.as_deref().map(normalize_status);
 
@@ -361,17 +465,37 @@ pub async fn get_order(
         }
     };
 
-    let history = state
+    let history = match state
         .store
         .list_order_history(&tenant.tenant_id, &order_id, HISTORY_LIMIT)
         .await
-        .unwrap_or_default();
+    {
+        Ok(items) => items,
+        Err(e) => {
+            let (status_code, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some(format!("Failed to load order history: {e}")),
+                None,
+            );
+            return json_error(status_code, body);
+        }
+    };
 
-    let fulfillments = state
+    let fulfillments = match state
         .store
         .list_fulfillments(&tenant.tenant_id, &order_id, FULFILLMENT_LIMIT)
         .await
-        .unwrap_or_default();
+    {
+        Ok(items) => items,
+        Err(e) => {
+            let (status_code, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some(format!("Failed to load order fulfillments: {e}")),
+                None,
+            );
+            return json_error(status_code, body);
+        }
+    };
 
     json_ok(OrderDetailResponse {
         order,
@@ -430,19 +554,6 @@ pub async fn update_order_status(
     }
 
     let now = Utc::now();
-    if let Err(e) = state
-        .store
-        .update_order_status(&tenant.tenant_id, &order_id, &target_status, now, now)
-        .await
-    {
-        let (status_code, body) = error_response(
-            ErrorCode::DatabaseError,
-            Some(format!("Failed to update order status: {e}")),
-            None,
-        );
-        return json_error(status_code, body);
-    }
-
     let history_entry = OrderHistoryEntry {
         id: uuid::Uuid::new_v4().to_string(),
         tenant_id: tenant.tenant_id.clone(),
@@ -454,10 +565,22 @@ pub async fn update_order_status(
         created_at: now,
     };
 
-    if let Err(e) = state.store.append_order_history(history_entry).await {
+    // DB-04a fix: Atomic status update + history append in a single transaction.
+    if let Err(e) = state
+        .store
+        .update_order_status_with_history(
+            &tenant.tenant_id,
+            &order_id,
+            &target_status,
+            now,
+            now,
+            history_entry,
+        )
+        .await
+    {
         let (status_code, body) = error_response(
             ErrorCode::DatabaseError,
-            Some(format!("Failed to record order history: {e}")),
+            Some(format!("Failed to update order status: {e}")),
             None,
         );
         return json_error(status_code, body);
@@ -514,6 +637,18 @@ pub async fn create_fulfillment(
         }
     };
 
+    if let Some(target_status) = fulfillment_to_order_status(&status) {
+        if order.status != target_status && !is_valid_order_transition(&order.status, target_status)
+        {
+            let (status_code, body) = error_response(
+                ErrorCode::InvalidOperation,
+                Some("invalid order status transition".to_string()),
+                None,
+            );
+            return json_error(status_code, body);
+        }
+    }
+
     let now = Utc::now();
     let shipped_at = if status == "shipped" && req.shipped_at.is_none() {
         Some(now)
@@ -542,25 +677,10 @@ pub async fn create_fulfillment(
         updated_at: Some(now),
     };
 
-    if let Err(e) = state.store.create_fulfillment(fulfillment.clone()).await {
-        let (status_code, body) = error_response(
-            ErrorCode::DatabaseError,
-            Some(format!("Failed to create fulfillment: {e}")),
-            None,
-        );
-        return json_error(status_code, body);
-    }
-
+    // B-08 fix: Update order status BEFORE creating fulfillment so that
+    // a failed status update doesn't leave an orphaned fulfillment.
     if let Some(target_status) = fulfillment_to_order_status(&status) {
         if order.status != target_status {
-            if !is_valid_order_transition(&order.status, target_status) {
-                let (status_code, body) = error_response(
-                    ErrorCode::InvalidOperation,
-                    Some("invalid order status transition".to_string()),
-                    None,
-                );
-                return json_error(status_code, body);
-            }
             if let Err(e) = state
                 .store
                 .update_order_status(&tenant.tenant_id, &order_id, target_status, now, now)
@@ -584,9 +704,32 @@ pub async fn create_fulfillment(
                 created_at: now,
             };
             if let Err(e) = state.store.append_order_history(history_entry).await {
+                let rollback_now = Utc::now();
+                if let Err(rollback_err) = state
+                    .store
+                    .update_order_status(
+                        &tenant.tenant_id,
+                        &order_id,
+                        &order.status,
+                        rollback_now,
+                        rollback_now,
+                    )
+                    .await
+                {
+                    let (status_code, body) = error_response(
+                        ErrorCode::DatabaseError,
+                        Some(format!(
+                            "Failed to record order history: {e}; rollback failed: {rollback_err}"
+                        )),
+                        None,
+                    );
+                    return json_error(status_code, body);
+                }
                 let (status_code, body) = error_response(
                     ErrorCode::DatabaseError,
-                    Some(format!("Failed to record order history: {e}")),
+                    Some(format!(
+                        "Failed to record order history: {e}; status rolled back"
+                    )),
                     None,
                 );
                 return json_error(status_code, body);
@@ -595,6 +738,15 @@ pub async fn create_fulfillment(
             order.status_updated_at = Some(now);
             order.updated_at = Some(now);
         }
+    }
+
+    if let Err(e) = state.store.create_fulfillment(fulfillment.clone()).await {
+        let (status_code, body) = error_response(
+            ErrorCode::DatabaseError,
+            Some(format!("Failed to create fulfillment: {e}")),
+            None,
+        );
+        return json_error(status_code, body);
     }
 
     json_ok(FulfillmentResponse { fulfillment })
@@ -614,6 +766,64 @@ pub async fn update_fulfillment_status(
             Some(serde_json::json!({ "field": "status" })),
         );
         return json_error(status_code, body);
+    }
+
+    let existing_fulfillment = match state
+        .store
+        .get_fulfillment(&tenant.tenant_id, &fulfillment_id)
+        .await
+    {
+        Ok(Some(fulfillment)) => fulfillment,
+        Ok(None) => {
+            let (status_code, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("fulfillment not found".to_string()),
+                None,
+            );
+            return json_error(status_code, body);
+        }
+        Err(e) => {
+            let (status_code, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some(format!("Failed to load fulfillment: {e}")),
+                None,
+            );
+            return json_error(status_code, body);
+        }
+    };
+
+    // Best-effort guard: check order status transition before updating fulfillment.
+    // NOTE: This is not transactionally safe (TOCTOU), but prevents unnecessary
+    // fulfillment mutations in the common case. The post-update check below
+    // re-validates before actually updating the order status.
+    if let Some(target_status) = fulfillment_to_order_status(&status) {
+        match state
+            .store
+            .get_order(&tenant.tenant_id, &existing_fulfillment.order_id)
+            .await
+        {
+            Ok(Some(order)) => {
+                if order.status != target_status
+                    && !is_valid_order_transition(&order.status, target_status)
+                {
+                    let (status_code, body) = error_response(
+                        ErrorCode::InvalidOperation,
+                        Some("invalid order status transition".to_string()),
+                        None,
+                    );
+                    return json_error(status_code, body);
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                let (status_code, body) = error_response(
+                    ErrorCode::DatabaseError,
+                    Some(format!("Failed to load order: {e}")),
+                    None,
+                );
+                return json_error(status_code, body);
+            }
+        }
     }
 
     let now = Utc::now();
@@ -645,9 +855,12 @@ pub async fn update_fulfillment_status(
     {
         Ok(Some(fulfillment)) => fulfillment,
         Ok(None) => {
+            // B-06: Fulfillment may have been deleted between get and update (race condition).
+            // Return 404 instead of panicking.
+            tracing::error!(fulfillment_id = %fulfillment_id, "Fulfillment disappeared during update");
             let (status_code, body) = error_response(
                 ErrorCode::ResourceNotFound,
-                Some("fulfillment not found".to_string()),
+                Some("Fulfillment not found".into()),
                 None,
             );
             return json_error(status_code, body);
@@ -706,9 +919,32 @@ pub async fn update_fulfillment_status(
                     created_at: now,
                 };
                 if let Err(e) = state.store.append_order_history(history_entry).await {
+                    let rollback_now = Utc::now();
+                    if let Err(rollback_err) = state
+                        .store
+                        .update_order_status(
+                            &tenant.tenant_id,
+                            &fulfillment.order_id,
+                            &order.status,
+                            rollback_now,
+                            rollback_now,
+                        )
+                        .await
+                    {
+                        let (status_code, body) = error_response(
+                            ErrorCode::DatabaseError,
+                            Some(format!(
+                                "Failed to record order history: {e}; rollback failed: {rollback_err}"
+                            )),
+                            None,
+                        );
+                        return json_error(status_code, body);
+                    }
                     let (status_code, body) = error_response(
                         ErrorCode::DatabaseError,
-                        Some(format!("Failed to record order history: {e}")),
+                        Some(format!(
+                            "Failed to record order history: {e}; status rolled back"
+                        )),
                         None,
                     );
                     return json_error(status_code, body);

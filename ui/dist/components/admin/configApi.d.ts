@@ -43,17 +43,19 @@ export interface ValidateConfigResponse {
     errors: string[];
     warnings: string[];
 }
-/** Auth credentials for Ed25519 signing (legacy) */
+/** @deprecated Use IAdminAuthManager instead. Legacy auth used client-generated nonces vulnerable to replay. */
 export interface AdminAuth {
     signerPublicKey: string;
     sign: (message: string) => Promise<string>;
 }
 /** Admin Config API client */
 export declare class ConfigApiClient {
-    private serverUrl;
+    private _serverUrl;
     private auth?;
     private authManager?;
-    constructor(serverUrl: string, auth?: AdminAuth | undefined, authManager?: IAdminAuthManager | undefined);
+    constructor(_serverUrl: string, auth?: AdminAuth | undefined, authManager?: IAdminAuthManager | undefined);
+    /** Server URL passed at construction (retained for API compatibility). */
+    get serverUrl(): string;
     private fetch;
     /** List all config categories */
     listCategories(limit?: number): Promise<ListCategoriesResponse>;

@@ -153,15 +153,10 @@ pub struct ProductsAppState {
     pub coupon_repo: Arc<dyn CouponRepository>,
 }
 
-/// Maximum limit for list queries to prevent resource exhaustion
-const MAX_LIST_LIMIT: i32 = 1000;
+use super::cap_limit;
 
 fn default_limit() -> i32 {
     100
-}
-
-fn cap_limit(limit: i32) -> i32 {
-    limit.clamp(1, MAX_LIST_LIMIT)
 }
 
 fn remaining_uses(limit: Option<i32>, usage_count: i32) -> Option<i32> {
@@ -269,7 +264,9 @@ pub async fn list_products(
                             let mut ordered_active: Vec<crate::models::Product> = Vec::new();
                             let target_len = offset + limit;
                             let mut start = 0usize;
-                            let chunk_size = limit.max(1);
+                            // Performance: fetch larger ID batches to reduce round trips on
+                            // deep pagination while preserving existing ordering/filters.
+                            let chunk_size = (limit.max(1) * 4).min(200);
 
                             while start < collection.product_ids.len()
                                 && ordered_active.len() < target_len

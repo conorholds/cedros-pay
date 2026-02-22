@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ViewStyle,
+  StyleProp,
   TextStyle,
   Pressable,
   Animated,
@@ -65,7 +66,7 @@ export function SheetTrigger({ children }: SheetTriggerProps) {
 interface SheetContentProps {
   children: React.ReactNode;
   side?: SheetSide;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const SheetContent = React.forwardRef<View, SheetContentProps>(
@@ -213,7 +214,7 @@ SheetContent.displayName = 'SheetContent';
 
 interface SheetHeaderProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function SheetHeader({ children, style, ...props }: SheetHeaderProps) {

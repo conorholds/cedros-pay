@@ -215,14 +215,16 @@ export class StripeManager implements IStripeManager {
 
     try {
       // Initialize payment sheet
-      const { error: initError } = await initPaymentSheet({
+      const sheetConfig: any = {
         paymentIntentClientSecret: options.paymentIntentClientSecret,
         setupIntentClientSecret: options.setupIntentClientSecret,
         customerId: options.customerId,
-        customerEphemeralKeySecret: options.customerEphemeralKeySecret,
-        merchantDisplayName: 'Cedros Pay',
         allowsDelayedPaymentMethods: true,
-      });
+      };
+      if (options.customerEphemeralKeySecret) {
+        sheetConfig.customerEphemeralKeySecret = options.customerEphemeralKeySecret;
+      }
+      const { error: initError } = await initPaymentSheet(sheetConfig);
 
       if (initError) {
         getLogger().error('[StripeManager] Payment sheet initialization failed:', initError);

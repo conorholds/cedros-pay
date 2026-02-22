@@ -188,9 +188,12 @@ fn extract_from_subdomain(request: &Request) -> Option<String> {
         return None;
     }
 
+    // SEC-10: Normalize subdomain to lowercase before using as tenant ID
+    let subdomain_lower = subdomain.to_lowercase();
+
     // Validate subdomain as tenant ID
-    if is_valid_tenant_id(subdomain) {
-        Some(subdomain.to_string())
+    if is_valid_tenant_id(&subdomain_lower) {
+        Some(subdomain_lower)
     } else {
         None
     }

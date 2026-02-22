@@ -7,7 +7,7 @@ export declare function buildCheckoutSchema(opts: {
     requireShippingAddress: boolean;
     requireBillingAddress: boolean;
 }): z.ZodObject<{
-    email: z.ZodString | z.ZodOptional<z.ZodString>;
+    email: z.ZodString | z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">]>>;
     name: z.ZodString | z.ZodOptional<z.ZodString>;
     phone: z.ZodString | z.ZodOptional<z.ZodString>;
     notes: z.ZodOptional<z.ZodString>;
