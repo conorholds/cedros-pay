@@ -868,7 +868,7 @@ function vl({
   ] });
 }
 const Wp = L.lazy(
-  () => import("./CryptoButton-Dhxnk9d7.mjs").then((e) => e.a).then((e) => ({ default: e.CryptoButton }))
+  () => import("./CryptoButton-BdOtL7w-.mjs").then((e) => e.a).then((e) => ({ default: e.CryptoButton }))
 ), Hp = ({
   isOpen: e,
   onClose: t,
@@ -1181,7 +1181,7 @@ function Yp({
   return /* @__PURE__ */ s(o, { endpoint: e, children: /* @__PURE__ */ s(a, { wallets: t, autoConnect: !1, children: n }) });
 }
 const Qp = L.lazy(
-  () => import("./CryptoButton-Dhxnk9d7.mjs").then((e) => e.a).then((e) => ({ default: e.CryptoButton }))
+  () => import("./CryptoButton-BdOtL7w-.mjs").then((e) => e.a).then((e) => ({ default: e.CryptoButton }))
 );
 function ON(e) {
   const { resource: t, items: n, checkout: r = {}, display: o = {}, callbacks: a = {}, advanced: i = {} } = e, { config: c, walletPool: l } = sr(), d = bn(), { isCartMode: f } = jo(t, n), u = o.showCrypto ?? !0, h = L.useMemo(() => ({
@@ -3999,7 +3999,7 @@ function am({ serverUrl: e, apiKey: t, pageSize: n = 20, authManager: r }) {
   ] });
 }
 const im = ln(
-  () => import("./SettingsSection-htem-WL3.mjs").then((e) => ({ default: e.SettingsSection }))
+  () => import("./SettingsSection-CGKKGXWz.mjs").then((e) => ({ default: e.SettingsSection }))
 );
 function cm(e) {
   return /* @__PURE__ */ s(mn, { fallback: null, children: /* @__PURE__ */ s(im, { ...e }) });
@@ -4155,17 +4155,17 @@ function lm({
   };
 }
 const dm = ln(
-  () => import("./SubscriptionsSection-CONwHhT4.mjs").then((e) => ({ default: e.SubscriptionsSection }))
+  () => import("./SubscriptionsSection-Dy1e15fe.mjs").then((e) => ({ default: e.SubscriptionsSection }))
 ), um = ln(
-  () => import("./StorefrontSection-CKTQt255.mjs").then((e) => ({ default: e.StorefrontSection }))
+  () => import("./StorefrontSection-Mzr1H51w.mjs").then((e) => ({ default: e.StorefrontSection }))
 ), fm = ln(
-  () => import("./AISettingsSection--jn-BNmd.mjs").then((e) => ({ default: e.AISettingsSection }))
+  () => import("./AISettingsSection-CD9IRyR1.mjs").then((e) => ({ default: e.AISettingsSection }))
 ), pm = ln(
-  () => import("./PaymentSettingsSection-c13RAUxn.mjs").then((e) => ({ default: e.PaymentSettingsSection }))
+  () => import("./PaymentSettingsSection--Aqlne1F.mjs").then((e) => ({ default: e.PaymentSettingsSection }))
 ), mm = ln(
-  () => import("./MessagingSection-BG9O62ko.mjs").then((e) => ({ default: e.MessagingSection }))
+  () => import("./MessagingSection-DO2yPTvs.mjs").then((e) => ({ default: e.MessagingSection }))
 ), hm = ln(
-  () => import("./FAQSection-BB1wJRsR.mjs").then((e) => ({ default: e.FAQSection }))
+  () => import("./FAQSection-CyYK9OAN.mjs").then((e) => ({ default: e.FAQSection }))
 ), xl = [
   {
     label: "Menu",
@@ -4386,16 +4386,16 @@ function Vo(e) {
   return n.displayName = "LazyAdminSection", n;
 }
 Vo(
-  () => import("./SettingsSection-htem-WL3.mjs").then((e) => ({ default: e.SettingsSection }))
+  () => import("./SettingsSection-CGKKGXWz.mjs").then((e) => ({ default: e.SettingsSection }))
 );
 Vo(
-  () => import("./SubscriptionsSection-CONwHhT4.mjs").then((e) => ({ default: e.SubscriptionsSection }))
+  () => import("./SubscriptionsSection-Dy1e15fe.mjs").then((e) => ({ default: e.SubscriptionsSection }))
 );
 Vo(
-  () => import("./StorefrontSection-CKTQt255.mjs").then((e) => ({ default: e.StorefrontSection }))
+  () => import("./StorefrontSection-Mzr1H51w.mjs").then((e) => ({ default: e.StorefrontSection }))
 );
 Vo(
-  () => import("./FAQSection-BB1wJRsR.mjs").then((e) => ({ default: e.FAQSection }))
+  () => import("./FAQSection-CyYK9OAN.mjs").then((e) => ({ default: e.FAQSection }))
 );
 const Pt = (e) => ln(async () => {
   const r = (await e()).default;
@@ -4433,17 +4433,17 @@ const Pt = (e) => ln(async () => {
     { id: "Configuration", label: "Configuration", order: 2, defaultCollapsed: !0 }
   ],
   components: {
-    products: Pt(() => import("./sections-DICaHGhz.mjs").then((e) => ({ default: e.ProductsSection }))),
-    subscriptions: Pt(() => import("./SubscriptionsSection-CONwHhT4.mjs").then((e) => ({ default: e.SubscriptionsSection }))),
-    transactions: Pt(() => import("./sections-DICaHGhz.mjs").then((e) => ({ default: e.TransactionsSection }))),
-    coupons: Pt(() => import("./sections-DICaHGhz.mjs").then((e) => ({ default: e.CouponsSection }))),
-    refunds: Pt(() => import("./sections-DICaHGhz.mjs").then((e) => ({ default: e.RefundsSection }))),
-    storefront: Pt(() => import("./StorefrontSection-CKTQt255.mjs").then((e) => ({ default: e.StorefrontSection }))),
-    "ai-settings": Pt(() => import("./AISettingsSection--jn-BNmd.mjs").then((e) => ({ default: e.AISettingsSection }))),
-    faqs: Pt(() => import("./FAQSection-BB1wJRsR.mjs").then((e) => ({ default: e.FAQSection }))),
-    "payment-settings": Pt(() => import("./PaymentSettingsSection-c13RAUxn.mjs").then((e) => ({ default: e.PaymentSettingsSection }))),
-    messaging: Pt(() => import("./MessagingSection-BG9O62ko.mjs").then((e) => ({ default: e.MessagingSection }))),
-    settings: Pt(() => import("./SettingsSection-htem-WL3.mjs").then((e) => ({ default: e.SettingsSection })))
+    products: Pt(() => import("./sections-DpEdFL1B.mjs").then((e) => ({ default: e.ProductsSection }))),
+    subscriptions: Pt(() => import("./SubscriptionsSection-Dy1e15fe.mjs").then((e) => ({ default: e.SubscriptionsSection }))),
+    transactions: Pt(() => import("./sections-DpEdFL1B.mjs").then((e) => ({ default: e.TransactionsSection }))),
+    coupons: Pt(() => import("./sections-DpEdFL1B.mjs").then((e) => ({ default: e.CouponsSection }))),
+    refunds: Pt(() => import("./sections-DpEdFL1B.mjs").then((e) => ({ default: e.RefundsSection }))),
+    storefront: Pt(() => import("./StorefrontSection-Mzr1H51w.mjs").then((e) => ({ default: e.StorefrontSection }))),
+    "ai-settings": Pt(() => import("./AISettingsSection-CD9IRyR1.mjs").then((e) => ({ default: e.AISettingsSection }))),
+    faqs: Pt(() => import("./FAQSection-CyYK9OAN.mjs").then((e) => ({ default: e.FAQSection }))),
+    "payment-settings": Pt(() => import("./PaymentSettingsSection--Aqlne1F.mjs").then((e) => ({ default: e.PaymentSettingsSection }))),
+    messaging: Pt(() => import("./MessagingSection-DO2yPTvs.mjs").then((e) => ({ default: e.MessagingSection }))),
+    settings: Pt(() => import("./SettingsSection-CGKKGXWz.mjs").then((e) => ({ default: e.SettingsSection })))
   },
   createPluginContext(e) {
     const t = e.cedrosPay, n = e.cedrosLogin;

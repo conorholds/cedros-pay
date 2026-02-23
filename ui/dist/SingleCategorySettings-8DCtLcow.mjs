@@ -1,8 +1,8 @@
 import { jsxs as o, jsx as t, Fragment as U } from "react/jsx-runtime";
-import { useState as k, useEffect as V, useMemo as H, useCallback as I } from "react";
-import { $ as T, a2 as Z, a0 as Q, a7 as ee } from "./index-C1hbnxn0.mjs";
+import { useState as k, useEffect as V, useMemo as H, useCallback as M } from "react";
+import { $ as T, a2 as Z, a0 as Q, a7 as ee } from "./index-bbSf3B7-.mjs";
 import { u as te } from "./useAutosave-YwMqRzqy.mjs";
-import { A as re } from "./AutosaveIndicator-B3T328jH.mjs";
+import { A as re } from "./AutosaveIndicator-G2CRN8hH.mjs";
 import { S as O } from "./CedrosContext-BnJ2Cf7R.mjs";
 import { PublicKey as ie } from "@solana/web3.js";
 class ne {
@@ -672,7 +672,7 @@ function se({
     });
   }, f = () => {
     d([...w, ""]), h(w.length), g("");
-  }, P = (e, i) => {
+  }, I = (e, i) => {
     const r = [...w];
     r[e] = i, d(r);
   }, _ = (e) => {
@@ -686,7 +686,7 @@ function se({
   }, R = (e) => {
     h(e), g(w[e] || "");
   }, x = () => {
-    m !== null && (P(m, p), h(null), g(""));
+    m !== null && (I(m, p), h(null), g(""));
   }, C = () => {
     m !== null && w[m] === "" && _(m), h(null), g("");
   };
@@ -904,9 +904,9 @@ function ae({
     onSave: S,
     debounceMs: 1500,
     enabled: !g
-  }), f = I((e, i) => {
+  }), f = M((e, i) => {
     l((r) => ({ ...r, [e]: i }));
-  }, []), P = I((e) => {
+  }, []), I = M((e) => {
     h((i) => {
       const r = new Set(i);
       return r.has(e) ? r.delete(e) : r.add(e), r;
@@ -1002,7 +1002,7 @@ function ae({
               type: "text",
               className: `cedros-admin__input ${N.valid ? "" : "cedros-admin__input--error"}`,
               value: a,
-              onChange: (M) => f(e, M.target.value),
+              onChange: (D) => f(e, D.target.value),
               disabled: n,
               placeholder: "e.g. 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
               style: {
@@ -1146,7 +1146,7 @@ function ae({
           {
             type: "button",
             className: "cedros-admin__button cedros-admin__button--ghost",
-            onClick: () => P(e),
+            onClick: () => I(e),
             style: { padding: "0.5rem", minWidth: "auto" },
             title: y ? "Hide" : "Show",
             children: y ? T.eyeOff : T.eye
@@ -1184,7 +1184,7 @@ function fe({
   const h = H(
     () => new ne(b, void 0, d),
     [b, d]
-  ), [p, g] = k(null), [w, A] = k([]), [f, P] = k(!1), [_, R] = k(!0), [x, C] = k(null), [e, i] = k(null), [r, y] = k(!1), v = L[n] || { label: n, icon: "⚙️" }, a = S || v.label, N = c || v.description, M = I(async () => {
+  ), [p, g] = k(null), [w, A] = k([]), [f, I] = k(!1), [_, R] = k(!0), [x, C] = k(null), [e, i] = k(null), [r, y] = k(!1), v = L[n] || { label: n, icon: "⚙️" }, a = S || v.label, N = c || v.description, D = M(async () => {
     R(!0), C(null);
     try {
       const u = await h.getConfig(n, !0);
@@ -1196,9 +1196,9 @@ function fe({
     }
   }, [h, n]);
   V(() => {
-    M();
-  }, [M]);
-  const j = I(async () => {
+    D();
+  }, [D]);
+  const j = M(async () => {
     try {
       const u = await h.getHistory(n, 20);
       A(u.history);
@@ -1209,14 +1209,14 @@ function fe({
   V(() => {
     f && j();
   }, [f, j]);
-  const Y = I(async (u) => {
-    await h.updateConfig(n, u, "Updated via admin dashboard"), await M();
-  }, [h, n, M]), F = I(async (u) => h.validateConfig(n, u), [h, n]), [W, K] = k(!1), X = I(async () => {
+  const Y = M(async (u) => {
+    await h.updateConfig(n, u, "Updated via admin dashboard");
+  }, [h, n]), F = M(async (u) => h.validateConfig(n, u), [h, n]), [W, K] = k(!1), X = M(async () => {
     if (!p || W) return;
-    const u = !!p.config[l], D = !u, $ = { ...p.config, [l]: D };
+    const u = !!p.config[l], P = !u, $ = { ...p.config, [l]: P };
     K(!0), g({ ...p, config: $ });
     try {
-      await h.updateConfig(n, $, `${D ? "Enabled" : "Disabled"} via admin dashboard`);
+      await h.updateConfig(n, $, `${P ? "Enabled" : "Disabled"} via admin dashboard`);
     } catch (q) {
       g({ ...p, config: { ...p.config, [l]: u } }), C(q instanceof Error ? q.message : "Failed to save enabled state");
     } finally {
@@ -1229,7 +1229,7 @@ function fe({
     a,
     " settings..."
   ] }) }) : /* @__PURE__ */ o("div", { className: "cedros-admin__section", children: [
-    /* @__PURE__ */ t(Q, { message: x, onRetry: M }),
+    /* @__PURE__ */ t(Q, { message: x, onRetry: D }),
     /* @__PURE__ */ o("div", { className: "cedros-admin__section-header", children: [
       /* @__PURE__ */ o("div", { children: [
         /* @__PURE__ */ o("h3", { className: "cedros-admin__section-title", children: [
@@ -1353,8 +1353,8 @@ function fe({
               color: e.valid ? "var(--cedros-admin-success, #16a34a)" : "var(--cedros-admin-error, #dc2626)",
               marginBottom: e.errors.length > 0 || e.warnings.length > 0 ? "0.5rem" : 0
             }, children: e.valid ? "✓ Configuration is valid" : "✗ Validation failed" }),
-            e.errors.length > 0 && /* @__PURE__ */ t("ul", { style: { margin: 0, paddingLeft: "1.25rem", color: "var(--cedros-admin-error, #dc2626)", fontSize: "0.875rem" }, children: e.errors.map((u, D) => /* @__PURE__ */ t("li", { children: u }, D)) }),
-            e.warnings.length > 0 && /* @__PURE__ */ t("ul", { style: { margin: e.errors.length > 0 ? "0.5rem 0 0" : 0, paddingLeft: "1.25rem", color: "var(--cedros-admin-warning, #ca8a04)", fontSize: "0.875rem" }, children: e.warnings.map((u, D) => /* @__PURE__ */ t("li", { children: u }, D)) })
+            e.errors.length > 0 && /* @__PURE__ */ t("ul", { style: { margin: 0, paddingLeft: "1.25rem", color: "var(--cedros-admin-error, #dc2626)", fontSize: "0.875rem" }, children: e.errors.map((u, P) => /* @__PURE__ */ t("li", { children: u }, P)) }),
+            e.warnings.length > 0 && /* @__PURE__ */ t("ul", { style: { margin: e.errors.length > 0 ? "0.5rem 0 0" : 0, paddingLeft: "1.25rem", color: "var(--cedros-admin-warning, #ca8a04)", fontSize: "0.875rem" }, children: e.warnings.map((u, P) => /* @__PURE__ */ t("li", { children: u }, P)) })
           ] }),
           /* @__PURE__ */ t(
             "button",
@@ -1383,7 +1383,7 @@ function fe({
         {
           type: "button",
           className: "cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm",
-          onClick: () => P(!f),
+          onClick: () => I(!f),
           children: f ? "Hide History" : "History"
         }
       ),

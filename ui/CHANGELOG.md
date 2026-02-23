@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.18] - 2026-02-23
+
+### Fixed
+- Fixed persistent "unsaved" indicator on config settings pages caused by infinite save loop
+
 ## [1.1.17] - 2026-02-22
 
 ### Added

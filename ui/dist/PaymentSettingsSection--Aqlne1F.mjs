@@ -1,6 +1,6 @@
 import { jsxs as i, jsx as e, Fragment as s } from "react/jsx-runtime";
 import { useState as h } from "react";
-import { S as m } from "./SingleCategorySettings-BIEs6s6Z.mjs";
+import { S as m } from "./SingleCategorySettings-8DCtLcow.mjs";
 function r({ href: o, children: a }) {
   return /* @__PURE__ */ e(
     "a",

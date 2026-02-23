@@ -1,6 +1,6 @@
 import { jsxs as n, jsx as i } from "react/jsx-runtime";
 import { useState as g } from "react";
-import { S as l } from "./SingleCategorySettings-BIEs6s6Z.mjs";
+import { S as l } from "./SingleCategorySettings-8DCtLcow.mjs";
 const s = [
   {
     id: "logging",

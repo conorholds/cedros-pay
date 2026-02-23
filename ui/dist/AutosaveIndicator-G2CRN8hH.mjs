@@ -1,5 +1,5 @@
 import { jsxs as n, jsx as r, Fragment as i } from "react/jsx-runtime";
-import { $ as d } from "./index-C1hbnxn0.mjs";
+import { $ as d } from "./index-bbSf3B7-.mjs";
 function l({ status: e, error: a }) {
   return e === "idle" ? null : /* @__PURE__ */ n(
     "span",

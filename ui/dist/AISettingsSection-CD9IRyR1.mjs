@@ -1,7 +1,7 @@
 import { jsx as n, jsxs as r } from "react/jsx-runtime";
 import { useState as u, useRef as S, useCallback as A, useEffect as T, useMemo as q } from "react";
-import { $ as w, a0 as J, a2 as Y } from "./index-C1hbnxn0.mjs";
-import { A as X } from "./AutosaveIndicator-B3T328jH.mjs";
+import { $ as w, a0 as J, a2 as Y } from "./index-bbSf3B7-.mjs";
+import { A as X } from "./AutosaveIndicator-G2CRN8hH.mjs";
 const E = [
   { id: "not_set", label: "Disabled", provider: null },
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "gemini" },

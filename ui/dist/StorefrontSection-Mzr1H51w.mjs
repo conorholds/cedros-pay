@@ -1,9 +1,9 @@
 import { jsx as t, jsxs as a } from "react/jsx-runtime";
 import { useState as h, useCallback as z, useEffect as j } from "react";
-import { $ as H, a0 as V, a2 as x } from "./index-C1hbnxn0.mjs";
+import { $ as H, a0 as V, a2 as x } from "./index-bbSf3B7-.mjs";
 import { T as d } from "./Toggle-DAxIdpY4.mjs";
 import { u as q } from "./useAutosave-YwMqRzqy.mjs";
-import { A as X } from "./AutosaveIndicator-B3T328jH.mjs";
+import { A as X } from "./AutosaveIndicator-G2CRN8hH.mjs";
 const C = {
   enabled: !0,
   relatedProducts: {
