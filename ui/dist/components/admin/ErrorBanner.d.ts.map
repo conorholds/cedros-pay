@@ -1,1 +1,0 @@
-{"version":3,"file":"ErrorBanner.d.ts","sourceRoot":"","sources":["../../../src/components/admin/ErrorBanner.tsx"],"names":[],"mappings":"AAAA;;;;GAIG;AAIH,MAAM,WAAW,gBAAgB;IAC/B,OAAO,EAAE,MAAM,GAAG,IAAI,CAAC;IACvB,OAAO,CAAC,EAAE,MAAM,IAAI,CAAC;CACtB;AAED,wBAAgB,WAAW,CAAC,EAAE,OAAO,EAAE,OAAO,EAAE,EAAE,gBAAgB,kDAgBjE"}

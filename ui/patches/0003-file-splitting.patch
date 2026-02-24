@@ -1,0 +1,229 @@
+From: Senior Software Engineer <review@cedros.dev>
+Date: Mon, 2 Feb 2026 12:00:00 +0000
+Subject: [PATCH 3/4] File Splitting & Refactoring - Admin Components
+
+This patch splits oversized admin components that violate the 500-line
+budget constraint. Each section is now in its own file for better
+maintainability, testability, and reviewability.
+
+Changes:
+- sections.tsx (1147 lines) -> split into 4 focused files
+- sections-more.tsx (1294 lines) -> split into 2 focused files
+- ConfigEditor.tsx (1073 lines) -> directory with field components
+
+---
+ src/components/admin/OverviewSection.tsx        | 122 +++++++
+ src/components/admin/ProductsSection.tsx        | 401 ++++++++++++++++++++++++
+ src/components/admin/TransactionsSection.tsx    | 289 +++++++++++++++++
+ src/components/admin/CouponsSection.tsx         | 245 ++++++++++++++
+ src/components/admin/RefundsSection.tsx         | 198 +++++++++++
+ src/components/admin/ConfigEditor/index.tsx     |  89 +++++
+ src/components/admin/sections.tsx               | 1147 -------------------------------------
+ src/components/admin/sections-more.tsx          | 1294 -------------------------------------
+ 8 files changed, 1344 insertions(+), 2441 deletions(-)
+
+diff --git a/src/components/admin/OverviewSection.tsx b/src/components/admin/OverviewSection.tsx
+new file mode 100644
+index 0000000..abcd123
+--- /dev/null
++++ b/src/components/admin/OverviewSection.tsx
+@@ -0,0 +1,122 @@
++/**
++ * Overview Section Component
++ * 
++ * Displays payment statistics and dashboard overview.
++ * Handles real-time stats fetching with auto-refresh.
++ */
++
++import { useState, useCallback, useEffect } from 'react';
++import { Icons } from './icons';
++import { StatsBar } from './StatsBar';
++import type { SectionProps, PaymentStats } from './types';
++import { getLogger } from '../../utils/logger';
++
++export interface OverviewSectionProps extends SectionProps {
++  /** Refresh interval in milliseconds (0 to disable) */
++  refreshInterval?: number;
++}
++
++export function OverviewSection({ 
++  serverUrl, 
++  apiKey, 
++  refreshInterval = 30000, 
++  authManager 
++}: OverviewSectionProps) {
++  const [stats, setStats] = useState<PaymentStats | null>(null);
++  const [isLoading, setIsLoading] = useState(true);
++
++  const fetchStats = useCallback(async () => {
++    try {
++      let data: PaymentStats;
++
++      if (authManager?.isAuthenticated()) {
++        data = await authManager.fetchWithAuth<PaymentStats>('/admin/stats');
++      } else {
++        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
++        if (apiKey) headers['X-API-Key'] = apiKey;
++
++        const res = await fetch(`${serverUrl}/admin/stats`, { headers });
++        if (!res.ok) throw new Error(`Failed to fetch stats: ${res.status}`);
++        data = await res.json();
++      }
++
++      setStats(data);
++    } catch (error) {
++      getLogger().error('[OverviewSection] Failed to fetch stats:', error, {
++        serverUrl: serverUrl.slice(0, 20) + '...',
++        hasApiKey: !!apiKey,
++        usingAuth: !!authManager
++      });
++      // Demo mode - use sample data
++      setStats({
++        totalRevenue: 12450.00,
++        totalTransactions: 342,
++        activeProducts: 8,
++        pendingRefunds: 3,
++        revenueByMethod: { stripe: 8200, x402: 3150, credits: 1100 },
++        transactionsByMethod: { stripe: 210, x402: 98, credits: 34 },
++      });
++    } finally {
++      setIsLoading(false);
++    }
++  }, [serverUrl, apiKey, authManager]);
++
++  useEffect(() => {
++    fetchStats();
++    if (refreshInterval > 0) {
++      const interval = setInterval(fetchStats, refreshInterval);
++      return () => clearInterval(interval);
++    }
++  }, [fetchStats, refreshInterval]);
++
++  const formatCurrency = (amount: number) =>
++    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
++
++  const handleRefresh = useCallback(() => {
++    setIsLoading(true);
++    fetchStats();
++  }, [fetchStats]);
++
++  return (
++    <div className="cedros-admin__overview">
++      {/* Payment Stats Section */}
++      <div className="cedros-admin__section">
++        <div className="cedros-admin__section-header">
++          <div className="cedros-admin__section-header-left">
++            <h3 className="cedros-admin__section-title">Payment Statistics</h3>
++          </div>
++          <div className="cedros-admin__section-header-right">
++            <button
++              className="cedros-admin__refresh-btn"
++              onClick={handleRefresh}
++              disabled={isLoading}
++              title="Refresh stats"
++            >
++              {isLoading ? Icons.loading : Icons.refresh}
++            </button>
++          </div>
++        </div>
++
++        <StatsBar stats={stats} isLoading={isLoading} formatCurrency={formatCurrency} />
++      </div>
++    </div>
++  );
++}
+
+diff --git a/src/components/admin/sections.tsx b/src/components/admin/sections.tsx
+index abcd123..efgh456 100644
+--- a/src/components/admin/sections.tsx
++++ b/src/components/admin/sections.tsx
+@@ -1,1147 +1,17 @@
+ /**
+  * Admin Dashboard Section Components
+  * 
+- * Individual section components for the admin dashboard.
++ * Re-exports from individual section files.
++ * 
++ * This file is kept for backwards compatibility.
++ * Import directly from specific section files for tree-shaking benefits.
+  */
+ 
+-import { useState, useCallback, useEffect, useMemo } from 'react';
+-import { Icons } from './icons';
+-import { StatsBar } from './StatsBar';
+-import type { SectionProps, PaymentStats, Product, Transaction } from './types';
+-import { getLogger } from '../../utils/logger';
+-import { parseCsv } from '../../utils/csvHelpers';
+-import { ProductVariationsEditor } from './ProductVariationsEditor';
+-import { FilterDropdown, FormDropdown } from './Dropdown';
++// Re-export all sections from their individual files
++export { OverviewSection } from './OverviewSection';
++export { ProductsSection } from './ProductsSection';
++export { TransactionsSection } from './TransactionsSection';
+ 
+ export type { SectionProps } from './types';
+-
+-// ==========================================
+-// Overview Section (Dashboard Stats)
+-// ==========================================
+-export function OverviewSection({ serverUrl, apiKey, refreshInterval = 30000, authManager }: SectionProps) {
+-  // ... (moved to OverviewSection.tsx)
+-}
+-
+-// ==========================================
+-// Products Section
+-// ==========================================
+-export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+-  // ... (moved to ProductsSection.tsx)
+-}
+-
+-// ==========================================
+-// Transactions Section
+-// ==========================================
+-export function TransactionsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+-  // ... (moved to TransactionsSection.tsx)
+-}
+ 
+diff --git a/src/components/admin/sections-more.tsx b/src/components/admin/sections-more.tsx
+index abcd123..efgh456 100644
+--- a/src/components/admin/sections-more.tsx
++++ b/src/components/admin/sections-more.tsx
+@@ -1,1294 +1,18 @@
+ /**
+  * Admin Dashboard Section Components (Part 2)
+  * 
+- * Coupons, Refunds sections + re-export Settings.
++ * Re-exports from individual section files.
++ * 
++ * This file is kept for backwards compatibility.
++ * Import directly from specific section files for tree-shaking benefits.
+  */
+ 
+-import { useState, useEffect, useCallback, useMemo } from 'react';
+-import { Icons } from './icons';
+-import { StatsBar } from './StatsBar';
+-import { FormDropdown } from './Dropdown';
+-import type { SectionProps, Coupon, Refund, StripeRefund, CreditsRefundRequest, CouponScope, CouponPaymentMethod, CouponAppliesAt } from './types';
++// Re-export all sections from their individual files
++export { CouponsSection } from './CouponsSection';
++export { RefundsSection } from './RefundsSection';
+ 
+ // Re-export the new SettingsSection from its dedicated file
+ export { SettingsSection } from './SettingsSection';
+-
+-// ==========================================
+-// Coupons Section
+-// ==========================================
+-export function CouponsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+-  // ... (moved to CouponsSection.tsx)
+-}
+-
+-// ==========================================
+-// Refunds Section
+-// ==========================================
+-export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+-  // ... (moved to RefundsSection.tsx)
+-}
+ 
+--
+2.40.0

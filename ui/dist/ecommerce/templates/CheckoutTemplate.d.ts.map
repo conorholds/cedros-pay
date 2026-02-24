@@ -1,1 +1,0 @@
-{"version":3,"file":"CheckoutTemplate.d.ts","sourceRoot":"","sources":["../../../src/ecommerce/templates/CheckoutTemplate.tsx"],"names":[],"mappings":"AAeA,wBAAgB,gBAAgB,CAAC,EAC/B,SAAS,EACT,MAAM,GACP,EAAE;IACD,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,MAAM,CAAC,EAAE;QAAE,IAAI,CAAC,EAAE,MAAM,CAAC;QAAC,MAAM,CAAC,EAAE,MAAM,CAAC;QAAC,KAAK,CAAC,EAAE,MAAM,CAAA;KAAE,CAAC;CAC7D,2CAmGA"}

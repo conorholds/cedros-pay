@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Pinagmulan ng Pagsasalin (Filipino/Tagalog)",
+  "version": "1.0.0",
+  "locale": "fil",
+  "ui": {
+    "pay_with_card": "Magbayad gamit ang Card",
+    "pay_with_crypto": "Magbayad gamit ang USDC",
+    "pay_with_usdc": "Magbayad gamit ang USDC",
+    "purchase": "Bilhin",
+    "card": "Card",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Kripto",
+    "connect_wallet": "Ikonekta ang Wallet",
+    "connecting": "Kumokonekta...",
+    "processing": "Pinoproseso...",
+    "loading": "Naglo-load...",
+    "close": "Isara",
+    "cancel": "Kanselahin",
+    "confirm": "Kumpirmahin",
+    "retry": "Subukang Muli",
+    "go_back": "Bumalik",
+    "contact_support": "Makipag-ugnayan sa Suporta"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Nabigo ang pagpapatunay ng pagbabayad",
+      "action": "Pakisubukang muli ang iyong pagbabayad. Kung magpatuloy ito, makipag-ugnayan sa suporta."
+    },
+    "invalid_signature": {
+      "message": "Hindi wasto ang pirma ng transaksyon",
+      "action": "Pakiyaprubahan ang transaksyon sa iyong wallet at subukan muli."
+    },
+    "invalid_transaction": {
+      "message": "Hindi wasto ang format ng transaksyon",
+      "action": "Pakisubukan muli ang iyong pagbabayad. Kung magpatuloy ito, subukang i-update ang iyong wallet app."
+    },
+    "transaction_not_found": {
+      "message": "Hindi natagpuan ang transaksyon sa blockchain",
+      "action": "Maaaring pinoproseso pa ang iyong transaksyon. Mangyaring maghintay sandali at tingnan ang iyong wallet, o subukan muli."
+    },
+    "transaction_not_confirmed": {
+      "message": "Pinoproseso pa ang transaksyon",
+      "action": "Mangyaring maghintay sandali para makumpirma ng blockchain ang iyong transaksyon, saka subukan muli."
+    },
+    "transaction_failed": {
+      "message": "Nabigo ang transaksyon sa blockchain",
+      "action": "Suriin ang iyong wallet para sa mga detalye. Maaaring kailangan mong ayusin ang iyong mga setting ng transaksyon o magdagdag ng higit pang SOL para sa mga bayarin."
+    },
+    "transaction_expired": {
+      "message": "Mas naging matagal ang pagproseso ng transaksyon",
+      "action": "Pakisubukan muli ang iyong pagbabayad. Isaalang-alang ang pagtaas ng prioridad ng transaksyon kung sinusuportahan ito ng iyong wallet."
+    },
+    "invalid_recipient": {
+      "message": "Naipadala ang pagbabayad sa maling address",
+      "action": "Pakisubukan muli at tiyaking ang tamang transaksyon ang inaaprubahan sa iyong wallet."
+    },
+    "invalid_sender": {
+      "message": "Hindi wasto ang wallet ng nagpadala ng pagbabayad",
+      "action": "Pakikonekta muli ang iyong wallet at subukan muli."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Wala kang pahintulot na mag-isyu ng refund",
+      "action": "Tanging mga awtorisadong account lang ang maaaring magproseso ng refund. Makipag-ugnayan sa suporta kung sa tingin mo ay may mali."
+    },
+    "amount_below_minimum": {
+      "message": "Masyadong mababa ang halagang babayaran",
+      "action": "Pakisuri ang kinakailangang halaga at subukan muli."
+    },
+    "amount_mismatch": {
+      "message": "Hindi tumutugma ang halagang babayaran sa quote",
+      "action": "Maaaring nagbago ang presyo. I-refresh at subukan muli ang iyong pagbabayad."
+    },
+    "insufficient_funds_sol": {
+      "message": "Kulang ang SOL para sa mga bayarin sa transaksyon",
+      "action": "Magdagdag ng hindi bababa sa 0.001 SOL sa iyong wallet para sa bayarin sa network, saka subukan muli."
+    },
+    "insufficient_funds_token": {
+      "message": "Hindi sapat ang balanse sa iyong wallet",
+      "action": "Magdagdag ng pondo sa iyong wallet at subukan muli."
+    },
+    "invalid_token_mint": {
+      "message": "Maling token ng pagbabayad",
+      "action": "Mangyaring magbayad gamit ang tamang token na ipinapakita sa mga detalye ng pagbabayad."
+    },
+    "not_spl_transfer": {
+      "message": "Hindi wastong token transfer ang transaksyon",
+      "action": "Tiyaking ang tamang uri ng token ang iyong ipinapadala mula sa iyong wallet."
+    },
+    "missing_token_account": {
+      "message": "Hindi natagpuan ang token account",
+      "action": "Maaaring kailangan munang gumawa ng token account ang iyong wallet. Subukan muli o gumamit ng ibang wallet."
+    },
+    "invalid_token_program": {
+      "message": "Hindi wasto ang token program",
+      "action": "Pakisubukan muli ang iyong pagbabayad. Kung magpatuloy ito, subukang gumamit ng ibang wallet."
+    },
+    "missing_memo": {
+      "message": "Kinakailangan ang payment memo ngunit hindi naisama",
+      "action": "Pakisubukan muli ang iyong pagbabayad at tiyaking naaprubahan ang mga detalye ng transaksyon sa iyong wallet."
+    },
+    "invalid_memo": {
+      "message": "Hindi wasto ang format ng payment memo",
+      "action": "Pakisubukan muli ang iyong pagbabayad."
+    },
+    "payment_already_used": {
+      "message": "Naiproseso na ang pagbabayad na ito",
+      "action": "Suriin ang iyong kasaysayan ng transaksyon. Kung kailangan mong gumawa ng panibagong pagbabayad, magsimula ng bagong transaksyon."
+    },
+    "signature_reused": {
+      "message": "Nagamit na ang pirma ng transaksyon",
+      "action": "Mangyaring gumawa ng bagong transaksyon sa pagbabayad."
+    },
+    "quote_expired": {
+      "message": "Nag-expire na ang quote ng pagbabayad",
+      "action": "Madalas ina-update ang mga presyo. I-refresh at subukan muli ang iyong pagbabayad."
+    },
+    "missing_field": {
+      "message": "May nawawalang kinakailangang impormasyon",
+      "action": "Pakisuri ang lahat ng kinakailangang field at subukan muli."
+    },
+    "invalid_field": {
+      "message": "May ilang impormasyong hindi wasto",
+      "action": "Pakisuri ang iyong inilagay at subukan muli."
+    },
+    "invalid_amount": {
+      "message": "Hindi wasto ang halagang babayaran",
+      "action": "Pakisuri ang halaga at subukan muli."
+    },
+    "invalid_wallet": {
+      "message": "Hindi wasto ang wallet address",
+      "action": "Pakikonekta muli ang iyong wallet at subukan muli."
+    },
+    "invalid_resource": {
+      "message": "Hindi wastong pagpili ng item",
+      "action": "I-refresh ang pahina at subukan muli."
+    },
+    "invalid_coupon": {
+      "message": "Di‑wastong kupon code",
+      "action": "Pakisuri ang code ng kupon at subukan muli."
+    },
+    "invalid_cart_item": {
+      "message": "Isa o higit pang item sa cart ay hindi wasto",
+      "action": "Pakisuri ang iyong cart at subukan muli."
+    },
+    "empty_cart": {
+      "message": "Walang laman ang iyong cart",
+      "action": "Magdagdag ng mga item sa iyong cart bago mag-checkout."
+    },
+    "resource_not_found": {
+      "message": "Hindi natagpuan ang item",
+      "action": "Maaaring hindi na available ang item na ito. I-refresh at subukan muli."
+    },
+    "cart_not_found": {
+      "message": "Hindi natagpuan ang shopping cart",
+      "action": "Maaaring nag-expire ang iyong cart. Mangyaring magsimula ng bagong order."
+    },
+    "refund_not_found": {
+      "message": "Hindi natagpuan ang refund",
+      "action": "Pakisuri ang iyong refund reference number o makipag-ugnayan sa suporta."
+    },
+    "product_not_found": {
+      "message": "Hindi available ang produkto",
+      "action": "Maaaring hindi na available ang produktong ito. Mangyaring tingnan ang kasalukuyang pagpipilian."
+    },
+    "coupon_not_found": {
+      "message": "Hindi natagpuan ang code ng kupon",
+      "action": "Pakisuri ang code ng kupon o alisin ito upang magpatuloy."
+    },
+    "session_not_found": {
+      "message": "Nag-expire ang session ng pagbabayad",
+      "action": "Mangyaring magsimula ng bagong pagbabayad."
+    },
+    "cart_already_paid": {
+      "message": "Nabayaran na ang order na ito",
+      "action": "Suriin ang iyong kasaysayan ng order. Kung kailangan mong bumili muli, magsimula ng bagong order."
+    },
+    "refund_already_processed": {
+      "message": "Naiproseso na ang refund na ito",
+      "action": "Suriin ang iyong kasaysayan ng transaksyon o makipag-ugnayan sa suporta para sa mga detalye."
+    },
+    "coupon_expired": {
+      "message": "Nag-expire na ang kupon",
+      "action": "Alisin ang code ng kupon o gumamit ng ibang code."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Naabot na ang limitasyon ng paggamit ng kupon",
+      "action": "Lubos nang nagamit ang kupon na ito. Mangyaring gumamit ng ibang code."
+    },
+    "coupon_not_applicable": {
+      "message": "Hindi maaaring ilapat ang kupon sa pagbiling ito",
+      "action": "Pakisuri ang mga tuntunin ng kupon o alisin ito upang magpatuloy."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Hindi wasto ang kupon para sa paraang pagbabayad na ito",
+      "action": "Subukan ang ibang paraan ng pagbabayad o alisin ang code ng kupon."
+    },
+    "stripe_error": {
+      "message": "Panandaliang hindi available ang serbisyong card payment",
+      "action": "Pakisubukan muli mamaya, o gumamit ng pagbabayad gamit ang cryptocurrency."
+    },
+    "rpc_error": {
+      "message": "Panandaliang hindi available ang network ng blockchain",
+      "action": "Pakisubukan muli mamaya, o gumamit ng pagbabayad gamit ang card."
+    },
+    "network_error": {
+      "message": "Problema sa koneksyon sa network",
+      "action": "Pakisuri ang iyong internet connection at subukan muli."
+    },
+    "internal_error": {
+      "message": "May nagkaproblema sa aming panig",
+      "action": "Pakisubukan muli. Kung magpatuloy ito, makipag-ugnayan sa suporta."
+    },
+    "database_error": {
+      "message": "Panandaliang hindi available ang serbisyo",
+      "action": "Pakisubukan muli mamaya."
+    },
+    "config_error": {
+      "message": "Error sa configuration ng serbisyo",
+      "action": "Mangyaring makipag-ugnayan sa suporta para sa tulong."
+    },
+    "unknown_error": {
+      "message": "Nagkaroon ng hindi inaasahang error",
+      "action": "Pakisubukan muli o makipag-ugnayan sa suporta kung magpatuloy ito."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Babala: Hindi kilalang token mint address. Suriing mabuti na ito ang tamang token upang maiwasan ang pagkawala ng pondo.",
+    "token_typo_warning": "Ang address ng token ay hindi tugma sa mga kilalang stablecoin (USDC, USDT, PYUSD, CASH). Tiyaking mabuti upang maiwasan ang permanenteng pagkawala ng pondo."
+  },
+  "wallet": {
+    "no_wallet_detected": "Walang natagpuang Solana wallet",
+    "install_wallet": "Mangyaring mag-install ng Solana wallet tulad ng Phantom, Solflare, o Backpack.",
+    "wallet_not_connected": "Hindi nakakonekta ang wallet",
+    "connect_your_wallet": "Pakikonekta ang iyong wallet upang magpatuloy.",
+    "wallet_connection_failed": "Nabigo ang pagkonekta sa wallet",
+    "try_again": "Pakisubukang kumonekta muli.",
+    "transaction_rejected": "Tinanggihan ang transaksyon",
+    "approve_in_wallet": "Pakiyaprubahan ang transaksyon sa iyong wallet upang magpatuloy."
+  }
+}

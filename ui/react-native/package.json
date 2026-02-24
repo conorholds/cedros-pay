@@ -1,0 +1,117 @@
+{
+  "name": "@cedros/pay-react-native",
+  "version": "1.1.8",
+  "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
+  "main": "./lib/index.js",
+  "module": "./esm/index.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./esm/index.js",
+      "require": "./lib/index.js"
+    },
+    "./stripe-only": {
+      "types": "./types/stripe-only.d.ts",
+      "import": "./esm/stripe-only.js",
+      "require": "./lib/stripe-only.js"
+    },
+    "./crypto-only": {
+      "types": "./types/crypto-only.d.ts",
+      "import": "./esm/crypto-only.js",
+      "require": "./lib/crypto-only.js"
+    }
+  },
+  "files": [
+    "lib",
+    "esm",
+    "types",
+    "src/i18n/translations"
+  ],
+  "keywords": [
+    "payments",
+    "stripe",
+    "solana",
+    "x402",
+    "crypto",
+    "react-native",
+    "mobile",
+    "stablecoins"
+  ],
+  "author": "Cedros Pay Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/conorholds/cedros-pay.git",
+    "directory": "ui/react-native"
+  },
+  "peerDependencies": {
+    "@solana/spl-token": "^0.4.14",
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-phantom": "^0.9.24",
+    "@solana/wallet-adapter-solflare": "^0.6.28",
+    "@solana/web3.js": "^1.95.0",
+    "@stripe/stripe-react-native": "^0.41.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-native": ">=0.72.0 <1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@solana/spl-token": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-base": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-react": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-phantom": {
+      "optional": true
+    },
+    "@solana/wallet-adapter-solflare": {
+      "optional": true
+    },
+    "@solana/web3.js": {
+      "optional": true
+    },
+    "@stripe/stripe-react-native": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.0.0",
+    "bs58": "^6.0.0",
+    "js-base64": "^3.7.8",
+    "uuid": "^9.0.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.95.0",
+    "@stripe/stripe-react-native": "^0.41.0",
+    "@types/jest": "^30.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-native": "^0.73.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "react": "^18.3.0",
+    "react-native": "^0.73.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "build": "npm run build:lib && npm run build:esm && npm run build:types && npm run build:copy-translations",
+    "build:lib": "tsc -p tsconfig.json --outDir lib --module commonjs",
+    "build:esm": "tsc -p tsconfig.json --outDir esm --module esnext",
+    "build:types": "tsc -p tsconfig.json --outDir types --declaration --emitDeclarationOnly",
+    "build:copy-translations": "cp -r src/i18n/translations lib/i18n/translations && cp -r src/i18n/translations esm/i18n/translations",
+    "lint": "eslint src --ext ts,tsx",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "prepublishOnly": "npm run lint && npm run type-check && npm run build"
+  }
+}

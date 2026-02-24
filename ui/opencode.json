@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "INTACOM": {
+      "type": "local",
+      "command": [
+        "/Users/conorholdsworth/Workspace/ai_assistant/intacom/intacom-rs/target/release/intacom-mcp"
+      ],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm -rf /": "deny",
+      "rm -rf /*": "deny",
+      "sudo rm -rf *": "deny",
+      "chmod -R 777 *": "ask",
+      "chmod 777 *": "ask",
+      "sudo *": "ask",
+      "curl * | sh": "ask",
+      "curl * | bash": "ask",
+      "wget * | sh": "ask",
+      "wget * | bash": "ask"
+    }
+  }
+}

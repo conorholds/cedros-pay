@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-02-24
+
+### Fixed
+- Fixed plugin wrapper not passing `isAdmin` to `setCedrosLoginAuth`, causing all admin API calls to return 401 when using the unified AdminShell
+
+## [1.1.19] - 2026-02-24
+
+### Fixed
+- Fixed `@cedros/pay-react/stripe-only` entry point requiring Solana dependencies at build time
+- Replaced `export * from './index'` with explicit Stripe-safe exports (excludes admin/plugin/ecommerce)
+- Removed `@solana/wallet-adapter-react` import from `useAdminAuth` (wallet now passed as prop)
+- Removed `@solana/web3.js` import from `TokenMintSelector` (uses base58 regex validation)
+- Added `sideEffects: ["*.css"]` to `package.json` to enable tree-shaking
+
 ## [1.1.18] - 2026-02-23
 
 ### Fixed

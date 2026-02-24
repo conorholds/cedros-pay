@@ -1,0 +1,190 @@
+/**
+ * Default styles for Cedros Pay components
+ * Users can override these styles or provide their own className
+ */
+
+.cedros-theme-root {
+  --cedros-surface-bg: transparent;
+  --cedros-surface-text: #111827;
+  --cedros-surface-border: transparent;
+  --cedros-stripe-bg: #635bff;
+  --cedros-stripe-text: #ffffff;
+  --cedros-stripe-shadow: rgba(79, 70, 229, 0.25);
+  --cedros-crypto-bg: #9945ff;
+  --cedros-crypto-text: #ffffff;
+  --cedros-crypto-shadow: rgba(153, 69, 255, 0.25);
+  --cedros-credits-bg: #059669;
+  --cedros-credits-text: #ffffff;
+  --cedros-credits-shadow: rgba(5, 150, 105, 0.25);
+  --cedros-error-bg: #fee2e2;
+  --cedros-error-border: #fca5a5;
+  --cedros-error-text: #b91c1c;
+  --cedros-success-bg: #dcfce7;
+  --cedros-success-border: #86efac;
+  --cedros-success-text: #166534;
+  --cedros-modal-overlay: rgba(0, 0, 0, 0.5);
+  --cedros-modal-bg: #ffffff;
+  --cedros-modal-border: rgba(15, 23, 42, 0.08);
+  --cedros-button-radius: 8px;
+  --cedros-button-padding: 0.75rem 1.5rem;
+  --cedros-button-font-size: 1rem;
+  --cedros-button-font-weight: 600;
+}
+
+.cedros-theme.cedros-theme--dark {
+  --cedros-surface-bg: transparent;
+  --cedros-surface-text: #f9fafb;
+  --cedros-surface-border: transparent;
+  --cedros-stripe-bg: #4f46e5;
+  --cedros-stripe-text: #f5f3ff;
+  --cedros-stripe-shadow: rgba(99, 102, 241, 0.35);
+  --cedros-crypto-bg: #7c3aed;
+  --cedros-crypto-text: #ecfeff;
+  --cedros-crypto-shadow: rgba(124, 58, 237, 0.35);
+  --cedros-credits-bg: #047857;
+  --cedros-credits-text: #ecfdf5;
+  --cedros-credits-shadow: rgba(4, 120, 87, 0.35);
+  --cedros-error-bg: #7f1d1d;
+  --cedros-error-border: #fca5a5;
+  --cedros-error-text: #fecaca;
+  --cedros-success-bg: #14532d;
+  --cedros-success-border: #4ade80;
+  --cedros-success-text: #bbf7d0;
+  --cedros-modal-overlay: rgba(0, 0, 0, 0.75);
+  --cedros-modal-bg: #1f2937;
+  --cedros-modal-border: rgba(148, 163, 184, 0.25);
+}
+
+.cedros-theme__pay {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+  background: var(--cedros-surface-bg);
+  color: var(--cedros-surface-text);
+  border: none;
+  box-sizing: border-box;
+}
+
+.cedros-theme__pay-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cedros-theme__pay-content--horizontal {
+  flex-direction: row;
+  gap: 0.75rem;
+}
+
+.cedros-theme__pay-content--horizontal .cedros-theme__button {
+  flex: 1;
+  min-width: 0;
+}
+
+.cedros-theme__pay-content--vertical {
+  flex-direction: column;
+}
+
+.cedros-theme__button {
+  padding: var(--cedros-button-padding);
+  font-size: var(--cedros-button-font-size);
+  font-weight: var(--cedros-button-font-weight);
+  border: none;
+  border-radius: var(--cedros-button-radius);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  width: 100%;
+  text-align: center;
+}
+
+.cedros-theme__button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.cedros-theme__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cedros-theme__stripe {
+  background: var(--cedros-stripe-bg);
+  color: var(--cedros-stripe-text);
+  box-shadow: 0 4px 12px var(--cedros-stripe-shadow);
+}
+
+.cedros-theme__stripe:hover:not(:disabled) {
+  box-shadow: 0 8px 18px var(--cedros-stripe-shadow);
+}
+
+.cedros-theme__crypto {
+  background: var(--cedros-crypto-bg);
+  color: var(--cedros-crypto-text);
+  box-shadow: 0 4px 12px var(--cedros-crypto-shadow);
+}
+
+.cedros-theme__crypto:hover:not(:disabled) {
+  box-shadow: 0 8px 18px var(--cedros-crypto-shadow);
+}
+
+.cedros-theme__credits {
+  background: var(--cedros-credits-bg);
+  color: var(--cedros-credits-text);
+  box-shadow: 0 4px 12px var(--cedros-credits-shadow);
+}
+
+.cedros-theme__credits:hover:not(:disabled) {
+  box-shadow: 0 8px 18px var(--cedros-credits-shadow);
+}
+
+.cedros-theme__error {
+  padding: 0.75rem;
+  background-color: var(--cedros-error-bg);
+  border: 1px solid var(--cedros-error-border);
+  border-radius: 8px;
+  color: var(--cedros-error-text);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.cedros-theme__success {
+  padding: 0.75rem;
+  background-color: var(--cedros-success-bg);
+  border: 1px solid var(--cedros-success-border);
+  border-radius: 8px;
+  color: var(--cedros-success-text);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.cedros-theme__notice {
+  padding: 0.75rem;
+  background-color: rgba(14, 116, 144, 0.12);
+  border: 1px solid rgba(14, 116, 144, 0.3);
+  border-radius: 8px;
+  color: var(--cedros-surface-text);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.cedros-theme--dark .cedros-theme__notice {
+  background-color: rgba(14, 116, 144, 0.2);
+  border-color: rgba(14, 116, 144, 0.4);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .cedros-theme__pay {
+    max-width: 100%;
+  }
+
+  .cedros-theme__button {
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+  }
+
+  /* Stack horizontally on mobile for better readability */
+  .cedros-theme__pay-content--horizontal {
+    flex-direction: column;
+  }
+}

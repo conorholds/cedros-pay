@@ -1,1 +1,0 @@
-{"version":3,"file":"ErrorState.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/general/ErrorState.tsx"],"names":[],"mappings":"AAGA,wBAAgB,UAAU,CAAC,EACzB,KAAK,EACL,WAAW,EACX,OAAO,EACP,SAAS,GACV,EAAE;IACD,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,EAAE,MAAM,CAAC;IACpB,OAAO,CAAC,EAAE,MAAM,IAAI,CAAC;IACrB,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB,2CAmBA"}

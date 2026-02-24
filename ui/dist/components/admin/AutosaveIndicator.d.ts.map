@@ -1,1 +1,0 @@
-{"version":3,"file":"AutosaveIndicator.d.ts","sourceRoot":"","sources":["../../../src/components/admin/AutosaveIndicator.tsx"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,KAAK,cAAc,EAAE,MAAM,eAAe,CAAC;AAGpD,MAAM,WAAW,sBAAsB;IACrC,MAAM,EAAE,cAAc,CAAC;IACvB,KAAK,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CACvB;AAED,wBAAgB,iBAAiB,CAAC,EAAE,MAAM,EAAE,KAAK,EAAE,EAAE,sBAAsB,kDAkC1E"}

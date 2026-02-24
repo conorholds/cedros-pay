@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - 翻译源文件（中文）",
+  "version": "1.0.0",
+  "locale": "zh",
+  "ui": {
+    "pay_with_card": "使用银行卡支付",
+    "pay_with_crypto": "使用 USDC 支付",
+    "pay_with_usdc": "使用 USDC 支付",
+    "purchase": "购买",
+    "card": "银行卡",
+    "usdc_solana": "USDC（Solana）",
+    "crypto": "加密货币",
+    "connect_wallet": "连接钱包",
+    "connecting": "正在连接...",
+    "processing": "正在处理...",
+    "loading": "正在加载...",
+    "close": "关闭",
+    "cancel": "取消",
+    "confirm": "确认",
+    "retry": "重试",
+    "go_back": "返回",
+    "contact_support": "联系支持"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "支付验证失败",
+      "action": "请重试支付。如果问题仍然存在，请联系支持。"
+    },
+    "invalid_signature": {
+      "message": "交易签名无效",
+      "action": "请在您的钱包中批准该交易，然后重试。"
+    },
+    "invalid_transaction": {
+      "message": "交易格式无效",
+      "action": "请重试支付。如果仍然出现问题，请尝试更新您的钱包应用。"
+    },
+    "transaction_not_found": {
+      "message": "区块链上未找到该交易",
+      "action": "您的交易可能仍在处理中。请稍候并检查您的钱包，或重试。"
+    },
+    "transaction_not_confirmed": {
+      "message": "交易仍在处理中",
+      "action": "请稍候等待区块链确认您的交易，然后再试。"
+    },
+    "transaction_failed": {
+      "message": "区块链上的交易失败",
+      "action": "请在钱包中查看详情。您可能需要调整交易设置或增加用于手续费的 SOL。"
+    },
+    "transaction_expired": {
+      "message": "交易处理耗时过长",
+      "action": "请重试支付。如您的钱包支持，可考虑提高交易优先级。"
+    },
+    "invalid_recipient": {
+      "message": "付款被发送到错误地址",
+      "action": "请重试，并确保您在钱包中批准的是正确的交易。"
+    },
+    "invalid_sender": {
+      "message": "付款发送方钱包无效",
+      "action": "请重新连接您的钱包后再试。"
+    },
+    "unauthorized_refund_issuer": {
+      "message": "您无权发起退款",
+      "action": "只有授权账户才能处理退款。如您认为这是错误，请联系支持。"
+    },
+    "amount_below_minimum": {
+      "message": "支付金额过低",
+      "action": "请核对所需金额并重试。"
+    },
+    "amount_mismatch": {
+      "message": "支付金额与报价不一致",
+      "action": "价格可能已发生变化。请刷新页面并重新支付。"
+    },
+    "insufficient_funds_sol": {
+      "message": "用于交易手续费的 SOL 余额不足",
+      "action": "请向钱包充值至少 0.001 SOL 以覆盖网络手续费，然后重试。"
+    },
+    "insufficient_funds_token": {
+      "message": "钱包余额不足",
+      "action": "请向钱包添加更多资金后再试。"
+    },
+    "invalid_token_mint": {
+      "message": "付款代币不正确",
+      "action": "请按照支付详情所示使用正确的代币付款。"
+    },
+    "not_spl_transfer": {
+      "message": "该交易不是有效的代币转账",
+      "action": "请确保您从钱包发送的是正确的代币类型。"
+    },
+    "missing_token_account": {
+      "message": "未找到代币账户",
+      "action": "您的钱包可能需要先创建代币账户。请重试或使用其他钱包。"
+    },
+    "invalid_token_program": {
+      "message": "代币程序无效",
+      "action": "请重试支付。如果仍有问题，请尝试使用其他钱包。"
+    },
+    "missing_memo": {
+      "message": "需要付款备注（memo），但未包含",
+      "action": "请重试支付，并确保您在钱包中批准交易明细。"
+    },
+    "invalid_memo": {
+      "message": "付款备注（memo）格式无效",
+      "action": "请重试支付。"
+    },
+    "payment_already_used": {
+      "message": "此付款已被处理",
+      "action": "请查看交易历史。如需再次支付，请发起新的交易。"
+    },
+    "signature_reused": {
+      "message": "交易签名已被使用",
+      "action": "请创建一笔新的支付交易。"
+    },
+    "quote_expired": {
+      "message": "支付报价已过期",
+      "action": "价格更新频繁。请刷新页面并重新支付。"
+    },
+    "missing_field": {
+      "message": "缺少必填信息",
+      "action": "请检查所有必填字段并重试。"
+    },
+    "invalid_field": {
+      "message": "部分信息无效",
+      "action": "请检查输入后再试。"
+    },
+    "invalid_amount": {
+      "message": "支付金额无效",
+      "action": "请核对金额后再试。"
+    },
+    "invalid_wallet": {
+      "message": "钱包地址无效",
+      "action": "请重新连接您的钱包后再试。"
+    },
+    "invalid_resource": {
+      "message": "无效的商品选择",
+      "action": "请刷新页面后再试。"
+    },
+    "invalid_coupon": {
+      "message": "无效的优惠码",
+      "action": "请检查优惠码后再试。"
+    },
+    "invalid_cart_item": {
+      "message": "购物车中一个或多个商品无效",
+      "action": "请查看您的购物车后再试。"
+    },
+    "empty_cart": {
+      "message": "您的购物车为空",
+      "action": "请先将商品加入购物车后再结账。"
+    },
+    "resource_not_found": {
+      "message": "未找到该商品",
+      "action": "该商品可能已不可用。请刷新页面后再试。"
+    },
+    "cart_not_found": {
+      "message": "未找到购物车",
+      "action": "您的购物车可能已过期。请发起新的订单。"
+    },
+    "refund_not_found": {
+      "message": "未找到退款记录",
+      "action": "请检查退款参考编号或联系支持。"
+    },
+    "product_not_found": {
+      "message": "商品不可用",
+      "action": "该商品可能已不可用。请浏览我们当前的商品。"
+    },
+    "coupon_not_found": {
+      "message": "未找到优惠码",
+      "action": "请检查优惠码或将其移除以继续。"
+    },
+    "session_not_found": {
+      "message": "支付会话已过期",
+      "action": "请发起新的支付。"
+    },
+    "cart_already_paid": {
+      "message": "此订单已完成支付",
+      "action": "请查看订单历史。如需再次购买，请发起新的订单。"
+    },
+    "refund_already_processed": {
+      "message": "此退款已处理",
+      "action": "请查看交易历史或联系支持以获取详情。"
+    },
+    "coupon_expired": {
+      "message": "优惠券已过期",
+      "action": "请移除优惠码或使用其他优惠码。"
+    },
+    "coupon_usage_limit_reached": {
+      "message": "优惠券使用次数已达上限",
+      "action": "该优惠券已被全部兑付。请尝试使用其他代码。"
+    },
+    "coupon_not_applicable": {
+      "message": "该优惠券不适用于本次购买",
+      "action": "请查看优惠券条款或将其移除以继续。"
+    },
+    "coupon_wrong_payment_method": {
+      "message": "该优惠券不适用于此支付方式",
+      "action": "请尝试其他支付方式或移除优惠码。"
+    },
+    "stripe_error": {
+      "message": "银行卡支付服务暂时不可用",
+      "action": "请稍后重试，或改用加密货币支付。"
+    },
+    "rpc_error": {
+      "message": "区块链网络暂时不可用",
+      "action": "请稍后重试，或改用银行卡支付。"
+    },
+    "network_error": {
+      "message": "网络连接问题",
+      "action": "请检查您的网络连接并重试。"
+    },
+    "internal_error": {
+      "message": "我们这边出现问题",
+      "action": "请重试。如果仍然持续，请联系支持。"
+    },
+    "database_error": {
+      "message": "服务暂时不可用",
+      "action": "请稍后重试。"
+    },
+    "config_error": {
+      "message": "服务配置错误",
+      "action": "请联系支持获取协助。"
+    },
+    "unknown_error": {
+      "message": "发生未知错误",
+      "action": "请重试，若问题持续请联系支持。"
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "警告：未识别的代币 mint 地址。请仔细确认这是正确的代币，以避免资金损失。",
+    "token_typo_warning": "代币地址与已知稳定币（USDC、USDT、PYUSD、CASH）不匹配。请仔细核对，以防资金永久丢失。"
+  },
+  "wallet": {
+    "no_wallet_detected": "未检测到 Solana 钱包",
+    "install_wallet": "请安装 Phantom、Solflare 或 Backpack 等 Solana 钱包。",
+    "wallet_not_connected": "钱包未连接",
+    "connect_your_wallet": "请连接您的钱包以继续。",
+    "wallet_connection_failed": "连接钱包失败",
+    "try_again": "请重试连接。",
+    "transaction_rejected": "交易已被拒绝",
+    "approve_in_wallet": "请在钱包中批准该交易以继续。"
+  }
+}

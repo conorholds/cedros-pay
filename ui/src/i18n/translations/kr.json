@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - 번역 원본 파일(한국어)",
+  "version": "1.0.0",
+  "locale": "ko",
+  "ui": {
+    "pay_with_card": "카드로 결제",
+    "pay_with_crypto": "USDC로 결제",
+    "pay_with_usdc": "USDC로 결제",
+    "purchase": "구매",
+    "card": "카드",
+    "usdc_solana": "USDC(솔라나)",
+    "crypto": "가상자산",
+    "connect_wallet": "지갑 연결",
+    "connecting": "연결 중…",
+    "processing": "처리 중…",
+    "loading": "불러오는 중…",
+    "close": "닫기",
+    "cancel": "취소",
+    "confirm": "확인",
+    "retry": "다시 시도",
+    "go_back": "뒤로 가기",
+    "contact_support": "고객 지원 문의"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "결제 검증에 실패했습니다",
+      "action": "다시 결제해 주세요. 계속 발생하면 고객 지원에 문의해 주세요."
+    },
+    "invalid_signature": {
+      "message": "거래 서명이 유효하지 않습니다",
+      "action": "지갑에서 거래를 승인한 후 다시 시도해 주세요."
+    },
+    "invalid_transaction": {
+      "message": "거래 형식이 올바르지 않습니다",
+      "action": "다시 결제해 주세요. 계속되면 지갑 앱을 업데이트해 보세요."
+    },
+    "transaction_not_found": {
+      "message": "블록체인에서 거래를 찾을 수 없습니다",
+      "action": "거래가 아직 처리 중일 수 있습니다. 잠시 기다렸다가 지갑을 확인하거나 다시 시도해 주세요."
+    },
+    "transaction_not_confirmed": {
+      "message": "거래가 아직 처리 중입니다",
+      "action": "블록체인 확인이 완료될 때까지 잠시 기다린 후 다시 시도해 주세요."
+    },
+    "transaction_failed": {
+      "message": "블록체인에서 거래가 실패했습니다",
+      "action": "지갑에서 세부 정보를 확인하세요. 거래 설정을 조정하거나 수수료용 SOL을 더 추가해야 할 수 있습니다."
+    },
+    "transaction_expired": {
+      "message": "거래 처리 시간이 너무 오래 걸렸습니다",
+      "action": "다시 결제해 주세요. 지갑이 지원한다면 거래 우선순위를 높이는 것을 고려해 보세요."
+    },
+    "invalid_recipient": {
+      "message": "결제가 잘못된 주소로 전송되었습니다",
+      "action": "다시 시도하시고, 지갑에서 올바른 거래를 승인했는지 확인해 주세요."
+    },
+    "invalid_sender": {
+      "message": "결제 발신 지갑이 유효하지 않습니다",
+      "action": "지갑을 다시 연결한 후 다시 시도해 주세요."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "환불 권한이 없습니다",
+      "action": "환불은 승인된 계정만 처리할 수 있습니다. 오류라고 생각하시면 고객 지원에 문의해 주세요."
+    },
+    "amount_below_minimum": {
+      "message": "결제 금액이 최소 금액보다 적습니다",
+      "action": "요구 금액을 확인한 후 다시 시도해 주세요."
+    },
+    "amount_mismatch": {
+      "message": "결제 금액이 견적과 일치하지 않습니다",
+      "action": "가격이 변경되었을 수 있습니다. 새로고침 후 다시 결제해 주세요."
+    },
+    "insufficient_funds_sol": {
+      "message": "거래 수수료에 필요한 SOL이 부족합니다",
+      "action": "네트워크 수수료를 위해 지갑에 최소 0.001 SOL을 추가한 뒤 다시 시도해 주세요."
+    },
+    "insufficient_funds_token": {
+      "message": "지갑 잔액이 부족합니다",
+      "action": "지갑에 자금을 추가한 후 다시 시도해 주세요."
+    },
+    "invalid_token_mint": {
+      "message": "결제 토큰이 올바르지 않습니다",
+      "action": "결제 상세에 표시된 올바른 토큰으로 결제해 주세요."
+    },
+    "not_spl_transfer": {
+      "message": "거래가 유효한 토큰 전송이 아닙니다",
+      "action": "지갑에서 올바른 유형의 토큰을 전송하고 있는지 확인해 주세요."
+    },
+    "missing_token_account": {
+      "message": "토큰 계정을 찾을 수 없습니다",
+      "action": "먼저 토큰 계정을 생성해야 할 수 있습니다. 다시 시도하거나 다른 지갑을 사용해 보세요."
+    },
+    "invalid_token_program": {
+      "message": "토큰 프로그램이 올바르지 않습니다",
+      "action": "다시 결제해 보세요. 계속되면 다른 지갑을 사용해 보세요."
+    },
+    "missing_memo": {
+      "message": "결제 메모가 필요하지만 포함되지 않았습니다",
+      "action": "다시 결제하시고 지갑에서 거래 상세를 승인해 주세요."
+    },
+    "invalid_memo": {
+      "message": "결제 메모 형식이 올바르지 않습니다",
+      "action": "다시 결제해 주세요."
+    },
+    "payment_already_used": {
+      "message": "이 결제는 이미 처리되었습니다",
+      "action": "거래 내역을 확인하세요. 다른 결제가 필요하다면 새 거래를 시작해 주세요."
+    },
+    "signature_reused": {
+      "message": "거래 서명이 이미 사용되었습니다",
+      "action": "새 결제 거래를 생성해 주세요."
+    },
+    "quote_expired": {
+      "message": "결제 견적의 유효기간이 만료되었습니다",
+      "action": "가격은 자주 업데이트됩니다. 새로고침 후 다시 결제해 주세요."
+    },
+    "missing_field": {
+      "message": "필수 정보가 누락되었습니다",
+      "action": "모든 필수 항목을 확인한 후 다시 시도해 주세요."
+    },
+    "invalid_field": {
+      "message": "일부 정보가 올바르지 않습니다",
+      "action": "입력 내용을 확인하고 다시 시도해 주세요."
+    },
+    "invalid_amount": {
+      "message": "결제 금액이 올바르지 않습니다",
+      "action": "금액을 확인한 후 다시 시도해 주세요."
+    },
+    "invalid_wallet": {
+      "message": "지갑 주소가 올바르지 않습니다",
+      "action": "지갑을 다시 연결한 후 다시 시도해 주세요."
+    },
+    "invalid_resource": {
+      "message": "잘못된 항목 선택입니다",
+      "action": "페이지를 새로고침한 후 다시 시도해 주세요."
+    },
+    "invalid_coupon": {
+      "message": "쿠폰 코드가 올바르지 않습니다",
+      "action": "쿠폰 코드를 확인한 후 다시 시도해 주세요."
+    },
+    "invalid_cart_item": {
+      "message": "장바구니의 항목 중 일부가 올바르지 않습니다",
+      "action": "장바구니를 확인한 후 다시 시도해 주세요."
+    },
+    "empty_cart": {
+      "message": "장바구니가 비어 있습니다",
+      "action": "결제 전에 상품을 장바구니에 담아 주세요."
+    },
+    "resource_not_found": {
+      "message": "항목을 찾을 수 없습니다",
+      "action": "이 항목은 더 이상 이용할 수 없을 수 있습니다. 새로고침 후 다시 시도해 주세요."
+    },
+    "cart_not_found": {
+      "message": "장바구니를 찾을 수 없습니다",
+      "action": "장바구니가 만료되었을 수 있습니다. 새 주문을 시작해 주세요."
+    },
+    "refund_not_found": {
+      "message": "환불을 찾을 수 없습니다",
+      "action": "환불 참조 번호를 확인하거나 고객 지원에 문의해 주세요."
+    },
+    "product_not_found": {
+      "message": "상품을 이용할 수 없습니다",
+      "action": "이 상품은 더 이상 제공되지 않을 수 있습니다. 현재 상품을 둘러봐 주세요."
+    },
+    "coupon_not_found": {
+      "message": "쿠폰 코드를 찾을 수 없습니다",
+      "action": "쿠폰 코드를 확인하거나 제거하고 계속해 주세요."
+    },
+    "session_not_found": {
+      "message": "결제 세션이 만료되었습니다",
+      "action": "새 결제를 시작해 주세요."
+    },
+    "cart_already_paid": {
+      "message": "이 주문은 이미 결제되었습니다",
+      "action": "주문 내역을 확인하세요. 다른 구매가 필요하면 새 주문을 시작해 주세요."
+    },
+    "refund_already_processed": {
+      "message": "이 환불은 이미 처리되었습니다",
+      "action": "거래 내역을 확인하거나 자세한 내용은 고객 지원에 문의해 주세요."
+    },
+    "coupon_expired": {
+      "message": "쿠폰이 만료되었습니다",
+      "action": "쿠폰 코드를 제거하거나 다른 코드를 사용해 주세요."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "쿠폰 사용 한도에 도달했습니다",
+      "action": "이 쿠폰은 이미 모두 사용되었습니다. 다른 코드를 사용해 주세요."
+    },
+    "coupon_not_applicable": {
+      "message": "이 구매에는 쿠폰을 적용할 수 없습니다",
+      "action": "쿠폰 약관을 확인하거나 제거하고 계속해 주세요."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "이 결제 수단에는 쿠폰이 유효하지 않습니다",
+      "action": "다른 결제 수단을 사용하거나 쿠폰 코드를 제거해 주세요."
+    },
+    "stripe_error": {
+      "message": "카드 결제 서비스가 일시적으로 중단되었습니다",
+      "action": "잠시 후 다시 시도하시거나, 대신 가상자산 결제를 이용해 주세요."
+    },
+    "rpc_error": {
+      "message": "블록체인 네트워크를 일시적으로 사용할 수 없습니다",
+      "action": "잠시 후 다시 시도하시거나, 대신 카드 결제를 이용해 주세요."
+    },
+    "network_error": {
+      "message": "네트워크 연결 문제",
+      "action": "인터넷 연결을 확인한 후 다시 시도해 주세요."
+    },
+    "internal_error": {
+      "message": "당사 측 문제로 오류가 발생했습니다",
+      "action": "다시 시도해 주세요. 계속되면 고객 지원에 문의해 주세요."
+    },
+    "database_error": {
+      "message": "서비스를 일시적으로 사용할 수 없습니다",
+      "action": "잠시 후 다시 시도해 주세요."
+    },
+    "config_error": {
+      "message": "서비스 구성 오류",
+      "action": "도움이 필요하시면 고객 지원에 문의해 주세요."
+    },
+    "unknown_error": {
+      "message": "예기치 않은 오류가 발생했습니다",
+      "action": "다시 시도하거나, 계속되면 고객 지원에 문의해 주세요."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "경고: 인식되지 않은 토큰 민트 주소입니다. 자금 손실을 피하기 위해 올바른 토큰인지 다시 확인하세요.",
+    "token_typo_warning": "토큰 주소가 알려진 스테이블코인(USDC, USDT, PYUSD, CASH)과 일치하지 않습니다. 영구적인 자금 손실을 방지하려면 주의 깊게 확인하세요."
+  },
+  "wallet": {
+    "no_wallet_detected": "Solana 지갑이 감지되지 않았습니다",
+    "install_wallet": "Phantom, Solflare, Backpack 등의 Solana 지갑을 설치해 주세요.",
+    "wallet_not_connected": "지갑이 연결되지 않았습니다",
+    "connect_your_wallet": "계속하려면 지갑을 연결해 주세요.",
+    "wallet_connection_failed": "지갑 연결에 실패했습니다",
+    "try_again": "다시 연결을 시도해 주세요.",
+    "transaction_rejected": "거래가 거부되었습니다",
+    "approve_in_wallet": "계속하려면 지갑에서 거래를 승인해 주세요."
+  }
+}

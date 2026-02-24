@@ -1,0 +1,47 @@
+/* Import Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Set Inter as the default font for Storybook */
+body {
+  font-family: 'Inter', 'Helvetica', 'Arial', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure all text elements use Inter */
+* {
+  font-family: 'Inter', 'Helvetica', 'Arial', sans-serif;
+}
+
+/* Preserve monospace for code elements */
+code,
+pre,
+kbd,
+samp,
+.sbdocs-pre,
+.sbdocs-code {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace !important;
+}
+
+/* Hide the "STORIES" heading on the Docs page for seamless flow */
+.sbdocs-h2:has(+ .sbdocs-stories) {
+  display: none;
+}
+
+/* Hide ALL argstables/control tables on docs page except in main Props section */
+.docblock-argstable {
+  display: none !important;
+}
+
+/* Show only the main Props table at the top */
+.sbdocs-h2 + .docblock-argstable {
+  display: table !important;
+}
+
+/* Increase font size on docs pages to match story pages */
+.sbdocs-content p,
+.sbdocs-content li,
+.sbdocs-content td {
+  font-size: 1.05rem;
+  line-height: 1.6;
+}

@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Berkas sumber terjemahan (Bahasa Indonesia)",
+  "version": "1.0.0",
+  "locale": "id",
+  "ui": {
+    "pay_with_card": "Bayar dengan Kartu",
+    "pay_with_crypto": "Bayar dengan USDC",
+    "pay_with_usdc": "Bayar dengan USDC",
+    "purchase": "Beli",
+    "card": "Kartu",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Kripto",
+    "connect_wallet": "Hubungkan wallet",
+    "connecting": "Menghubungkan...",
+    "processing": "Memproses...",
+    "loading": "Memuat...",
+    "close": "Tutup",
+    "cancel": "Batal",
+    "confirm": "Konfirmasi",
+    "retry": "Coba Lagi",
+    "go_back": "Kembali",
+    "contact_support": "Hubungi Dukungan"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Verifikasi pembayaran gagal",
+      "action": "Silakan coba bayar lagi. Jika terus terjadi, hubungi dukungan."
+    },
+    "invalid_signature": {
+      "message": "Tanda tangan transaksi tidak valid",
+      "action": "Harap setujui transaksi di wallet Anda lalu coba lagi."
+    },
+    "invalid_transaction": {
+      "message": "Format transaksi tidak valid",
+      "action": "Silakan coba bayar lagi. Jika terus terjadi, coba perbarui aplikasi wallet Anda."
+    },
+    "transaction_not_found": {
+      "message": "Transaksi tidak ditemukan di blockchain",
+      "action": "Transaksi Anda mungkin masih diproses. Harap tunggu sebentar dan periksa wallet Anda, atau coba lagi."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transaksi masih diproses",
+      "action": "Harap tunggu hingga blockchain mengonfirmasi transaksi Anda, lalu coba lagi."
+    },
+    "transaction_failed": {
+      "message": "Transaksi gagal di blockchain",
+      "action": "Periksa detail di wallet Anda. Anda mungkin perlu menyesuaikan pengaturan transaksi atau menambah SOL untuk biaya."
+    },
+    "transaction_expired": {
+      "message": "Transaksi memerlukan waktu terlalu lama untuk diproses",
+      "action": "Silakan coba bayar lagi. Pertimbangkan untuk meningkatkan prioritas transaksi jika wallet Anda mendukungnya."
+    },
+    "invalid_recipient": {
+      "message": "Pembayaran dikirim ke alamat yang salah",
+      "action": "Harap coba lagi dan pastikan Anda menyetujui transaksi yang benar di wallet."
+    },
+    "invalid_sender": {
+      "message": "Wallet pengirim pembayaran tidak valid",
+      "action": "Silakan hubungkan kembali wallet Anda lalu coba lagi."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Anda tidak berwenang melakukan pengembalian dana",
+      "action": "Hanya akun yang berwenang yang dapat memproses pengembalian dana. Hubungi dukungan jika Anda merasa ini kesalahan."
+    },
+    "amount_below_minimum": {
+      "message": "Jumlah pembayaran terlalu rendah",
+      "action": "Harap periksa jumlah yang diperlukan lalu coba lagi."
+    },
+    "amount_mismatch": {
+      "message": "Jumlah pembayaran tidak sesuai dengan penawaran",
+      "action": "Harga mungkin telah berubah. Segarkan halaman lalu coba bayar lagi."
+    },
+    "insufficient_funds_sol": {
+      "message": "SOL tidak cukup untuk biaya transaksi",
+      "action": "Tambahkan setidaknya 0.001 SOL ke wallet Anda untuk menutup biaya jaringan, lalu coba lagi."
+    },
+    "insufficient_funds_token": {
+      "message": "Saldo di wallet Anda tidak mencukupi",
+      "action": "Tambahkan dana ke wallet Anda lalu coba lagi."
+    },
+    "invalid_token_mint": {
+      "message": "Token pembayaran salah",
+      "action": "Harap bayar dengan token yang benar seperti yang ditampilkan pada detail pembayaran."
+    },
+    "not_spl_transfer": {
+      "message": "Transaksi bukan transfer token yang valid",
+      "action": "Pastikan Anda mengirim jenis token yang benar dari wallet Anda."
+    },
+    "missing_token_account": {
+      "message": "Akun token tidak ditemukan",
+      "action": "Wallet Anda mungkin perlu membuat akun token terlebih dahulu. Coba lagi atau gunakan wallet lain."
+    },
+    "invalid_token_program": {
+      "message": "Program token tidak valid",
+      "action": "Silakan coba bayar lagi. Jika terus terjadi, coba gunakan wallet lain."
+    },
+    "missing_memo": {
+      "message": "Memo pembayaran diperlukan tetapi tidak disertakan",
+      "action": "Silakan coba bayar lagi dan pastikan detail transaksi disetujui di wallet Anda."
+    },
+    "invalid_memo": {
+      "message": "Format memo pembayaran tidak valid",
+      "action": "Silakan coba bayar lagi."
+    },
+    "payment_already_used": {
+      "message": "Pembayaran ini sudah diproses",
+      "action": "Periksa riwayat transaksi Anda. Jika perlu melakukan pembayaran lain, mulai transaksi baru."
+    },
+    "signature_reused": {
+      "message": "Tanda tangan transaksi sudah digunakan",
+      "action": "Harap buat transaksi pembayaran baru."
+    },
+    "quote_expired": {
+      "message": "Penawaran pembayaran telah kedaluwarsa",
+      "action": "Harga diperbarui secara berkala. Segarkan halaman lalu coba bayar lagi."
+    },
+    "missing_field": {
+      "message": "Informasi wajib hilang",
+      "action": "Silakan periksa semua kolom yang diperlukan lalu coba lagi."
+    },
+    "invalid_field": {
+      "message": "Beberapa informasi tidak valid",
+      "action": "Harap periksa input Anda dan coba lagi."
+    },
+    "invalid_amount": {
+      "message": "Jumlah pembayaran tidak valid",
+      "action": "Harap periksa jumlahnya lalu coba lagi."
+    },
+    "invalid_wallet": {
+      "message": "Alamat wallet tidak valid",
+      "action": "Harap hubungkan kembali wallet Anda lalu coba lagi."
+    },
+    "invalid_resource": {
+      "message": "Pilihan item tidak valid",
+      "action": "Silakan segarkan halaman dan coba lagi."
+    },
+    "invalid_coupon": {
+      "message": "Kode kupon tidak valid",
+      "action": "Silakan periksa kode kupon lalu coba lagi."
+    },
+    "invalid_cart_item": {
+      "message": "Satu atau lebih item di keranjang tidak valid",
+      "action": "Silakan periksa keranjang Anda lalu coba lagi."
+    },
+    "empty_cart": {
+      "message": "Keranjang Anda kosong",
+      "action": "Silakan tambahkan item ke keranjang sebelum checkout."
+    },
+    "resource_not_found": {
+      "message": "Item tidak ditemukan",
+      "action": "Item ini mungkin sudah tidak tersedia. Silakan segarkan halaman dan coba lagi."
+    },
+    "cart_not_found": {
+      "message": "Keranjang belanja tidak ditemukan",
+      "action": "Keranjang Anda mungkin telah kedaluwarsa. Harap mulai pesanan baru."
+    },
+    "refund_not_found": {
+      "message": "Pengembalian dana tidak ditemukan",
+      "action": "Harap periksa nomor referensi pengembalian dana Anda atau hubungi dukungan."
+    },
+    "product_not_found": {
+      "message": "Produk tidak tersedia",
+      "action": "Produk ini mungkin sudah tidak tersedia. Silakan telusuri pilihan kami saat ini."
+    },
+    "coupon_not_found": {
+      "message": "Kode kupon tidak ditemukan",
+      "action": "Silakan periksa kode kupon atau hapus untuk melanjutkan."
+    },
+    "session_not_found": {
+      "message": "Sesi pembayaran kedaluwarsa",
+      "action": "Silakan mulai pembayaran baru."
+    },
+    "cart_already_paid": {
+      "message": "Pesanan ini sudah dibayar",
+      "action": "Periksa riwayat pesanan Anda. Jika ingin membeli lagi, mulai pesanan baru."
+    },
+    "refund_already_processed": {
+      "message": "Pengembalian dana ini sudah diproses",
+      "action": "Periksa riwayat transaksi Anda atau hubungi dukungan untuk detailnya."
+    },
+    "coupon_expired": {
+      "message": "Kupon telah kedaluwarsa",
+      "action": "Harap hapus kode kupon atau gunakan kode lain."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Batas penggunaan kupon telah tercapai",
+      "action": "Kupon ini telah digunakan sepenuhnya. Silakan coba kode lain."
+    },
+    "coupon_not_applicable": {
+      "message": "Kupon tidak dapat diterapkan pada pembelian ini",
+      "action": "Harap periksa syarat kupon atau hapus untuk melanjutkan."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Kupon tidak berlaku untuk metode pembayaran ini",
+      "action": "Coba metode pembayaran lain atau hapus kode kupon."
+    },
+    "stripe_error": {
+      "message": "Layanan pembayaran kartu untuk sementara tidak tersedia",
+      "action": "Silakan coba lagi sebentar lagi, atau gunakan pembayaran kripto."
+    },
+    "rpc_error": {
+      "message": "Jaringan blockchain untuk sementara tidak tersedia",
+      "action": "Silakan coba lagi sebentar lagi, atau gunakan pembayaran kartu."
+    },
+    "network_error": {
+      "message": "Masalah koneksi jaringan",
+      "action": "Harap periksa koneksi internet Anda lalu coba lagi."
+    },
+    "internal_error": {
+      "message": "Terjadi kesalahan pada pihak kami",
+      "action": "Silakan coba lagi. Jika terus berlanjut, hubungi dukungan."
+    },
+    "database_error": {
+      "message": "Layanan untuk sementara tidak tersedia",
+      "action": "Silakan coba lagi nanti."
+    },
+    "config_error": {
+      "message": "Kesalahan konfigurasi layanan",
+      "action": "Harap hubungi dukungan untuk bantuan."
+    },
+    "unknown_error": {
+      "message": "Terjadi kesalahan tak terduga",
+      "action": "Silakan coba lagi atau hubungi dukungan jika ini berlanjut."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Peringatan: Alamat mint token tidak dikenali. Periksa kembali bahwa ini token yang benar untuk mencegah kehilangan dana.",
+    "token_typo_warning": "Alamat token tidak cocok dengan stablecoin yang dikenal (USDC, USDT, PYUSD, CASH). Verifikasi dengan saksama untuk mencegah kehilangan dana permanen."
+  },
+  "wallet": {
+    "no_wallet_detected": "Tidak ada wallet Solana terdeteksi",
+    "install_wallet": "Harap instal wallet Solana seperti Phantom, Solflare, atau Backpack.",
+    "wallet_not_connected": "Wallet belum terhubung",
+    "connect_your_wallet": "Harap hubungkan wallet Anda untuk melanjutkan.",
+    "wallet_connection_failed": "Gagal menghubungkan wallet",
+    "try_again": "Silakan coba hubungkan lagi.",
+    "transaction_rejected": "Transaksi ditolak",
+    "approve_in_wallet": "Harap setujui transaksi di wallet Anda untuk melanjutkan."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "INTACOM": {
+      "command": "/Users/conorholdsworth/Workspace/ai_assistant/intacom/intacom-rs/target/release/intacom-mcp",
+      "args": []
+    }
+  },
+  "coreTools": [
+    "shell",
+    "read_file",
+    "write_file",
+    "edit_file",
+    "list_directory",
+    "search_files",
+    "grep",
+    "find_files",
+    "read_many_files",
+    "web_search",
+    "web_fetch"
+  ],
+  "excludeTools": []
+}
