@@ -63,8 +63,7 @@ pub(super) async fn get_subscription_by_stripe_id(
         .lock()
         .values()
         .find(|s| {
-            s.tenant_id == tenant_id
-                && s.stripe_subscription_id.as_deref() == Some(stripe_sub_id)
+            s.tenant_id == tenant_id && s.stripe_subscription_id.as_deref() == Some(stripe_sub_id)
         })
         .cloned())
 }
@@ -91,8 +90,7 @@ pub(super) async fn get_subscription_by_payment_signature(
         .lock()
         .values()
         .find(|s| {
-            s.tenant_id == tenant_id
-                && s.payment_signature.as_deref() == Some(payment_signature)
+            s.tenant_id == tenant_id && s.payment_signature.as_deref() == Some(payment_signature)
         })
         .cloned())
 }

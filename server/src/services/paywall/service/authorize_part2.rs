@@ -49,7 +49,7 @@ impl PaywallService {
 
         let applied_coupons = self
             .select_coupons(tenant_id, resource, coupon_code, Some("credits"))
-            .await;
+            .await?;
         let rounding_mode = self.get_rounding_mode();
 
         // Credits are pegged 1:1 to a configured SPL token; use the product's crypto price.
@@ -150,6 +150,10 @@ impl PaywallService {
         user_id_override: Option<&str>,
     ) -> ServiceResult<AuthorizationResult> {
         let start = Instant::now();
+        let lock = self
+            .refund_locks
+            .get_lock(&format!("credits-hold:{hold_id}"));
+        let _guard = lock.lock().await;
 
         // Get cedros-login client
         let client = self.cedros_login.as_ref().ok_or(ServiceError::Coded {
@@ -204,7 +208,7 @@ impl PaywallService {
         // Get required amount with discounts
         let applied_coupons = self
             .select_coupons(tenant_id, resource, coupon_code, Some("credits"))
-            .await;
+            .await?;
         let rounding_mode = self.get_rounding_mode();
 
         // Credits are pegged 1:1 to a configured SPL token; use the product's crypto price.
@@ -267,33 +271,59 @@ impl PaywallService {
 
         // Capture the hold via cedros-login
         // This atomically deducts the credits from the user's balance
-        client.capture_hold(hold_id).await.map_err(|e| {
-            use crate::services::cedros_login::CedrosLoginError;
-            match e {
-                CedrosLoginError::HoldNotFound(_) => ServiceError::Coded {
-                    code: ErrorCode::SessionNotFound,
-                    message: "credits hold not found or expired".into(),
-                },
-                CedrosLoginError::HoldAlreadyProcessed(_) => ServiceError::Coded {
+        match client.capture_hold(hold_id).await {
+            Ok(()) => {}
+            Err(crate::services::cedros_login::CedrosLoginError::HoldAlreadyProcessed(_)) => {
+                if let Ok(Some(existing_payment)) =
+                    self.store.get_payment(tenant_id, &signature).await
+                {
+                    if existing_payment.resource_id == resource {
+                        debug!(
+                            hold_id = %hold_id,
+                            resource = %resource,
+                            "Credits hold already captured; returning idempotent success"
+                        );
+                        return Ok(AuthorizationResult {
+                            granted: true,
+                            method: Some("credits".into()),
+                            wallet: (!existing_payment.wallet.is_empty())
+                                .then_some(existing_payment.wallet),
+                            quote: None,
+                            settlement: None,
+                            subscription: None,
+                        });
+                    }
+                }
+                return Err(ServiceError::Coded {
                     code: ErrorCode::InvalidPaymentProof,
                     message: "credits hold already captured or released".into(),
-                },
-                CedrosLoginError::InsufficientCredits {
-                    required,
-                    available,
-                } => ServiceError::Coded {
+                });
+            }
+            Err(crate::services::cedros_login::CedrosLoginError::HoldNotFound(_)) => {
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::SessionNotFound,
+                    message: "credits hold not found or expired".into(),
+                });
+            }
+            Err(crate::services::cedros_login::CedrosLoginError::InsufficientCredits {
+                required,
+                available,
+            }) => {
+                return Err(ServiceError::Coded {
                     code: ErrorCode::InsufficientCredits,
                     message: format!(
                         "insufficient credits: required {}, available {}",
                         required, available
                     ),
-                },
-                _ => ServiceError::Coded {
+                });
+            }
+            Err(e) => {
+                return Err(ServiceError::Coded {
                     code: ErrorCode::VerificationFailed,
                     message: format!("credits capture failed: {}", e),
-                },
+                });
             }
-        })?;
+        }
 
         let user_id = if let Some(u) = user_id_override {
             Some(u.to_string())
@@ -382,46 +412,31 @@ impl PaywallService {
 
         // Increment coupon usage
         for coupon in &applied_coupons {
-            let mut last_error = None;
-            for attempt in 0..3 {
-                match self
-                    .coupons
-                    .try_increment_usage_atomic(tenant_id, &coupon.code)
-                    .await
-                {
-                    Ok(true) => {
-                        if attempt > 0 {
-                            debug!(attempt = attempt + 1, code = %coupon.code, "Coupon usage incremented after retry");
-                        }
-                        crate::observability::record_coupon_operation("increment", "success");
-                        last_error = None;
-                        break;
-                    }
-                    Ok(false) => {
-                        warn!(
-                            code = %coupon.code,
-                            "Coupon usage limit reached during atomic increment"
-                        );
-                        crate::observability::record_coupon_operation("increment", "limit_reached");
-                        last_error = None;
-                        break;
-                    }
-                    Err(e) => {
-                        last_error = Some(e);
-                        if attempt < 2 {
-                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                        }
-                    }
+            match self
+                .increment_coupon_usage_with_retry(tenant_id, &coupon.code)
+                .await
+            {
+                Ok(true) => {
+                    crate::observability::record_coupon_operation("increment", "success");
                 }
-            }
-            if let Some(e) = last_error {
-                error!(
-                    error = %e,
-                    code = %coupon.code,
-                    resource = %resource,
-                    "ALERT: Failed to increment coupon usage for credits payment"
-                );
-                crate::observability::record_coupon_operation("increment", "failed");
+                Ok(false) => {
+                    crate::observability::record_coupon_operation("increment", "limit_reached");
+                    warn!(
+                        code = %coupon.code,
+                        resource = %resource,
+                        hold_id = %hold_id,
+                        "RECONCILE: Coupon usage limit reached after credits payment capture"
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        code = %coupon.code,
+                        resource = %resource,
+                        "ALERT: Failed to increment coupon usage for credits payment"
+                    );
+                    crate::observability::record_coupon_operation("increment", "failed");
+                }
             }
         }
 

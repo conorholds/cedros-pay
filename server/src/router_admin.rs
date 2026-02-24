@@ -52,7 +52,8 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
 
     // Admin subscription settings routes (PostgreSQL only)
     if let Some(subscriptions_state) = admin_subscriptions_state {
-        let sub_routes = build_subscription_settings_routes(subscriptions_state, admin_auth_state.clone());
+        let sub_routes =
+            build_subscription_settings_routes(subscriptions_state, admin_auth_state.clone());
         router = router.nest("/admin", sub_routes);
     }
 
@@ -91,8 +92,7 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub admin_subscriptions_state:
         Option<Arc<handlers::admin_subscriptions::AdminSubscriptionsState>>,
     pub admin_ai_state: Option<Arc<handlers::admin_ai::AdminAiState>>,
-    pub admin_ai_assistant_state:
-        Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
+    pub admin_ai_assistant_state: Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
     pub admin_dashboard_state: Arc<handlers::admin::AdminState>,
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
     pub chat_state: Option<Arc<handlers::chat::ChatState>>,

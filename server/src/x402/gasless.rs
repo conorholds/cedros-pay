@@ -22,7 +22,7 @@ use crate::constants::{
     TX_CONFIRM_TIMEOUT,
 };
 
-use super::utils::{RpcAttemptError, rpc_attempt_with_timeout};
+use super::utils::{rpc_attempt_with_timeout, RpcAttemptError};
 use super::verifier::{parse_commitment, ServerWallet};
 
 /// Cached blockhash entry with expiration.

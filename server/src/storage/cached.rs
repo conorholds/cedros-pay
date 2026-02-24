@@ -1436,8 +1436,7 @@ impl<S: Store + 'static> Store for CachedStore<S> {
             let cache_key = Self::tenant_key(tenant_id, id);
             if let Some(sub) = self.subscription_cache.get(&cache_key) {
                 if let Some(ref wallet) = sub.wallet {
-                    let wallet_key =
-                        Self::wallet_product_key(tenant_id, wallet, &sub.product_id);
+                    let wallet_key = Self::wallet_product_key(tenant_id, wallet, &sub.product_id);
                     self.subscription_by_wallet_cache.invalidate(&wallet_key);
                 }
             }

@@ -109,5 +109,9 @@ pub(super) async fn list_purchases(
     purchases.sort_by(|a, b| b.paid_at.cmp(&a.paid_at));
     let start = offset as usize;
     let end = (offset + limit) as usize;
-    Ok(purchases.into_iter().skip(start).take(end - start).collect())
+    Ok(purchases
+        .into_iter()
+        .skip(start)
+        .take(end - start)
+        .collect())
 }

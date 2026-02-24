@@ -363,7 +363,7 @@ impl PaywallService {
         // Get required amount with discounts
         let applied_coupons = self
             .select_coupons(tenant_id, resource, coupon_code, Some("x402"))
-            .await;
+            .await?;
         let rounding_mode = self.get_rounding_mode();
 
         let base_price = product
@@ -604,54 +604,39 @@ impl PaywallService {
         // Increment coupon usage atomically - prevents race conditions where concurrent
         // requests could exceed the usage limit. Uses retry for transient DB errors.
         for coupon in &applied_coupons {
-            let mut last_error = None;
-            for attempt in 0..3 {
-                match self
-                    .coupons
-                    .try_increment_usage_atomic(tenant_id, &coupon.code)
-                    .await
-                {
-                    Ok(true) => {
-                        if attempt > 0 {
-                            debug!(attempt = attempt + 1, code = %coupon.code, "Coupon usage incremented after retry");
-                        }
-                        crate::observability::record_coupon_operation("increment", "success");
-                        last_error = None;
-                        break;
-                    }
-                    Ok(false) => {
-                        // Limit was reached atomically - this is expected in race conditions
-                        warn!(
-                            code = %coupon.code,
-                            "Coupon usage limit reached during atomic increment (concurrent request won)"
-                        );
-                        crate::observability::record_coupon_operation("increment", "limit_reached");
-                        last_error = None;
-                        break;
-                    }
-                    Err(e) => {
-                        last_error = Some(e);
-                        if attempt < 2 {
-                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                        }
-                    }
+            match self
+                .increment_coupon_usage_with_retry(tenant_id, &coupon.code)
+                .await
+            {
+                Ok(true) => {
+                    crate::observability::record_coupon_operation("increment", "success");
                 }
-            }
-            if let Some(e) = last_error {
-                // BUG-001b analysis: Same rationale as cart.rs - we continue because:
-                // 1. Payment is already verified on-chain and recorded
-                // 2. Rejecting would be worse UX than potential coupon overuse
-                // 3. The metric enables monitoring/alerting for this rare edge case
-                error!(
-                    error = %e,
-                    code = %coupon.code,
-                    resource = %resource,
-                    signature = %result.signature,
-                    tenant_id = %tenant_id,
-                    "RECONCILE: Failed to increment coupon usage after 3 attempts - coupon may exceed limit. Query payment by signature to reconcile."
-                );
-                // Record metric for failed coupon increment - critical for monitoring
-                crate::observability::record_coupon_operation("increment", "failed");
+                Ok(false) => {
+                    crate::observability::record_coupon_operation("increment", "limit_reached");
+                    warn!(
+                        code = %coupon.code,
+                        resource = %resource,
+                        signature = %result.signature,
+                        tenant_id = %tenant_id,
+                        "RECONCILE: Coupon usage limit reached after payment was accepted; review coupon limits for concurrent requests"
+                    );
+                }
+                Err(e) => {
+                    // BUG-001b analysis: Same rationale as cart.rs - we continue because:
+                    // 1. Payment is already verified on-chain and recorded
+                    // 2. Rejecting would be worse UX than potential coupon overuse
+                    // 3. The metric enables monitoring/alerting for this rare edge case
+                    error!(
+                        error = %e,
+                        code = %coupon.code,
+                        resource = %resource,
+                        signature = %result.signature,
+                        tenant_id = %tenant_id,
+                        "RECONCILE: Failed to increment coupon usage after 3 attempts - coupon may exceed limit. Query payment by signature to reconcile."
+                    );
+                    // Record metric for failed coupon increment - critical for monitoring
+                    crate::observability::record_coupon_operation("increment", "failed");
+                }
             }
         }
 

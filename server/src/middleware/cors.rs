@@ -46,7 +46,14 @@ pub fn build_cors_layer_with_env(allowed_origins: &[String], environment: &str) 
     let is_production = environment == "production";
 
     let layer = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         // Per spec (10-middleware.md line 16): Allowed headers = * (all)
         .allow_headers(Any)
         // Per spec (10-middleware.md line 17): Exposed headers = Location

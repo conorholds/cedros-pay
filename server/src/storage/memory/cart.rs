@@ -1,9 +1,6 @@
 use super::*;
 
-pub(super) async fn store_cart_quote(
-    store: &InMemoryStore,
-    quote: CartQuote,
-) -> StorageResult<()> {
+pub(super) async fn store_cart_quote(store: &InMemoryStore, quote: CartQuote) -> StorageResult<()> {
     #[cfg(test)]
     if store.fail_store_cart_quote.load(Ordering::SeqCst) {
         return Err(StorageError::Unknown(

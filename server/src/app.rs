@@ -136,8 +136,7 @@ async fn build_services_internal<S: Store + 'static>(
             Arc::new(webhooks::NoopNotifier)
         };
 
-    let cedros_login_client = if cfg.cedros_login.enabled && !cfg.cedros_login.base_url.is_empty()
-    {
+    let cedros_login_client = if cfg.cedros_login.enabled && !cfg.cedros_login.base_url.is_empty() {
         match services::CedrosLoginClient::new(
             cfg.cedros_login.base_url.clone(),
             cfg.cedros_login.api_key.clone(),

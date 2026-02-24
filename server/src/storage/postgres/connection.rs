@@ -46,8 +46,8 @@ impl Default for PostgresConfig {
             idle_timeout: Duration::from_secs(600),
             max_lifetime: Duration::from_secs(1800),
             ssl_mode: PgSslMode::Prefer,
-            statement_timeout_ms: 30_000,             // 30 seconds
-            idle_in_transaction_timeout_ms: 60_000,   // 60 seconds
+            statement_timeout_ms: 30_000,           // 30 seconds
+            idle_in_transaction_timeout_ms: 60_000, // 60 seconds
         }
     }
 }
@@ -103,17 +103,18 @@ impl PostgresConfig {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(30_000),
-            idle_in_transaction_timeout_ms: std::env::var("POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT_MS")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(60_000),
+            idle_in_transaction_timeout_ms: std::env::var(
+                "POSTGRES_IDLE_IN_TRANSACTION_TIMEOUT_MS",
+            )
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(60_000),
         }
     }
 
     /// Create config from connection URL
     pub fn from_url(url: &str) -> Result<Self, StorageError> {
-        let parsed = url::Url::parse(url)
-            .map_err(|e| StorageError::internal("invalid URL", e))?;
+        let parsed = url::Url::parse(url).map_err(|e| StorageError::internal("invalid URL", e))?;
 
         Ok(Self {
             host: parsed.host_str().unwrap_or("localhost").to_string(),
@@ -145,14 +146,16 @@ impl PostgresPool {
 
         // Set session-level timeouts to prevent runaway queries and abandoned transactions
         if config.statement_timeout_ms > 0 {
-            options = options.options([
-                ("statement_timeout", config.statement_timeout_ms.to_string().as_str()),
-            ]);
+            options = options.options([(
+                "statement_timeout",
+                config.statement_timeout_ms.to_string().as_str(),
+            )]);
         }
         if config.idle_in_transaction_timeout_ms > 0 {
-            options = options.options([
-                ("idle_in_transaction_session_timeout", config.idle_in_transaction_timeout_ms.to_string().as_str()),
-            ]);
+            options = options.options([(
+                "idle_in_transaction_session_timeout",
+                config.idle_in_transaction_timeout_ms.to_string().as_str(),
+            )]);
         }
 
         let pool = PgPoolOptions::new()

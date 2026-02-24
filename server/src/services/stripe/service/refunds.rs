@@ -69,8 +69,8 @@ impl StripeClient {
         let response = self
             .stripe_post_with_idempotency("refunds", &form, Some(idempotency_key))
             .await?;
-        let parsed: super::super::models::StripeRefundObject =
-            serde_json::from_value(response).map_err(|e| ServiceError::Coded {
+        let parsed: super::super::models::StripeRefundObject = serde_json::from_value(response)
+            .map_err(|e| ServiceError::Coded {
                 code: ErrorCode::StripeError,
                 message: format!("failed to parse response: {}", e),
             })?;

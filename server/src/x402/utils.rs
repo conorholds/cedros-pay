@@ -17,10 +17,7 @@ pub enum RpcAttemptError {
 }
 
 /// Execute an async RPC call with a timeout, mapping errors uniformly.
-pub async fn rpc_attempt_with_timeout<T, E, F>(
-    dur: Duration,
-    fut: F,
-) -> Result<T, RpcAttemptError>
+pub async fn rpc_attempt_with_timeout<T, E, F>(dur: Duration, fut: F) -> Result<T, RpcAttemptError>
 where
     F: std::future::Future<Output = Result<T, E>>,
     E: std::fmt::Display,

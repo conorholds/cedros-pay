@@ -365,8 +365,15 @@ impl Store for PostgresStore {
         status_updated_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> StorageResult<()> {
-        orders::update_order_status(self, tenant_id, order_id, status, status_updated_at, updated_at)
-            .await
+        orders::update_order_status(
+            self,
+            tenant_id,
+            order_id,
+            status,
+            status_updated_at,
+            updated_at,
+        )
+        .await
     }
     async fn append_order_history(&self, entry: OrderHistoryEntry) -> StorageResult<()> {
         orders::append_order_history(self, entry).await
@@ -454,8 +461,15 @@ impl Store for PostgresStore {
         status_updated_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> StorageResult<()> {
-        orders::update_return_status(self, tenant_id, return_id, status, status_updated_at, updated_at)
-            .await
+        orders::update_return_status(
+            self,
+            tenant_id,
+            return_id,
+            status,
+            status_updated_at,
+            updated_at,
+        )
+        .await
     }
     async fn get_return_request(
         &self,
@@ -486,8 +500,10 @@ impl Store for PostgresStore {
         variant_id: Option<&str>,
         now: DateTime<Utc>,
     ) -> StorageResult<i64> {
-        inventory::get_active_inventory_reservation_quantity(self, tenant_id, product_id, variant_id, now)
-            .await
+        inventory::get_active_inventory_reservation_quantity(
+            self, tenant_id, product_id, variant_id, now,
+        )
+        .await
     }
     async fn get_active_inventory_reservation_quantity_excluding_cart(
         &self,
@@ -622,11 +638,7 @@ impl Store for PostgresStore {
     async fn update_tax_rate(&self, rate: TaxRate) -> StorageResult<()> {
         catalog::update_tax_rate(self, rate).await
     }
-    async fn get_tax_rate(
-        &self,
-        tenant_id: &str,
-        rate_id: &str,
-    ) -> StorageResult<Option<TaxRate>> {
+    async fn get_tax_rate(&self, tenant_id: &str, rate_id: &str) -> StorageResult<Option<TaxRate>> {
         catalog::get_tax_rate(self, tenant_id, rate_id).await
     }
     async fn list_tax_rates(
@@ -672,8 +684,15 @@ impl Store for PostgresStore {
         status_updated_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> StorageResult<()> {
-        catalog::update_dispute_status(self, tenant_id, dispute_id, status, status_updated_at, updated_at)
-            .await
+        catalog::update_dispute_status(
+            self,
+            tenant_id,
+            dispute_id,
+            status,
+            status_updated_at,
+            updated_at,
+        )
+        .await
     }
     async fn get_dispute(
         &self,
@@ -699,11 +718,7 @@ impl Store for PostgresStore {
     async fn update_gift_card(&self, card: GiftCard) -> StorageResult<()> {
         catalog::update_gift_card(self, card).await
     }
-    async fn get_gift_card(
-        &self,
-        tenant_id: &str,
-        code: &str,
-    ) -> StorageResult<Option<GiftCard>> {
+    async fn get_gift_card(&self, tenant_id: &str, code: &str) -> StorageResult<Option<GiftCard>> {
         catalog::get_gift_card(self, tenant_id, code).await
     }
     async fn list_gift_cards(

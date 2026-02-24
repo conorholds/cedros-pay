@@ -365,58 +365,39 @@ impl PaywallService {
         // Also track per-customer usage using wallet as customer_id
         let customer_id = result.wallet.clone();
         for coupon_code in &cart.applied_coupons {
-            let mut last_error = None;
-            for attempt in 0..3 {
-                match self
-                    .coupons
-                    .try_increment_usage_atomic(tenant_id, coupon_code)
-                    .await
-                {
-                    Ok(true) => {
-                        if attempt > 0 {
-                            debug!(attempt = attempt + 1, coupon_code = %coupon_code, "Coupon usage incremented after retry");
-                        } else {
-                            debug!(coupon_code = %coupon_code, "Incremented coupon usage");
-                        }
-                        crate::observability::record_coupon_operation("increment", "success");
-                        last_error = None;
-                        break;
-                    }
-                    Ok(false) => {
-                        // Limit was reached atomically - this is expected in race conditions
-                        warn!(
-                            coupon_code = %coupon_code,
-                            "Coupon usage limit reached during atomic increment (concurrent request won)"
-                        );
-                        crate::observability::record_coupon_operation("increment", "limit_reached");
-                        last_error = None;
-                        break;
-                    }
-                    Err(e) => {
-                        last_error = Some(e);
-                        if attempt < 2 {
-                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                        }
-                    }
+            match self
+                .increment_coupon_usage_with_retry(tenant_id, coupon_code)
+                .await
+            {
+                Ok(true) => {
+                    crate::observability::record_coupon_operation("increment", "success");
                 }
-            }
-            if let Some(e) = last_error {
-                // BUG-001 analysis: We intentionally continue here rather than returning an error because:
-                // 1. The payment has already been verified on-chain and recorded - customer has paid
-                // 2. Rejecting the payment now would be worse UX than allowing coupon overuse
-                // 3. This is a rare edge case (DB failure specifically during coupon increment)
-                // 4. The metric below enables monitoring and alerting for this condition
-                //
-                // If coupon abuse becomes a problem, implement pre-authorization coupon reservation
-                // (reserve coupon usage before payment verification, release on failure).
-                error!(
-                    error = %e,
-                    coupon_code = %coupon_code,
-                    cart_id = %cart.id,
-                    "ALERT: Failed to increment coupon usage after 3 attempts - coupon may exceed limit"
-                );
-                // Record metric for failed coupon increment - critical for monitoring
-                crate::observability::record_coupon_operation("increment", "failed");
+                Ok(false) => {
+                    crate::observability::record_coupon_operation("increment", "limit_reached");
+                    warn!(
+                        coupon_code = %coupon_code,
+                        cart_id = %cart.id,
+                        "RECONCILE: Coupon usage limit reached after cart payment was accepted"
+                    );
+                }
+                Err(e) => {
+                    // BUG-001 analysis: We intentionally continue here rather than returning an error because:
+                    // 1. The payment has already been verified on-chain and recorded - customer has paid
+                    // 2. Rejecting the payment now would be worse UX than allowing coupon overuse
+                    // 3. This is a rare edge case (DB failure specifically during coupon increment)
+                    // 4. The metric below enables monitoring and alerting for this condition
+                    //
+                    // If coupon abuse becomes a problem, implement pre-authorization coupon reservation
+                    // (reserve coupon usage before payment verification, release on failure).
+                    error!(
+                        error = %e,
+                        coupon_code = %coupon_code,
+                        cart_id = %cart.id,
+                        "ALERT: Failed to increment coupon usage after 3 attempts - coupon may exceed limit"
+                    );
+                    // Record metric for failed coupon increment - critical for monitoring
+                    crate::observability::record_coupon_operation("increment", "failed");
+                }
             }
 
             // Track per-customer usage (best-effort, non-blocking)
@@ -957,48 +938,30 @@ impl PaywallService {
             .or_else(|| wallet.map(String::from))
             .unwrap_or_default();
         for coupon_code in &cart.applied_coupons {
-            let mut last_error = None;
-            for attempt in 0..3 {
-                match self
-                    .coupons
-                    .try_increment_usage_atomic(tenant_id, coupon_code)
-                    .await
-                {
-                    Ok(true) => {
-                        if attempt > 0 {
-                            debug!(attempt = attempt + 1, coupon_code = %coupon_code, "Coupon usage incremented after retry");
-                        } else {
-                            debug!(coupon_code = %coupon_code, "Incremented coupon usage");
-                        }
-                        crate::observability::record_coupon_operation("increment", "success");
-                        last_error = None;
-                        break;
-                    }
-                    Ok(false) => {
-                        warn!(
-                            coupon_code = %coupon_code,
-                            "Coupon usage limit reached during atomic increment (concurrent request won)"
-                        );
-                        crate::observability::record_coupon_operation("increment", "limit_reached");
-                        last_error = None;
-                        break;
-                    }
-                    Err(e) => {
-                        last_error = Some(e);
-                        if attempt < 2 {
-                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-                        }
-                    }
+            match self
+                .increment_coupon_usage_with_retry(tenant_id, coupon_code)
+                .await
+            {
+                Ok(true) => {
+                    crate::observability::record_coupon_operation("increment", "success");
                 }
-            }
-            if let Some(e) = last_error {
-                error!(
-                    error = %e,
-                    coupon_code = %coupon_code,
-                    cart_id = %cart_id,
-                    "ALERT: Failed to increment coupon usage after 3 attempts for cart credits payment"
-                );
-                crate::observability::record_coupon_operation("increment", "failed");
+                Ok(false) => {
+                    crate::observability::record_coupon_operation("increment", "limit_reached");
+                    warn!(
+                        coupon_code = %coupon_code,
+                        cart_id = %cart_id,
+                        "RECONCILE: Coupon usage limit reached after cart credits payment capture"
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        coupon_code = %coupon_code,
+                        cart_id = %cart_id,
+                        "ALERT: Failed to increment coupon usage after 3 attempts for cart credits payment"
+                    );
+                    crate::observability::record_coupon_operation("increment", "failed");
+                }
             }
 
             // Track per-customer usage (best-effort, non-blocking)
@@ -1245,4 +1208,3 @@ impl PaywallService {
         }
     }
 }
-

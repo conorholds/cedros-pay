@@ -98,7 +98,7 @@ impl PaywallService {
             // Apply coupons and round to cents (like Go does)
             let coupons = self
                 .select_coupons(tenant_id, resource_id, coupon_code, Some("x402"))
-                .await;
+                .await?;
             let discounted =
                 stack_coupons_on_money(crypto_price, &coupons, self.get_rounding_mode())
                     .round_up_to_cents();

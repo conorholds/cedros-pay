@@ -118,18 +118,18 @@ impl TransactionalOps {
             tables,
         );
         let payment_result = sqlx::query(&payment_sql)
-        .bind(&payment.signature)
-        .bind(&payment.tenant_id)
-        .bind(&payment.resource_id)
-        .bind(&payment.wallet)
-        .bind(&payment.user_id)
-        .bind(payment.amount.atomic)
-        .bind(&payment.amount.asset.code)
-        .bind(payment.created_at)
-        .bind(sqlx::types::Json(&payment.metadata))
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|e| ServiceError::Internal(format!("Failed to record payment: {}", e)))?;
+            .bind(&payment.signature)
+            .bind(&payment.tenant_id)
+            .bind(&payment.resource_id)
+            .bind(&payment.wallet)
+            .bind(&payment.user_id)
+            .bind(payment.amount.atomic)
+            .bind(&payment.amount.asset.code)
+            .bind(payment.created_at)
+            .bind(sqlx::types::Json(&payment.metadata))
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Failed to record payment: {}", e)))?;
 
         // If payment already existed, return early (idempotent)
         let is_new = payment_result.is_some();
@@ -228,12 +228,12 @@ impl TransactionalOps {
             tables,
         );
         sqlx::query(&refund_sql)
-        .bind(&refund.tenant_id)
-        .bind(&refund.id)
-        .bind("system")
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| ServiceError::Internal(format!("Failed to update refund: {}", e)))?;
+            .bind(&refund.tenant_id)
+            .bind(&refund.id)
+            .bind("system")
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Failed to update refund: {}", e)))?;
 
         // Step 2: Record inventory restorations
         for adjustment in inventory_adjustments {
@@ -352,13 +352,13 @@ impl TransactionalOps {
                     tables,
                 );
                 sqlx::query_as(&products_sql)
-                .bind(&product_id)
-                .bind(tenant_id)
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(|e| {
-                    ServiceError::Internal(format!("Failed to get product inventory: {}", e))
-                })?
+                    .bind(&product_id)
+                    .bind(tenant_id)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(|e| {
+                        ServiceError::Internal(format!("Failed to get product inventory: {}", e))
+                    })?
             };
 
             let next_qty = current_qty.saturating_sub(quantity).max(0);
@@ -416,12 +416,14 @@ impl TransactionalOps {
                     tables,
                 );
                 sqlx::query(&update_sql)
-                .bind(next_qty)
-                .bind(&product_id)
-                .bind(tenant_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| ServiceError::Internal(format!("Failed to update product inventory: {}", e)))?;
+                    .bind(next_qty)
+                    .bind(&product_id)
+                    .bind(tenant_id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| {
+                        ServiceError::Internal(format!("Failed to update product inventory: {}", e))
+                    })?;
             }
 
             adjustments.push(adjustment);

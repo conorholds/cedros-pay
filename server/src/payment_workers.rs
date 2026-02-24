@@ -146,13 +146,12 @@ pub(crate) fn spawn_workers_internal<S: Store + 'static>(
         "webhook",
         &cfg.circuit_breaker.webhook,
     );
-    let (webhook_worker, webhook_handle) =
-        crate::workers::WebhookWorker::with_shutdown_and_config(
-            store.clone(),
-            &cfg.callbacks,
-            webhook_cb,
-        )
-        .map_err(|e| anyhow::anyhow!(e))?;
+    let (webhook_worker, webhook_handle) = crate::workers::WebhookWorker::with_shutdown_and_config(
+        store.clone(),
+        &cfg.callbacks,
+        webhook_cb,
+    )
+    .map_err(|e| anyhow::anyhow!(e))?;
     let webhook_join = spawn_supervised("webhook", async move {
         webhook_worker.run().await;
     });

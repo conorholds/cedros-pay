@@ -339,7 +339,8 @@ pub async fn create_x402<S: Store + 'static>(
         {
             Ok(v) => v,
             Err(e) => {
-                let (status, body) = crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+                let (status, body) =
+                    crate::errors::error_response(e.code(), Some(e.safe_message()), None);
                 return json_error(status, body);
             }
         }
@@ -349,7 +350,11 @@ pub async fn create_x402<S: Store + 'static>(
 
     if payment_verified {
         if let Some(sig) = req.payment_signature.as_deref() {
-            let payment = match state.paywall_service.get_payment(&tenant.tenant_id, sig).await {
+            let payment = match state
+                .paywall_service
+                .get_payment(&tenant.tenant_id, sig)
+                .await
+            {
                 Ok(p) => p,
                 Err(e) => {
                     let (status, body) =

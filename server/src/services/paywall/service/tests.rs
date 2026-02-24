@@ -3,7 +3,9 @@ use crate::constants::{PAYMENT_CALLBACK_TIMEOUT, X402_SCHEME_SPL, X402_VERSION};
 use crate::models::{
     get_asset, Coupon, GiftCard, PaymentProof, PaymentTransaction, Product, VerificationResult,
 };
-use crate::repositories::{InMemoryCouponRepository, InMemoryProductRepository};
+use crate::repositories::{
+    CouponRepository, CouponRepositoryError, InMemoryCouponRepository, InMemoryProductRepository,
+};
 use crate::storage::InMemoryStore;
 use crate::webhooks::NoopNotifier;
 use crate::x402::{Verifier, VerifierError};
@@ -94,6 +96,152 @@ impl Verifier for FixedVerifier {
     }
 }
 
+struct StaleLimitCouponRepo {
+    stale_coupon: Coupon,
+    fresh_coupon: Coupon,
+}
+
+#[async_trait]
+impl CouponRepository for StaleLimitCouponRepo {
+    async fn get_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<Coupon, CouponRepositoryError> {
+        Ok(self.fresh_coupon.clone())
+    }
+
+    async fn list_coupons(&self, _tenant_id: &str) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Ok(vec![self.stale_coupon.clone()])
+    }
+
+    async fn get_auto_apply_coupons_for_payment(
+        &self,
+        _tenant_id: &str,
+        _product_id: &str,
+        _payment_method: &crate::models::PaymentMethod,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Ok(vec![self.stale_coupon.clone()])
+    }
+
+    async fn get_all_auto_apply_coupons_for_payment(
+        &self,
+        _tenant_id: &str,
+        _payment_method: &crate::models::PaymentMethod,
+    ) -> Result<HashMap<String, Vec<Coupon>>, CouponRepositoryError> {
+        Ok(HashMap::new())
+    }
+
+    async fn create_coupon(&self, _coupon: Coupon) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn update_coupon(&self, _coupon: Coupon) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn increment_usage(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn try_increment_usage_atomic(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<bool, CouponRepositoryError> {
+        Ok(false)
+    }
+
+    async fn delete_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn close(&self) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct ListFailCouponRepo;
+
+#[async_trait]
+impl CouponRepository for ListFailCouponRepo {
+    async fn get_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<Coupon, CouponRepositoryError> {
+        Err(CouponRepositoryError::NotFound)
+    }
+
+    async fn list_coupons(&self, _tenant_id: &str) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Err(CouponRepositoryError::Storage(
+            "transient coupon list failure".to_string(),
+        ))
+    }
+
+    async fn get_auto_apply_coupons_for_payment(
+        &self,
+        _tenant_id: &str,
+        _product_id: &str,
+        _payment_method: &crate::models::PaymentMethod,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Ok(vec![])
+    }
+
+    async fn get_all_auto_apply_coupons_for_payment(
+        &self,
+        _tenant_id: &str,
+        _payment_method: &crate::models::PaymentMethod,
+    ) -> Result<HashMap<String, Vec<Coupon>>, CouponRepositoryError> {
+        Ok(HashMap::new())
+    }
+
+    async fn create_coupon(&self, _coupon: Coupon) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn update_coupon(&self, _coupon: Coupon) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn increment_usage(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn try_increment_usage_atomic(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<bool, CouponRepositoryError> {
+        Ok(true)
+    }
+
+    async fn delete_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+
+    async fn close(&self) -> Result<(), CouponRepositoryError> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn test_cart_quote_uses_storage_ttl() {
     let (service, _store) = build_service(Duration::from_secs(123), Duration::from_secs(60));
@@ -105,6 +253,117 @@ async fn test_cart_quote_uses_storage_ttl() {
 
     let ttl = quote.expires_at - quote.created_at;
     assert_eq!(ttl.num_seconds(), 123);
+}
+
+#[tokio::test]
+async fn test_quote_skips_coupon_when_fresh_usage_limit_is_reached() {
+    let mut config = Config::default();
+    config.storage.cart_quote_ttl = Duration::from_secs(120);
+    config.storage.refund_quote_ttl = Duration::from_secs(120);
+
+    let store = Arc::new(InMemoryStore::new());
+    let asset = get_asset("USDC").expect("asset should be registered");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset, 100)),
+        active: true,
+        ..Product::default()
+    };
+
+    let stale_coupon = Coupon {
+        code: "SAVE10".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        discount_type: "percentage".to_string(),
+        discount_value: 10.0,
+        scope: "specific".to_string(),
+        product_ids: vec!["product-1".to_string()],
+        auto_apply: true,
+        active: true,
+        usage_limit: Some(1),
+        usage_count: 0,
+        ..Coupon::default()
+    };
+    let mut fresh_coupon = stale_coupon.clone();
+    fresh_coupon.usage_count = 1;
+
+    let service = PaywallService::new(
+        config,
+        store,
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        Arc::new(InMemoryProductRepository::new(vec![product])),
+        Arc::new(StaleLimitCouponRepo {
+            stale_coupon,
+            fresh_coupon,
+        }),
+    );
+
+    let quote = service
+        .generate_quote("tenant-1", "product-1", None)
+        .await
+        .unwrap();
+    assert_eq!(
+        quote
+            .crypto
+            .expect("crypto quote should exist")
+            .max_amount_required,
+        "100"
+    );
+}
+
+#[tokio::test]
+async fn test_generate_quote_returns_coupon_not_found_for_explicit_coupon() {
+    let (service, _) = build_service(Duration::from_secs(60), Duration::from_secs(60));
+
+    let err = service
+        .generate_quote("tenant-1", "product-1", Some("DOES-NOT-EXIST"))
+        .await
+        .expect_err("explicit coupon lookup should fail");
+
+    match err {
+        ServiceError::Coded { code, .. } => assert_eq!(code, ErrorCode::CouponNotFound),
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn test_generate_quote_succeeds_without_discounts_when_auto_apply_load_fails() {
+    let mut config = Config::default();
+    config.storage.cart_quote_ttl = Duration::from_secs(60);
+    config.storage.refund_quote_ttl = Duration::from_secs(60);
+
+    let store = Arc::new(InMemoryStore::new());
+    let asset = get_asset("USDC").expect("asset should be registered");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset, 100)),
+        active: true,
+        ..Product::default()
+    };
+
+    let service = PaywallService::new(
+        config,
+        store,
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        Arc::new(InMemoryProductRepository::new(vec![product])),
+        Arc::new(ListFailCouponRepo),
+    );
+
+    let quote = service
+        .generate_quote("tenant-1", "product-1", None)
+        .await
+        .expect("auto-apply load failure should degrade without failing quote");
+
+    assert_eq!(
+        quote
+            .crypto
+            .expect("crypto quote should exist")
+            .max_amount_required,
+        "100"
+    );
 }
 
 #[tokio::test]
@@ -818,6 +1077,97 @@ async fn test_authorize_credits_for_user_records_user_id() {
 }
 
 #[tokio::test]
+async fn test_authorize_credits_hold_already_processed_returns_idempotent_success() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/capture/{hold_id}",
+        post(|| async { StatusCode::CONFLICT }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let mut config = Config::default();
+    config.cedros_login.enabled = true;
+    config.cedros_login.credits_enabled = true;
+
+    let base_url = format!("http://{}", addr);
+    config.cedros_login.base_url = base_url.clone();
+    config.cedros_login.api_key = "secret".to_string();
+
+    let store = Arc::new(InMemoryStore::new());
+    let asset = get_asset("USDC").expect("asset");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset.clone(), 1234)),
+        active: true,
+        ..Product::default()
+    };
+    let product_repo = Arc::new(InMemoryProductRepository::new(vec![product]));
+    let coupon_repo = Arc::new(InMemoryCouponRepository::new(Vec::new()));
+
+    let cedros_login = crate::services::CedrosLoginClient::new(
+        base_url,
+        "secret".to_string(),
+        Duration::from_secs(5),
+        None,
+        None,
+    )
+    .expect("cedros login");
+
+    let service = PaywallService::new(
+        config,
+        store.clone(),
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        product_repo,
+        coupon_repo,
+    )
+    .with_cedros_login(Arc::new(cedros_login));
+
+    store
+        .store_credits_hold(crate::storage::CreditsHold {
+            hold_id: "hold-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            user_id: "user-1".to_string(),
+            resource_id: "product-1".to_string(),
+            amount: 1234,
+            amount_asset: "USDC".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::minutes(5),
+        })
+        .await
+        .unwrap();
+
+    store
+        .record_payment(PaymentTransaction {
+            signature: "credits:hold-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            resource_id: "product-1".to_string(),
+            wallet: "wallet-1".to_string(),
+            user_id: Some("user-1".to_string()),
+            amount: Money::new(asset, 1234),
+            created_at: Utc::now(),
+            metadata: HashMap::new(),
+        })
+        .await
+        .unwrap();
+
+    let result = service
+        .authorize_credits_for_user("tenant-1", "product-1", "hold-1", None, None, "user-1")
+        .await
+        .unwrap();
+    assert!(result.granted);
+    assert_eq!(result.wallet.as_deref(), Some("wallet-1"));
+}
+
+#[tokio::test]
 async fn test_authorize_credits_rejects_hold_amount_mismatch() {
     use axum::http::StatusCode;
     use axum::{routing::post, Router};
@@ -1402,6 +1752,80 @@ async fn test_create_refund_request_rejects_mismatched_token() {
             other => panic!("unexpected error type: {other:?}"),
         },
     }
+}
+
+#[tokio::test]
+async fn test_process_refund_send_failure_rolls_back_processing_marker() {
+    let mut config = Config::default();
+    config.storage.refund_quote_ttl = Duration::from_secs(321);
+    config.x402.gasless_enabled = true;
+    config.x402.rpc_url = "http://127.0.0.1:8899".to_string();
+
+    let store = Arc::new(InMemoryStore::new());
+    let asset = get_asset("USDC").expect("asset should be registered");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset.clone(), 100)),
+        active: true,
+        ..Product::default()
+    };
+
+    let product_repo = Arc::new(InMemoryProductRepository::new(vec![product]));
+    let coupon_repo = Arc::new(InMemoryCouponRepository::new(Vec::new()));
+    let service = PaywallService::new(
+        config,
+        store.clone(),
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        product_repo,
+        coupon_repo,
+    );
+
+    let payment = PaymentTransaction {
+        signature: "sig-refund-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        resource_id: "product-1".to_string(),
+        wallet: "wallet-1".to_string(),
+        user_id: None,
+        amount: Money::new(asset, 100),
+        created_at: Utc::now(),
+        metadata: HashMap::new(),
+    };
+    store.record_payment(payment).await.unwrap();
+
+    let refund = match service
+        .create_refund_request(
+            "tenant-1",
+            "sig-refund-1",
+            Some("11111111111111111111111111111111"),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap()
+    {
+        crate::services::paywall::service::RefundRequestResult::Crypto(r) => r,
+        crate::services::paywall::service::RefundRequestResult::Stripe(_) => {
+            panic!("expected crypto refund quote")
+        }
+    };
+
+    let result = service.process_refund("tenant-1", &refund.id).await;
+    match result {
+        Ok(_) => panic!("expected no available wallet error"),
+        Err(ServiceError::Coded { code, .. }) => assert_eq!(code, ErrorCode::NoAvailableWallet),
+        Err(other) => panic!("unexpected error type: {other:?}"),
+    }
+
+    let stored = store
+        .get_refund_quote("tenant-1", &refund.id)
+        .await
+        .unwrap()
+        .expect("stored refund");
+    assert!(stored.processed_at.is_none());
+    assert!(stored.processed_by.is_none());
 }
 
 #[tokio::test]

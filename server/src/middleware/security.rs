@@ -11,14 +11,12 @@ use tower::{Layer, Service};
 // Using Lazy to avoid repeated parsing and eliminate runtime .unwrap() calls
 static HEADER_NOSNIFF: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("nosniff"));
 static HEADER_DENY: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("DENY"));
-static HEADER_CSP: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("default-src 'none'"));
+static HEADER_CSP: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("default-src 'none'"));
 static HEADER_REFERRER_POLICY: Lazy<HeaderValue> =
     Lazy::new(|| HeaderValue::from_static("strict-origin-when-cross-origin"));
 static HEADER_HSTS: Lazy<HeaderValue> =
     Lazy::new(|| HeaderValue::from_static("max-age=31536000; includeSubDomains"));
-static HEADER_CACHE_CONTROL: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("no-store"));
+static HEADER_CACHE_CONTROL: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("no-store"));
 static HEADER_PERMISSIONS_POLICY: Lazy<HeaderValue> =
     Lazy::new(|| HeaderValue::from_static("camera=(), microphone=(), geolocation=()"));
 

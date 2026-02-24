@@ -38,7 +38,7 @@ impl PaywallService {
         // Collect applicable coupons
         let applied_coupons = self
             .select_coupons(tenant_id, resource, coupon_code, None)
-            .await;
+            .await?;
 
         let rounding_mode = self.get_rounding_mode();
         let expires_at = Utc::now() + to_chrono_duration(self.config.paywall.quote_ttl);

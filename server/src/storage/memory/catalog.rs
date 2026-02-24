@@ -1,18 +1,12 @@
 use super::*;
 
-pub(super) async fn create_gift_card(
-    store: &InMemoryStore,
-    card: GiftCard,
-) -> StorageResult<()> {
+pub(super) async fn create_gift_card(store: &InMemoryStore, card: GiftCard) -> StorageResult<()> {
     let key = tenant_key(&card.tenant_id, &card.code);
     store.gift_cards.lock().insert(key, card);
     Ok(())
 }
 
-pub(super) async fn update_gift_card(
-    store: &InMemoryStore,
-    card: GiftCard,
-) -> StorageResult<()> {
+pub(super) async fn update_gift_card(store: &InMemoryStore, card: GiftCard) -> StorageResult<()> {
     let key = tenant_key(&card.tenant_id, &card.code);
     let mut cards = store.gift_cards.lock();
     if let std::collections::hash_map::Entry::Occupied(mut entry) = cards.entry(key) {

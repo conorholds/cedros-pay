@@ -9,7 +9,7 @@ use axum::{
 use crate::constants;
 use crate::handlers;
 use crate::middleware;
-use crate::router_admin::{AdminRouteStates, attach_admin_routes};
+use crate::router_admin::{attach_admin_routes, AdminRouteStates};
 use crate::storage::Store;
 
 /// Bundled state for router construction to avoid too many function arguments
@@ -28,8 +28,7 @@ pub(crate) struct RouterStates<S: Store> {
     pub admin_subscriptions_state:
         Option<Arc<handlers::admin_subscriptions::AdminSubscriptionsState>>,
     pub admin_ai_state: Option<Arc<handlers::admin_ai::AdminAiState>>,
-    pub admin_ai_assistant_state:
-        Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
+    pub admin_ai_assistant_state: Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
     pub admin_dashboard_state: Arc<handlers::admin::AdminState>,
     pub chat_state: Option<Arc<handlers::chat::ChatState>>,
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
@@ -58,8 +57,7 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
     let metrics_routes = build_metrics_routes(states.metrics_state.clone());
     let health_routes = build_health_routes(states.health_state.clone());
 
-    let admin_states =
-        AdminRouteStates::from_router_states(&states, paywall_prefix.clone());
+    let admin_states = AdminRouteStates::from_router_states(&states, paywall_prefix.clone());
 
     let mut router = Router::new()
         .merge(health_routes)

@@ -1,4 +1,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used))]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::type_complexity)]
 
 pub mod config;
 pub mod constants;
@@ -134,8 +137,7 @@ pub async fn router_with_pool_and_callback<S: Store + 'static>(
     storage_pg_pool: Option<sqlx::PgPool>,
     callback: Arc<dyn PaymentCallback>,
 ) -> anyhow::Result<axum::Router> {
-    let built =
-        app::build_services_with_callback(cfg, store, storage_pg_pool, callback).await?;
+    let built = app::build_services_with_callback(cfg, store, storage_pg_pool, callback).await?;
     Ok(build_router(built.into_router_states()))
 }
 

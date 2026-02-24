@@ -2,10 +2,7 @@
 
 use super::*;
 
-pub(super) async fn create_nonce(
-    store: &PostgresStore,
-    nonce: AdminNonce,
-) -> StorageResult<()> {
+pub(super) async fn create_nonce(store: &PostgresStore, nonce: AdminNonce) -> StorageResult<()> {
     // Per spec (08-storage.md): INSERT includes tenant_id for multi-tenancy
     let query = store.nonce_query(queries::nonce::INSERT);
     sqlx::query(&query)

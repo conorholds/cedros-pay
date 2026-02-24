@@ -2,10 +2,7 @@
 
 use super::*;
 
-pub(super) async fn try_store_order(
-    store: &PostgresStore,
-    order: Order,
-) -> StorageResult<bool> {
+pub(super) async fn try_store_order(store: &PostgresStore, order: Order) -> StorageResult<bool> {
     let items_json = serde_json::to_value(&order.items)
         .map_err(|e| StorageError::internal("serialize order items", e))?;
     let shipping_json = match &order.shipping {
@@ -436,13 +433,13 @@ impl PostgresStore {
     ) -> StorageResult<bool> {
         let items_json = serde_json::to_value(&order.items)
             .map_err(|e| StorageError::internal("serialize order items", e))?;
-        let shipping_json =
-            match &order.shipping {
-                Some(s) => Some(serde_json::to_value(s).map_err(|e| {
-                    StorageError::internal("serialize order shipping", e)
-                })?),
-                None => None,
-            };
+        let shipping_json = match &order.shipping {
+            Some(s) => Some(
+                serde_json::to_value(s)
+                    .map_err(|e| StorageError::internal("serialize order shipping", e))?,
+            ),
+            None => None,
+        };
         let metadata_json = serde_json::to_value(&order.metadata)
             .map_err(|e| StorageError::internal("serialize order metadata", e))?;
 

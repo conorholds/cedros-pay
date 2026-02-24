@@ -174,12 +174,13 @@ pub async fn list_coupons(
     let limit = cap_limit(query.limit) as usize;
     let offset = query.offset.max(0) as usize;
 
-    match state.coupon_repo.list_coupons_paginated(&tenant.tenant_id, limit, offset).await {
+    match state
+        .coupon_repo
+        .list_coupons_paginated(&tenant.tenant_id, limit, offset)
+        .await
+    {
         Ok((coupons, total)) => {
-            let page: Vec<AdminCouponInfo> = coupons
-                .iter()
-                .map(AdminCouponInfo::from)
-                .collect();
+            let page: Vec<AdminCouponInfo> = coupons.iter().map(AdminCouponInfo::from).collect();
             let response = ListCouponsResponse {
                 total,
                 coupons: page,

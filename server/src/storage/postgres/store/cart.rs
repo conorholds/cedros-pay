@@ -2,10 +2,7 @@
 
 use super::*;
 
-pub(super) async fn store_cart_quote(
-    store: &PostgresStore,
-    quote: CartQuote,
-) -> StorageResult<()> {
+pub(super) async fn store_cart_quote(store: &PostgresStore, quote: CartQuote) -> StorageResult<()> {
     let items_json = serde_json::to_value(&quote.items)
         .map_err(|e| StorageError::internal("serialize items", e))?;
     let metadata_json = serde_json::to_value(&quote.metadata)

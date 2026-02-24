@@ -17,6 +17,7 @@
 //!
 //! This asymmetry is by design. See spec 18-services-subscriptions.md for the access check table.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration as ChronoDuration, Timelike, Utc};
@@ -85,6 +86,9 @@ pub struct SubscriptionService<S: Store> {
 
     /// Optional library callback for embedding applications.
     payment_callback: Option<Arc<dyn crate::PaymentCallback>>,
+
+    /// Per-subscription mutation locks used to serialize concurrent updates.
+    subscription_locks: parking_lot::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl<S: Store> SubscriptionService<S> {
@@ -96,6 +100,7 @@ impl<S: Store> SubscriptionService<S> {
             cedros_login: None,
             wallet_user_cache: crate::ttl_cache::TtlCache::new(10_000),
             payment_callback: None,
+            subscription_locks: parking_lot::Mutex::new(HashMap::new()),
         }
     }
 
@@ -191,18 +196,63 @@ impl<S: Store> SubscriptionService<S> {
                 if sub.current_period_end > now {
                     true
                 } else {
-                    matches!(sub.payment_method, PaymentMethod::X402 | PaymentMethod::Credits)
-                        && sub.current_period_end + grace_duration > now
+                    matches!(
+                        sub.payment_method,
+                        PaymentMethod::X402 | PaymentMethod::Credits
+                    ) && sub.current_period_end + grace_duration > now
                 }
             }
-            SubscriptionStatus::Trialing => {
-                sub.trial_end
-                    .map_or(sub.current_period_end > now, |te| te > now)
-            }
+            SubscriptionStatus::Trialing => sub
+                .trial_end
+                .map_or(sub.current_period_end > now, |te| te > now),
             SubscriptionStatus::PastDue => sub.current_period_end > now,
             SubscriptionStatus::Cancelled => sub.current_period_end > now,
             SubscriptionStatus::Expired | SubscriptionStatus::Unpaid => false,
         }
+    }
+
+    async fn lock_subscription_mutation(
+        &self,
+        tenant_id: &str,
+        subscription_id: &str,
+    ) -> tokio::sync::OwnedMutexGuard<()> {
+        let key = format!("{tenant_id}:{subscription_id}");
+        let lock = {
+            let mut locks = self.subscription_locks.lock();
+            locks
+                .entry(key)
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+                .clone()
+        };
+        lock.lock_owned().await
+    }
+
+    async fn find_active_wallet_subscription(
+        &self,
+        tenant_id: &str,
+        wallet: &str,
+        product_id: &str,
+    ) -> ServiceResult<Option<Subscription>> {
+        if let Some(sub) = self
+            .store
+            .get_subscription_by_wallet(tenant_id, wallet, product_id)
+            .await
+            .map_err(|e| ServiceError::Internal(e.to_string()))?
+        {
+            if sub.is_active() {
+                return Ok(Some(sub));
+            }
+        }
+
+        let existing = self
+            .store
+            .get_subscriptions_by_wallet(tenant_id, wallet)
+            .await
+            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+
+        Ok(existing
+            .into_iter()
+            .find(|s| s.product_id == product_id && s.is_active()))
     }
 
     // ========================================================================
@@ -362,16 +412,9 @@ impl<S: Store> SubscriptionService<S> {
             }
         }
 
-        // Check if wallet already has active subscription for this product (idempotency)
-        let existing = self
-            .store
-            .get_subscriptions_by_wallet(&tenant_id, &wallet)
-            .await
-            .map_err(|e| ServiceError::Internal(e.to_string()))?;
-
-        if let Some(active_sub) = existing
-            .into_iter()
-            .find(|s| s.product_id == product_id && s.is_active())
+        if let Some(active_sub) = self
+            .find_active_wallet_subscription(&tenant_id, &wallet, &product_id)
+            .await?
         {
             // Extend existing subscription instead of creating new one
             debug!(
@@ -421,10 +464,28 @@ impl<S: Store> SubscriptionService<S> {
             metadata: metadata.unwrap_or_default(),
         };
 
-        self.store
-            .save_subscription(subscription.clone())
-            .await
-            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+        match self.store.save_subscription(subscription.clone()).await {
+            Ok(()) => {}
+            Err(save_err) => {
+                // If another concurrent request created the same subscription keyed by
+                // payment signature, return that existing row idempotently.
+                if let Some(signature) = subscription.payment_signature.as_deref() {
+                    if let Ok(Some(existing)) = self
+                        .store
+                        .get_subscription_by_payment_signature(&tenant_id, signature)
+                        .await
+                    {
+                        debug!(
+                            sub_id = %existing.id,
+                            signature = %signature,
+                            "Returning existing x402 subscription after concurrent create"
+                        );
+                        return Ok(existing);
+                    }
+                }
+                return Err(ServiceError::Internal(save_err.to_string()));
+            }
+        }
 
         self.notifier
             .subscription_created(&tenant_id, &subscription.id, &product_id, Some(&wallet))
@@ -457,16 +518,9 @@ impl<S: Store> SubscriptionService<S> {
             });
         }
 
-        // Check if wallet already has active subscription for this product (idempotency)
-        let existing = self
-            .store
-            .get_subscriptions_by_wallet(tenant_id, wallet)
-            .await
-            .map_err(|e| ServiceError::Internal(e.to_string()))?;
-
-        if let Some(active_sub) = existing
-            .into_iter()
-            .find(|s| s.product_id == product_id && s.is_active())
+        if let Some(active_sub) = self
+            .find_active_wallet_subscription(tenant_id, wallet, product_id)
+            .await?
         {
             // Extend existing subscription instead of creating new one
             debug!(
@@ -633,6 +687,7 @@ impl<S: Store> SubscriptionService<S> {
         period: BillingPeriod,
         interval: i32,
     ) -> ServiceResult<Subscription> {
+        let _guard = self.lock_subscription_mutation(tenant_id, id).await;
         let mut subscription = self.get_subscription(tenant_id, id).await?;
 
         if subscription.payment_method != PaymentMethod::X402 {
@@ -644,18 +699,20 @@ impl<S: Store> SubscriptionService<S> {
 
         let now = Utc::now();
 
-        // Determine new period start
-        let new_start = if subscription.is_active() {
-            // Seamless extension: new period starts at current period end
-            subscription.current_period_end
+        let (period_anchor, stored_period_start) = if subscription.is_active() {
+            // Keep the current active period intact; extend from period end.
+            (
+                subscription.current_period_end,
+                subscription.current_period_start,
+            )
         } else {
-            // Restart: new period starts now
-            now
+            // Restart expired/cancelled local subscriptions from now.
+            (now, now)
         };
 
-        let new_end = calculate_period_end(new_start, &period, interval);
+        let new_end = calculate_period_end(period_anchor, &period, interval);
 
-        subscription.current_period_start = new_start;
+        subscription.current_period_start = stored_period_start;
         subscription.current_period_end = new_end;
         subscription.billing_period = period;
         subscription.billing_interval = interval;
@@ -689,6 +746,7 @@ impl<S: Store> SubscriptionService<S> {
         period: BillingPeriod,
         interval: i32,
     ) -> ServiceResult<Subscription> {
+        let _guard = self.lock_subscription_mutation(tenant_id, id).await;
         let mut subscription = self.get_subscription(tenant_id, id).await?;
 
         if subscription.payment_method != PaymentMethod::Credits {
@@ -700,18 +758,20 @@ impl<S: Store> SubscriptionService<S> {
 
         let now = Utc::now();
 
-        // Determine new period start
-        let new_start = if subscription.is_active() {
-            // Seamless extension: new period starts at current period end
-            subscription.current_period_end
+        let (period_anchor, stored_period_start) = if subscription.is_active() {
+            // Keep the current active period intact; extend from period end.
+            (
+                subscription.current_period_end,
+                subscription.current_period_start,
+            )
         } else {
-            // Restart: new period starts now
-            now
+            // Restart expired/cancelled local subscriptions from now.
+            (now, now)
         };
 
-        let new_end = calculate_period_end(new_start, &period, interval);
+        let new_end = calculate_period_end(period_anchor, &period, interval);
 
-        subscription.current_period_start = new_start;
+        subscription.current_period_start = stored_period_start;
         subscription.current_period_end = new_end;
         subscription.billing_period = period;
         subscription.billing_interval = interval;
@@ -1486,8 +1546,11 @@ mod tests {
     async fn test_create_x402_persists_metadata() {
         let store = Arc::new(InMemoryStore::new());
         let notifier = Arc::new(TestNotifier::default());
-        let service =
-            SubscriptionService::new(Arc::new(Config::default()), store, notifier as Arc<dyn Notifier>);
+        let service = SubscriptionService::new(
+            Arc::new(Config::default()),
+            store,
+            notifier as Arc<dyn Notifier>,
+        );
 
         let mut metadata = std::collections::HashMap::new();
         metadata.insert("source".to_string(), "api".to_string());
@@ -1507,6 +1570,60 @@ mod tests {
             .unwrap();
 
         assert_eq!(sub.metadata.get("source").map(String::as_str), Some("api"));
+    }
+
+    #[tokio::test]
+    async fn test_create_x402_extends_existing_active_wallet_product_subscription() {
+        let now = Utc::now();
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let service = SubscriptionService::new(
+            Arc::new(Config::default()),
+            store.clone(),
+            notifier as Arc<dyn Notifier>,
+        );
+
+        let existing = Subscription {
+            id: "sub-existing".to_string(),
+            tenant_id: "default".to_string(),
+            wallet: Some("wallet-1".to_string()),
+            user_id: None,
+            product_id: "prod-1".to_string(),
+            plan_id: None,
+            payment_method: PaymentMethod::X402,
+            stripe_subscription_id: None,
+            stripe_customer_id: None,
+            status: SubscriptionStatus::Active,
+            billing_period: BillingPeriod::Month,
+            billing_interval: 1,
+            current_period_start: now - ChronoDuration::days(10),
+            current_period_end: now + ChronoDuration::days(20),
+            trial_end: None,
+            cancel_at_period_end: false,
+            cancelled_at: None,
+            payment_signature: None,
+            created_at: Some(now - ChronoDuration::days(10)),
+            updated_at: Some(now - ChronoDuration::days(10)),
+            metadata: HashMap::new(),
+        };
+        store.save_subscription(existing.clone()).await.unwrap();
+
+        let renewed = service
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: Some("sig-1".into()),
+                metadata: None,
+                plan_id: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(renewed.id, existing.id);
+        assert!(renewed.current_period_end > existing.current_period_end);
     }
 
     #[tokio::test]
@@ -1630,6 +1747,116 @@ mod tests {
 
         let events = notifier.events().lock().clone();
         assert!(events.contains(&"subscription.renewed".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_extend_x402_keeps_current_period_start_when_subscription_is_active() {
+        let now = Utc::now();
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let service = SubscriptionService::new(
+            Arc::new(Config::default()),
+            store.clone(),
+            notifier as Arc<dyn Notifier>,
+        );
+
+        let sub = Subscription {
+            id: "sub-active-1".to_string(),
+            tenant_id: "default".to_string(),
+            wallet: Some("wallet-1".to_string()),
+            user_id: None,
+            product_id: "prod-1".to_string(),
+            plan_id: None,
+            payment_method: PaymentMethod::X402,
+            stripe_subscription_id: None,
+            stripe_customer_id: None,
+            status: SubscriptionStatus::Active,
+            billing_period: BillingPeriod::Month,
+            billing_interval: 1,
+            current_period_start: now - ChronoDuration::days(5),
+            current_period_end: now + ChronoDuration::days(25),
+            trial_end: None,
+            cancel_at_period_end: false,
+            cancelled_at: None,
+            payment_signature: None,
+            created_at: Some(now - ChronoDuration::days(5)),
+            updated_at: Some(now - ChronoDuration::days(5)),
+            metadata: HashMap::new(),
+        };
+        store.save_subscription(sub.clone()).await.unwrap();
+
+        let renewed = service
+            .extend_x402_subscription("default", &sub.id, BillingPeriod::Month, 1)
+            .await
+            .unwrap();
+
+        assert_eq!(renewed.current_period_start, sub.current_period_start);
+        assert!(renewed.current_period_end > sub.current_period_end);
+        assert_eq!(renewed.status, SubscriptionStatus::Active);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_extend_x402_serializes_updates() {
+        let now = Utc::now();
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let service = Arc::new(SubscriptionService::new(
+            Arc::new(Config::default()),
+            store.clone(),
+            notifier as Arc<dyn Notifier>,
+        ));
+        let sub_id = "sub-lock-1".to_string();
+        store
+            .save_subscription(Subscription {
+                id: sub_id.clone(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::X402,
+                stripe_subscription_id: None,
+                stripe_customer_id: None,
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Day,
+                billing_interval: 1,
+                current_period_start: now - ChronoDuration::days(2),
+                current_period_end: now - ChronoDuration::hours(1),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now - ChronoDuration::days(2)),
+                updated_at: Some(now - ChronoDuration::days(2)),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .unwrap();
+
+        let s1 = service.clone();
+        let s2 = service.clone();
+        let id1 = sub_id.clone();
+        let id2 = sub_id.clone();
+        let (r1, r2) = tokio::join!(
+            async move {
+                s1.extend_x402_subscription("default", &id1, BillingPeriod::Day, 1)
+                    .await
+            },
+            async move {
+                s2.extend_x402_subscription("default", &id2, BillingPeriod::Day, 1)
+                    .await
+            }
+        );
+        assert!(r1.is_ok());
+        assert!(r2.is_ok());
+
+        let updated = service.get("default", &sub_id).await.unwrap();
+        assert!(
+            updated.current_period_end
+                >= now + ChronoDuration::days(2) - ChronoDuration::seconds(1),
+            "expected two serialized extensions from expired baseline, updated_end={}",
+            updated.current_period_end
+        );
     }
 
     #[tokio::test]

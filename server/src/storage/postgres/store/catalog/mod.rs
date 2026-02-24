@@ -15,9 +15,8 @@ pub(super) use shipping::{
 
 // ─── Re-exports (entities) ───────────────────────────────────────────────────
 pub(super) use entities::{
-    adjust_gift_card_balance, create_collection, create_customer, create_dispute,
-    create_gift_card, delete_collection, get_collection, get_customer, get_dispute,
-    get_gift_card, list_collections, list_customers, list_disputes, list_gift_cards,
-    try_adjust_gift_card_balance, update_collection, update_customer, update_dispute_status,
-    update_gift_card,
+    adjust_gift_card_balance, create_collection, create_customer, create_dispute, create_gift_card,
+    delete_collection, get_collection, get_customer, get_dispute, get_gift_card, list_collections,
+    list_customers, list_disputes, list_gift_cards, try_adjust_gift_card_balance,
+    update_collection, update_customer, update_dispute_status, update_gift_card,
 };

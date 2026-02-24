@@ -309,7 +309,7 @@ impl PaywallService {
             })?;
 
         // Execute refund transaction (safe: DB already marks this as in-flight)
-        let signature = gasless_builder
+        let signature = match gasless_builder
             .execute_refund(
                 &recipient_pubkey,
                 &mint,
@@ -317,17 +317,33 @@ impl PaywallService {
                 self.config.x402.token_decimals,
             )
             .await
-            .map_err(|e| match e {
-                GaslessError::NoServerWallet => ServiceError::Coded {
-                    code: ErrorCode::NoAvailableWallet,
-                    message: "no server wallet available for refund".into(),
-                },
-                GaslessError::SendFailed(msg) => ServiceError::Coded {
-                    code: ErrorCode::TransactionFailed,
-                    message: format!("refund transaction failed: {}", msg),
-                },
-                _ => ServiceError::Internal(format!("refund execution error: {}", e)),
-            })?;
+        {
+            Ok(signature) => signature,
+            Err(e) => {
+                // Roll back in-flight marker so transient send failures remain retryable.
+                refund.processed_at = None;
+                refund.processed_by = None;
+                if let Err(store_err) = self.store.store_refund_quote(refund.clone()).await {
+                    error!(
+                        refund_id = %refund_id,
+                        error = %store_err,
+                        "CRITICAL: failed to roll back refund processing marker after send error"
+                    );
+                }
+
+                return Err(match e {
+                    GaslessError::NoServerWallet => ServiceError::Coded {
+                        code: ErrorCode::NoAvailableWallet,
+                        message: "no server wallet available for refund".into(),
+                    },
+                    GaslessError::SendFailed(msg) => ServiceError::Coded {
+                        code: ErrorCode::TransactionFailed,
+                        message: format!("refund transaction failed: {}", msg),
+                    },
+                    _ => ServiceError::Internal(format!("refund execution error: {}", e)),
+                });
+            }
+        };
 
         // Persist signature after successful on-chain send
         refund.signature = Some(signature.to_string());

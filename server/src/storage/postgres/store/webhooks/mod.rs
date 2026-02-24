@@ -7,8 +7,8 @@ mod queue;
 
 // ─── Re-exports (queue) ──────────────────────────────────────────────────────
 pub(super) use queue::{
-    cleanup_old_emails, cleanup_old_webhooks, count_pending_webhooks, dequeue_emails,
-    dequeue_webhooks, delete_webhook, enqueue_email, enqueue_webhook, get_email, get_webhook,
+    cleanup_old_emails, cleanup_old_webhooks, count_pending_webhooks, delete_webhook,
+    dequeue_emails, dequeue_webhooks, enqueue_email, enqueue_webhook, get_email, get_webhook,
     list_webhooks, mark_email_failed, mark_email_processing, mark_email_retry, mark_email_success,
     mark_webhook_failed, mark_webhook_processing, mark_webhook_retry, mark_webhook_success,
     retry_webhook,

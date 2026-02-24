@@ -78,7 +78,9 @@ pub(in super::super) async fn delete_idempotency_key(
     Ok(())
 }
 
-pub(in super::super) async fn cleanup_expired_idempotency_keys(store: &PostgresStore) -> StorageResult<u64> {
+pub(in super::super) async fn cleanup_expired_idempotency_keys(
+    store: &PostgresStore,
+) -> StorageResult<u64> {
     let result = sqlx::query(queries::idempotency::CLEANUP_EXPIRED)
         .execute(store.pool.inner())
         .await

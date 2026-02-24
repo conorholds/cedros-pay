@@ -2,94 +2,15 @@ use super::*;
 
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use http_body_util::BodyExt;
 
 use crate::repositories::{
-    InMemoryCouponRepository, InMemoryProductRepository, ProductRepository, ProductRepositoryError,
+    InMemoryCouponRepository, InMemoryProductRepository, ProductRepository,
 };
 use crate::storage::InMemoryStore;
-
-struct FailingListProductsRepo;
-
-#[async_trait]
-impl ProductRepository for FailingListProductsRepo {
-    async fn get_product(
-        &self,
-        _tenant_id: &str,
-        _id: &str,
-    ) -> Result<Product, ProductRepositoryError> {
-        Err(ProductRepositoryError::NotFound)
-    }
-
-    async fn get_product_by_stripe_price_id(
-        &self,
-        _tenant_id: &str,
-        _stripe_price_id: &str,
-    ) -> Result<Product, ProductRepositoryError> {
-        Err(ProductRepositoryError::NotFound)
-    }
-
-    async fn list_products(
-        &self,
-        _tenant_id: &str,
-    ) -> Result<Vec<Product>, ProductRepositoryError> {
-        Err(ProductRepositoryError::Storage(
-            "injected list_products failure".to_string(),
-        ))
-    }
-
-    async fn list_products_paginated(
-        &self,
-        _tenant_id: &str,
-        _limit: usize,
-        _offset: usize,
-    ) -> Result<Vec<Product>, ProductRepositoryError> {
-        Ok(Vec::new())
-    }
-
-    async fn list_all_products_paginated(
-        &self,
-        _tenant_id: &str,
-        _limit: usize,
-        _offset: usize,
-    ) -> Result<Vec<Product>, ProductRepositoryError> {
-        Ok(Vec::new())
-    }
-
-    async fn create_product(&self, _product: Product) -> Result<(), ProductRepositoryError> {
-        Ok(())
-    }
-
-    async fn update_product(&self, _product: Product) -> Result<(), ProductRepositoryError> {
-        Ok(())
-    }
-
-    async fn decrement_inventory_atomic(
-        &self,
-        _tenant_id: &str,
-        _product_id: &str,
-        _quantity: i32,
-        _allow_backorder: bool,
-    ) -> Result<Option<(i32, i32)>, ProductRepositoryError> {
-        Ok(None)
-    }
-
-    async fn delete_product(
-        &self,
-        _tenant_id: &str,
-        _id: &str,
-    ) -> Result<(), ProductRepositoryError> {
-        Ok(())
-    }
-
-    async fn close(&self) -> Result<(), ProductRepositoryError> {
-        Ok(())
-    }
-}
 
 fn base_create_product_request() -> CreateProductRequest {
     CreateProductRequest {

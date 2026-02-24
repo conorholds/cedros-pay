@@ -302,9 +302,10 @@ impl<R: CouponRepository + 'static> CouponRepository for CachedCouponRepository<
             .try_increment_usage_atomic(tenant_id, code)
             .await?;
 
-        // Invalidate the specific coupon cache AND list caches on successful increment.
-        // List caches contain aggregated coupon data including usage counts.
-        if result && self.config.enabled {
+        // Invalidate coupon/list caches for both true and false outcomes:
+        // - true: usage_count changed
+        // - false: coupon may have just reached limit, so cached lists must be refreshed
+        if self.config.enabled {
             self.coupon_cache
                 .invalidate(&Self::coupon_key(tenant_id, code));
             self.invalidate_tenant_list_caches(tenant_id);
@@ -344,6 +345,7 @@ mod tests {
     #[derive(Default)]
     struct FakeCouponRepo {
         coupon: std::sync::Mutex<Option<Coupon>>,
+        increment_result: std::sync::Mutex<bool>,
     }
 
     #[async_trait]
@@ -415,7 +417,7 @@ mod tests {
             _tenant_id: &str,
             _code: &str,
         ) -> Result<bool, CouponRepositoryError> {
-            Ok(true)
+            Ok(*self.increment_result.lock().unwrap())
         }
 
         async fn delete_coupon(
@@ -509,5 +511,57 @@ mod tests {
             .is_some());
         assert!(cached.all_auto_apply_cache.get("tenant-a:stripe").is_none());
         assert!(cached.all_auto_apply_cache.get("tenant-b:stripe").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_try_increment_usage_atomic_invalidates_caches_when_limit_reached() {
+        let repo = Arc::new(FakeCouponRepo::default());
+        *repo.increment_result.lock().unwrap() = false;
+        let cached = CachedCouponRepository::new(
+            repo,
+            RepositoryCacheConfig {
+                enabled: true,
+                item_ttl: Duration::from_secs(60),
+                list_ttl: Duration::from_secs(60),
+                max_entries: 1000,
+            },
+        );
+
+        cached.coupon_cache.set(
+            "tenant-a:SAVE10".to_string(),
+            Coupon {
+                tenant_id: "tenant-a".to_string(),
+                code: "SAVE10".to_string(),
+                ..Default::default()
+            },
+            Duration::from_secs(60),
+        );
+        cached
+            .list_cache
+            .set("list:tenant-a".to_string(), vec![], Duration::from_secs(60));
+        cached.auto_apply_cache.set(
+            "tenant-a:product-1:stripe".to_string(),
+            vec![],
+            Duration::from_secs(60),
+        );
+        cached.all_auto_apply_cache.set(
+            "tenant-a:stripe".to_string(),
+            HashMap::new(),
+            Duration::from_secs(60),
+        );
+
+        let incremented = cached
+            .try_increment_usage_atomic("tenant-a", "SAVE10")
+            .await
+            .unwrap();
+        assert!(!incremented);
+
+        assert!(cached.coupon_cache.get("tenant-a:SAVE10").is_none());
+        assert!(cached.list_cache.get("list:tenant-a").is_none());
+        assert!(cached
+            .auto_apply_cache
+            .get("tenant-a:product-1:stripe")
+            .is_none());
+        assert!(cached.all_auto_apply_cache.get("tenant-a:stripe").is_none());
     }
 }

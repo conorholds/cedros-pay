@@ -161,7 +161,12 @@ impl<S: Store + 'static> EmailWorker<S> {
 
         AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.config.smtp_host)
             .map_err(|e| format!("smtp transport: {}", e))
-            .map(|builder| builder.port(self.config.smtp_port).credentials(creds).build())
+            .map(|builder| {
+                builder
+                    .port(self.config.smtp_port)
+                    .credentials(creds)
+                    .build()
+            })
     }
 
     /// Start the email worker with graceful shutdown support

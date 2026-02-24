@@ -259,9 +259,8 @@ impl StripeClient {
         event_type: &str,
         body: &str,
     ) -> ServiceResult<()> {
-        let event: InvoiceEventWrapper = serde_json::from_str(body).map_err(|e| {
-            ServiceError::Internal(format!("failed to parse invoice event: {}", e))
-        })?;
+        let event: InvoiceEventWrapper = serde_json::from_str(body)
+            .map_err(|e| ServiceError::Internal(format!("failed to parse invoice event: {}", e)))?;
 
         let invoice = event.data.object;
         let subscription_id = match invoice.subscription {
@@ -330,9 +329,8 @@ impl StripeClient {
     }
 
     pub(super) async fn handle_charge_refunded(&self, body: &str) -> ServiceResult<()> {
-        let event: ChargeEventWrapper = serde_json::from_str(body).map_err(|e| {
-            ServiceError::Internal(format!("failed to parse charge event: {}", e))
-        })?;
+        let event: ChargeEventWrapper = serde_json::from_str(body)
+            .map_err(|e| ServiceError::Internal(format!("failed to parse charge event: {}", e)))?;
 
         let charge = event.data.object;
         let tenant_id = match charge.metadata.get("tenant_id").map(|s| s.as_str()) {
@@ -380,11 +378,7 @@ impl StripeClient {
         }
     }
 
-    pub(super) async fn best_effort_link_customer(
-        &self,
-        stripe_customer_id: &str,
-        user_id: &str,
-    ) {
+    pub(super) async fn best_effort_link_customer(&self, stripe_customer_id: &str, user_id: &str) {
         let Some(client) = self.cedros_login.as_ref() else {
             return;
         };

@@ -181,8 +181,9 @@ impl PaywallService {
         resource: &str,
         coupon_code: Option<&str>,
         payment_method: Option<&str>,
-    ) -> Vec<Coupon> {
+    ) -> ServiceResult<Vec<Coupon>> {
         let mut coupons = Vec::new();
+        let explicit_coupon_code = coupon_code.map(str::to_ascii_uppercase);
 
         // Get auto-apply coupons
         match self.coupons.list_coupons(tenant_id).await {
@@ -210,12 +211,93 @@ impl PaywallService {
                     }
                 }
                 Err(e) => {
-                    warn!(error = %e, tenant_id = %tenant_id, code = %code, "Failed to get coupon — proceeding without it");
+                    return match e {
+                        crate::repositories::CouponRepositoryError::NotFound => {
+                            Err(ServiceError::Coded {
+                                code: ErrorCode::CouponNotFound,
+                                message: format!("coupon not found: {}", code),
+                            })
+                        }
+                        _ => Err(ServiceError::Coded {
+                            code: ErrorCode::DatabaseError,
+                            message: format!("failed to load coupon {}: {}", code, e),
+                        }),
+                    };
                 }
             }
         }
 
-        coupons
+        let mut refreshed = Vec::new();
+        for coupon in coupons {
+            if coupon.usage_limit.is_some() {
+                match self.coupons.get_coupon(tenant_id, &coupon.code).await {
+                    Ok(fresh_coupon) => {
+                        if self.coupon_applies_to(&fresh_coupon, resource, payment_method) {
+                            refreshed.push(fresh_coupon);
+                        }
+                    }
+                    Err(e) => {
+                        if explicit_coupon_code
+                            .as_deref()
+                            .is_some_and(|code| code == coupon.code.to_ascii_uppercase())
+                        {
+                            return Err(ServiceError::Coded {
+                                code: ErrorCode::DatabaseError,
+                                message: format!("failed to refresh coupon {}: {}", coupon.code, e),
+                            });
+                        }
+                        warn!(
+                            error = %e,
+                            tenant_id = %tenant_id,
+                            code = %coupon.code,
+                            "Failed to refresh coupon usage state — skipping coupon"
+                        );
+                    }
+                }
+            } else {
+                refreshed.push(coupon);
+            }
+        }
+
+        Ok(refreshed)
+    }
+
+    async fn increment_coupon_usage_with_retry(
+        &self,
+        tenant_id: &str,
+        coupon_code: &str,
+    ) -> Result<bool, crate::repositories::CouponRepositoryError> {
+        let mut last_error = None;
+        for attempt in 0..3 {
+            match self
+                .coupons
+                .try_increment_usage_atomic(tenant_id, coupon_code)
+                .await
+            {
+                Ok(true) => {
+                    if attempt > 0 {
+                        debug!(
+                            attempt = attempt + 1,
+                            code = %coupon_code,
+                            "Coupon usage incremented after retry"
+                        );
+                    }
+                    return Ok(true);
+                }
+                Ok(false) => return Ok(false),
+                Err(e) => {
+                    last_error = Some(e);
+                    if attempt < 2 {
+                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                    }
+                }
+            }
+        }
+        Err(last_error.unwrap_or_else(|| {
+            crate::repositories::CouponRepositoryError::Unknown(
+                "coupon increment failed without repository error".to_string(),
+            )
+        }))
     }
 
     /// Check if coupon applies to product and payment method

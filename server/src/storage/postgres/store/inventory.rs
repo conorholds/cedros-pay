@@ -6,9 +6,12 @@ pub(super) async fn reserve_inventory(
     store: &PostgresStore,
     reservation: InventoryReservation,
 ) -> StorageResult<()> {
-    let mut tx = store.pool.inner().begin().await.map_err(|e| {
-        StorageError::internal("begin inventory reservation tx", e)
-    })?;
+    let mut tx = store
+        .pool
+        .inner()
+        .begin()
+        .await
+        .map_err(|e| StorageError::internal("begin inventory reservation tx", e))?;
 
     let product_query = store.products_query(
         "SELECT inventory_quantity, inventory_policy FROM products WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
@@ -23,9 +26,9 @@ pub(super) async fn reserve_inventory(
     let (inventory_quantity, inventory_policy) = match row {
         Some(values) => values,
         None => {
-            tx.rollback().await.map_err(|e| {
-                StorageError::internal("rollback inventory reservation", e)
-            })?;
+            tx.rollback()
+                .await
+                .map_err(|e| StorageError::internal("rollback inventory reservation", e))?;
             return Err(StorageError::NotFound);
         }
     };
@@ -45,9 +48,9 @@ pub(super) async fn reserve_inventory(
                 .await
                 .map_err(|e| StorageError::internal("sum active reservations", e))?;
             if reserved + reservation.quantity as i64 > qty as i64 {
-                tx.rollback().await.map_err(|e| {
-                    StorageError::internal("rollback inventory reservation", e)
-                })?;
+                tx.rollback()
+                    .await
+                    .map_err(|e| StorageError::internal("rollback inventory reservation", e))?;
                 return Err(StorageError::Conflict);
             }
         }
@@ -101,8 +104,8 @@ pub(super) async fn get_active_inventory_reservation_quantity_excluding_cart(
     exclude_cart_id: &str,
     now: DateTime<Utc>,
 ) -> StorageResult<i64> {
-    let query = store
-        .orders_query(queries::inventory_reservations::SUM_ACTIVE_BY_PRODUCT_EXCLUDING_CART);
+    let query =
+        store.orders_query(queries::inventory_reservations::SUM_ACTIVE_BY_PRODUCT_EXCLUDING_CART);
     let reserved: i64 = sqlx::query_scalar(&query)
         .bind(tenant_id)
         .bind(product_id)
@@ -248,13 +251,12 @@ pub(super) async fn update_inventory_batch(
         let query = store.products_query(
             "SELECT id, inventory_quantity, variants FROM products WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
         );
-        let row: Option<(String, Option<i32>, Option<serde_json::Value>)> =
-            sqlx::query_as(&query)
-                .bind(tenant_id)
-                .bind(&product_id)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(|e| StorageError::internal("fetch product for inventory update", e))?;
+        let row: Option<(String, Option<i32>, Option<serde_json::Value>)> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .bind(&product_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| StorageError::internal("fetch product for inventory update", e))?;
 
         let (current_qty, next_qty) = match row {
             Some((_, inv_qty, variants_json)) => {

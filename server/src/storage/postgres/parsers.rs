@@ -379,9 +379,8 @@ pub fn parse_gift_card(row: PgRow) -> StorageResult<GiftCard> {
 
 pub fn parse_collection(row: PgRow) -> StorageResult<Collection> {
     let product_ids_json: serde_json::Value = row.get("product_ids");
-    let product_ids: Vec<String> = serde_json::from_value(product_ids_json).map_err(|e| {
-        StorageError::internal("failed to parse collection product_ids", e)
-    })?;
+    let product_ids: Vec<String> = serde_json::from_value(product_ids_json)
+        .map_err(|e| StorageError::internal("failed to parse collection product_ids", e))?;
 
     Ok(Collection {
         id: row.get("id"),

@@ -204,8 +204,6 @@ pub(super) async fn list_purchases_by_user_id(
 
     items.sort_by(|a, b| b.paid_at.cmp(&a.paid_at));
     let start = offset.max(0) as usize;
-    let end = start
-        .saturating_add(limit.max(0) as usize)
-        .min(items.len());
+    let end = start.saturating_add(limit.max(0) as usize).min(items.len());
     Ok(items.get(start..end).unwrap_or_default().to_vec())
 }

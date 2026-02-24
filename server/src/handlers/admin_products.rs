@@ -111,11 +111,10 @@ pub async fn create_product(
         Ok(v) => v,
         Err((status, body)) => return json_error(status, body).into_response(),
     };
-    let crypto_price =
-        match resolve_crypto(req.crypto_atomic_amount, req.crypto_token.as_deref()) {
-            Ok(v) => v,
-            Err((status, body)) => return json_error(status, body).into_response(),
-        };
+    let crypto_price = match resolve_crypto(req.crypto_atomic_amount, req.crypto_token.as_deref()) {
+        Ok(v) => v,
+        Err((status, body)) => return json_error(status, body).into_response(),
+    };
 
     // Auto-create Stripe product/price if fiat price exists but no stripe_price_id provided
     let stripe_name = req.title.as_deref().unwrap_or(&req.id);
@@ -230,11 +229,10 @@ pub async fn update_product(
         Ok(v) => v,
         Err((status, body)) => return json_error(status, body).into_response(),
     };
-    let crypto_price =
-        match resolve_crypto(req.crypto_atomic_amount, req.crypto_token.as_deref()) {
-            Ok(v) => v,
-            Err((status, body)) => return json_error(status, body).into_response(),
-        };
+    let crypto_price = match resolve_crypto(req.crypto_atomic_amount, req.crypto_token.as_deref()) {
+        Ok(v) => v,
+        Err((status, body)) => return json_error(status, body).into_response(),
+    };
 
     // Determine Stripe product/price IDs
     let stripe_name = req.title.as_deref().unwrap_or(&id);

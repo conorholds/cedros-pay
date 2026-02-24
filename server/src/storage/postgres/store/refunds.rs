@@ -329,8 +329,7 @@ pub(super) async fn get_stripe_refund_request(
     tenant_id: &str,
     request_id: &str,
 ) -> StorageResult<Option<StripeRefundRequest>> {
-    let query =
-        store.stripe_refund_request_query(queries::stripe_refund_request::GET_BY_ID);
+    let query = store.stripe_refund_request_query(queries::stripe_refund_request::GET_BY_ID);
     let row = sqlx::query(&query)
         .bind(tenant_id)
         .bind(request_id)
@@ -346,8 +345,7 @@ pub(super) async fn list_pending_stripe_refund_requests(
     tenant_id: &str,
     limit: i32,
 ) -> StorageResult<Vec<StripeRefundRequest>> {
-    let query =
-        store.stripe_refund_request_query(queries::stripe_refund_request::LIST_PENDING);
+    let query = store.stripe_refund_request_query(queries::stripe_refund_request::LIST_PENDING);
     let rows = sqlx::query(&query)
         .bind(tenant_id)
         .bind(limit)
@@ -373,9 +371,7 @@ pub(super) async fn get_pending_stripe_refund_request_by_original_purchase_id(
         .bind(original_purchase_id)
         .fetch_optional(store.pool.inner())
         .await
-        .map_err(|e| {
-            StorageError::internal("get pending stripe refund request by purchase", e)
-        })?;
+        .map_err(|e| StorageError::internal("get pending stripe refund request by purchase", e))?;
 
     row.map(parse_stripe_refund_request).transpose()
 }
@@ -385,8 +381,7 @@ pub(super) async fn get_stripe_refund_request_by_charge_id(
     tenant_id: &str,
     stripe_charge_id: &str,
 ) -> StorageResult<Option<StripeRefundRequest>> {
-    let query =
-        store.stripe_refund_request_query(queries::stripe_refund_request::GET_BY_CHARGE_ID);
+    let query = store.stripe_refund_request_query(queries::stripe_refund_request::GET_BY_CHARGE_ID);
     let row = sqlx::query(&query)
         .bind(tenant_id)
         .bind(stripe_charge_id)

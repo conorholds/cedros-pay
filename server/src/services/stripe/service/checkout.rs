@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use chrono::Utc;
 use tracing::info;
 
-use crate::constants::{
-    MAX_STRIPE_AMOUNT_CENTS, MIN_STRIPE_AMOUNT_CENTS, STRIPE_MODE_PAYMENT,
-};
+use crate::constants::{MAX_STRIPE_AMOUNT_CENTS, MIN_STRIPE_AMOUNT_CENTS, STRIPE_MODE_PAYMENT};
 use crate::errors::ErrorCode;
 use crate::services::{ServiceError, ServiceResult};
 

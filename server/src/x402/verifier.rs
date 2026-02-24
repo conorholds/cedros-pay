@@ -32,7 +32,7 @@ use crate::observability::{record_solana_rpc_call, record_solana_tx_confirmation
 use crate::services::BlockhashCache;
 
 use super::transaction_queue::TransactionQueue;
-use super::utils::{is_rate_limit_error, RpcAttemptError, rpc_attempt_with_timeout};
+use super::utils::{is_rate_limit_error, rpc_attempt_with_timeout, RpcAttemptError};
 use super::wallet_health::WalletHealthChecker;
 use super::ws_confirmation::{WsConfirmConfig, WsConfirmationService};
 
@@ -634,8 +634,14 @@ impl SolanaVerifier {
         match timeout(SEND_OVERALL_TIMEOUT, self.send_transaction_inner(tx)).await {
             Ok(result) => result,
             Err(_) => {
-                record_solana_rpc_call("sendTransaction", false, SEND_OVERALL_TIMEOUT.as_secs_f64());
-                Err(VerifierError::Network("send transaction overall timeout".into()))
+                record_solana_rpc_call(
+                    "sendTransaction",
+                    false,
+                    SEND_OVERALL_TIMEOUT.as_secs_f64(),
+                );
+                Err(VerifierError::Network(
+                    "send transaction overall timeout".into(),
+                ))
             }
         }
     }

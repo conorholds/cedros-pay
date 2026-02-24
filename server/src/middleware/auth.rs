@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use axum::extract::OriginalUri;
 use axum::{body::Body, extract::Request, http::StatusCode, middleware::Next, response::Response};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
@@ -246,7 +247,13 @@ pub async fn admin_middleware<S: Store + 'static>(
         // Extract JWT from Authorization header
         if let Some(auth_header) = request.headers().get(AUTHORIZATION) {
             if let Ok(auth_str) = auth_header.to_str() {
-                if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                // RFC 6750: scheme comparison is case-insensitive
+                let token = auth_str
+                    .get(..7)
+                    .filter(|p| p.eq_ignore_ascii_case("bearer "))
+                    .map(|_| &auth_str[7..]);
+
+                if let Some(token) = token {
                     match cedros_login.validate_jwt(token).await {
                         Ok(claims) => {
                             if claims.is_admin() {
@@ -262,9 +269,18 @@ pub async fn admin_middleware<S: Store + 'static>(
                             return Err(StatusCode::UNAUTHORIZED);
                         }
                     }
+                } else {
+                    tracing::debug!(
+                        scheme = %auth_str.split_whitespace().next().unwrap_or("(empty)"),
+                        "Authorization header present but not Bearer scheme"
+                    );
                 }
             }
+        } else {
+            tracing::debug!("cedros-login configured but no Authorization header in admin request");
         }
+    } else {
+        tracing::debug!("JWT auth unavailable: no cedros-login client configured");
     }
 
     // No valid auth method found
@@ -295,8 +311,16 @@ fn get_tenant_id_for_admin(request: &Request<Body>) -> Result<&str, StatusCode> 
 /// Returns `None` (fail-closed) for unrecognized routes, which causes auth rejection.
 /// Uses starts_with/ends_with matching — ordering matters for routes with shared prefixes.
 /// Test coverage: known routes, unknown routes (fail-closed), suffix collision rejection.
+///
+/// NOTE: Admin routes are nested via `Router::nest("/admin", ...)`, which causes
+/// axum to strip the `/admin` prefix from `request.uri().path()`. We use
+/// `OriginalUri` (set automatically by axum's nest) to get the full path.
 fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static str> {
-    let path = request.uri().path();
+    let path = request
+        .extensions()
+        .get::<OriginalUri>()
+        .map(|u| u.0.path())
+        .unwrap_or_else(|| request.uri().path());
     let method = request.method();
 
     // Purposes are documented in docs/specs/04-http-endpoints-refunds.md
@@ -354,23 +378,13 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         return Some("admin_fulfillments_update_status");
     }
 
-    // Products CRUD
+    // Products — specific sub-resource patterns BEFORE generic starts_with
     if method == axum::http::Method::GET && path == "/admin/products" {
         return Some("admin_products_list");
-    }
-    if method == axum::http::Method::GET && path.starts_with("/admin/products/") {
-        return Some("admin_products_get");
     }
     if method == axum::http::Method::POST && path == "/admin/products" {
         return Some("admin_products_create");
     }
-    if method == axum::http::Method::PUT && path.starts_with("/admin/products/") {
-        return Some("admin_products_update");
-    }
-    if method == axum::http::Method::DELETE && path.starts_with("/admin/products/") {
-        return Some("admin_products_delete");
-    }
-
     if method == axum::http::Method::GET
         && path.starts_with("/admin/products/")
         && path.ends_with("/inventory/adjustments")
@@ -382,6 +396,40 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         && path.ends_with("/inventory/adjust")
     {
         return Some("admin_inventory_adjust");
+    }
+    if method == axum::http::Method::PUT
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/variants/inventory")
+    {
+        return Some("admin_variants_inventory_update");
+    }
+    if method == axum::http::Method::PUT
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/inventory")
+    {
+        return Some("admin_inventory_set");
+    }
+    if method == axum::http::Method::GET
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/variations")
+    {
+        return Some("admin_variations_get");
+    }
+    if method == axum::http::Method::PUT
+        && path.starts_with("/admin/products/")
+        && path.ends_with("/variations")
+    {
+        return Some("admin_variations_update");
+    }
+    // Generic product CRUD (after specific sub-resource patterns)
+    if method == axum::http::Method::GET && path.starts_with("/admin/products/") {
+        return Some("admin_products_get");
+    }
+    if method == axum::http::Method::PUT && path.starts_with("/admin/products/") {
+        return Some("admin_products_update");
+    }
+    if method == axum::http::Method::DELETE && path.starts_with("/admin/products/") {
+        return Some("admin_products_delete");
     }
 
     // Shipping profiles & rates
@@ -504,6 +552,23 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         return Some("admin_gift_cards_adjust");
     }
 
+    // FAQs
+    if method == axum::http::Method::GET && path == "/admin/faqs" {
+        return Some("admin_faqs_list");
+    }
+    if method == axum::http::Method::POST && path == "/admin/faqs" {
+        return Some("admin_faqs_create");
+    }
+    if method == axum::http::Method::GET && path.starts_with("/admin/faqs/") {
+        return Some("admin_faqs_get");
+    }
+    if method == axum::http::Method::PUT && path.starts_with("/admin/faqs/") {
+        return Some("admin_faqs_update");
+    }
+    if method == axum::http::Method::DELETE && path.starts_with("/admin/faqs/") {
+        return Some("admin_faqs_delete");
+    }
+
     // Collections
     if method == axum::http::Method::GET && path == "/admin/collections" {
         return Some("admin_collections_list");
@@ -562,6 +627,44 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         return Some("admin_refunds_process");
     }
 
+    // Credits refund requests
+    if method == axum::http::Method::GET && path == "/admin/credits/refund-requests" {
+        return Some("admin_credits_refund_requests_list");
+    }
+
+    // Admin chats
+    if method == axum::http::Method::GET && path == "/admin/chats" {
+        return Some("admin_chats_list");
+    }
+    if method == axum::http::Method::GET && path.starts_with("/admin/chats/") {
+        return Some("admin_chats_get");
+    }
+    if method == axum::http::Method::GET
+        && path.starts_with("/admin/users/")
+        && path.ends_with("/chats")
+    {
+        return Some("admin_user_chats_list");
+    }
+
+    // Subscription settings
+    if method == axum::http::Method::GET && path == "/admin/subscriptions/settings" {
+        return Some("admin_subscriptions_settings_get");
+    }
+    if method == axum::http::Method::PUT && path == "/admin/subscriptions/settings" {
+        return Some("admin_subscriptions_settings_update");
+    }
+
+    // AI assistant
+    if method == axum::http::Method::POST && path == "/admin/ai/product-assistant" {
+        return Some("admin_ai_product_assistant");
+    }
+    if method == axum::http::Method::POST && path == "/admin/ai/related-products" {
+        return Some("admin_ai_related_products");
+    }
+    if method == axum::http::Method::POST && path == "/admin/ai/product-search" {
+        return Some("admin_ai_product_search");
+    }
+
     // Config endpoints (from plan Phase 4)
     if path.starts_with("/admin/config") {
         if method == axum::http::Method::GET && path == "/admin/config" {
@@ -584,6 +687,9 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
         }
         if method == axum::http::Method::PATCH && path.starts_with("/admin/config/") {
             return Some("config_patch");
+        }
+        if method == axum::http::Method::DELETE && path.starts_with("/admin/config/") {
+            return Some("config_delete");
         }
     }
 
@@ -922,6 +1028,127 @@ mod tests {
         assert_eq!(
             super::admin_nonce_purpose_for_request(&collection_req),
             Some("admin_collections_delete")
+        );
+    }
+
+    /// Verify that OriginalUri is used when available (simulates axum nest stripping)
+    #[test]
+    fn test_admin_nonce_purpose_uses_original_uri_from_nest() {
+        // axum::nest("/admin", ...) strips the prefix from request.uri() but
+        // preserves it in OriginalUri. The function should use OriginalUri.
+        let mut req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/faqs") // stripped path (as seen inside nested router)
+            .body(Body::empty())
+            .unwrap();
+        req.extensions_mut()
+            .insert(OriginalUri("/admin/faqs".parse().unwrap()));
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_faqs_list")
+        );
+    }
+
+    #[test]
+    fn test_admin_nonce_purpose_new_routes() {
+        // FAQs
+        let req = Request::builder()
+            .method(axum::http::Method::DELETE)
+            .uri("/admin/faqs/faq-1")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_faqs_delete")
+        );
+
+        // Product variations
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/products/prod-1/variations")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_variations_get")
+        );
+
+        // Subscription settings
+        let req = Request::builder()
+            .method(axum::http::Method::PUT)
+            .uri("/admin/subscriptions/settings")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_subscriptions_settings_update")
+        );
+
+        // Admin chats
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/chats/sess-1")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_chats_get")
+        );
+
+        // Credits refund requests
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/credits/refund-requests")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_credits_refund_requests_list")
+        );
+
+        // Config DELETE (AI API key removal)
+        let req = Request::builder()
+            .method(axum::http::Method::DELETE)
+            .uri("/admin/config/ai/api-key/openai")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("config_delete")
+        );
+    }
+
+    /// Verify product sub-resource routes match BEFORE generic products_get
+    #[test]
+    fn test_admin_nonce_purpose_product_sub_resources_before_generic() {
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/products/prod-1/inventory/adjustments")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_inventory_adjustments_list")
+        );
+
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/products/prod-1/variations")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_variations_get")
+        );
+
+        let req = Request::builder()
+            .method(axum::http::Method::PUT)
+            .uri("/admin/products/prod-1/variants/inventory")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_request(&req),
+            Some("admin_variants_inventory_update")
         );
     }
 

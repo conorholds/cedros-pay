@@ -392,8 +392,15 @@ impl Store for InMemoryStore {
         entry: OrderHistoryEntry,
     ) -> StorageResult<()> {
         // InMemoryStore: no real transactions, just run sequentially
-        orders::update_order_status(self, tenant_id, order_id, status, status_updated_at, updated_at)
-            .await?;
+        orders::update_order_status(
+            self,
+            tenant_id,
+            order_id,
+            status,
+            status_updated_at,
+            updated_at,
+        )
+        .await?;
         orders::append_order_history(self, entry).await
     }
     async fn list_order_history(
@@ -618,16 +625,10 @@ impl Store for InMemoryStore {
     ) -> StorageResult<()> {
         shipping::delete_shipping_profile(self, tenant_id, profile_id).await
     }
-    async fn create_shipping_rate(
-        &self,
-        rate: crate::models::ShippingRate,
-    ) -> StorageResult<()> {
+    async fn create_shipping_rate(&self, rate: crate::models::ShippingRate) -> StorageResult<()> {
         shipping::create_shipping_rate(self, rate).await
     }
-    async fn update_shipping_rate(
-        &self,
-        rate: crate::models::ShippingRate,
-    ) -> StorageResult<()> {
+    async fn update_shipping_rate(&self, rate: crate::models::ShippingRate) -> StorageResult<()> {
         shipping::update_shipping_rate(self, rate).await
     }
     async fn list_shipping_rates(
@@ -648,11 +649,7 @@ impl Store for InMemoryStore {
     async fn update_tax_rate(&self, rate: TaxRate) -> StorageResult<()> {
         shipping::update_tax_rate(self, rate).await
     }
-    async fn get_tax_rate(
-        &self,
-        tenant_id: &str,
-        rate_id: &str,
-    ) -> StorageResult<Option<TaxRate>> {
+    async fn get_tax_rate(&self, tenant_id: &str, rate_id: &str) -> StorageResult<Option<TaxRate>> {
         shipping::get_tax_rate(self, tenant_id, rate_id).await
     }
     async fn list_tax_rates(
@@ -736,11 +733,7 @@ impl Store for InMemoryStore {
     async fn update_gift_card(&self, card: GiftCard) -> StorageResult<()> {
         catalog::update_gift_card(self, card).await
     }
-    async fn get_gift_card(
-        &self,
-        tenant_id: &str,
-        code: &str,
-    ) -> StorageResult<Option<GiftCard>> {
+    async fn get_gift_card(&self, tenant_id: &str, code: &str) -> StorageResult<Option<GiftCard>> {
         catalog::get_gift_card(self, tenant_id, code).await
     }
     async fn list_gift_cards(
@@ -792,11 +785,7 @@ impl Store for InMemoryStore {
     ) -> StorageResult<Vec<Collection>> {
         catalog::list_collections(self, tenant_id, active_only, limit, offset).await
     }
-    async fn delete_collection(
-        &self,
-        tenant_id: &str,
-        collection_id: &str,
-    ) -> StorageResult<()> {
+    async fn delete_collection(&self, tenant_id: &str, collection_id: &str) -> StorageResult<()> {
         catalog::delete_collection(self, tenant_id, collection_id).await
     }
 
@@ -1039,12 +1028,8 @@ impl Store for InMemoryStore {
         tenant_id: &str,
         payment_signature: &str,
     ) -> StorageResult<Option<Subscription>> {
-        subscriptions::get_subscription_by_payment_signature(
-            self,
-            tenant_id,
-            payment_signature,
-        )
-        .await
+        subscriptions::get_subscription_by_payment_signature(self, tenant_id, payment_signature)
+            .await
     }
     async fn list_active_subscriptions(
         &self,

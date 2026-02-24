@@ -202,9 +202,7 @@ pub(in super::super) async fn cleanup_old_webhooks(
     Ok(result.rows_affected())
 }
 
-pub(in super::super) async fn count_pending_webhooks(
-    store: &PostgresStore,
-) -> StorageResult<i64> {
+pub(in super::super) async fn count_pending_webhooks(store: &PostgresStore) -> StorageResult<i64> {
     let query = store.webhook_query(queries::webhook::COUNT_PENDING);
     let (count,): (i64,) = sqlx::query_as(&query)
         .fetch_one(store.pool.inner())

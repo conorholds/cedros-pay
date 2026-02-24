@@ -70,8 +70,7 @@ pub async fn run() -> anyhow::Result<()> {
 
     let config_repo = crate::config::PostgresConfigRepository::new(pool.inner().clone());
     let tenant_id = "default";
-    let cfg =
-        Config::load_from_db(&config_repo, tenant_id, &postgres_url, &server_address).await?;
+    let cfg = Config::load_from_db(&config_repo, tenant_id, &postgres_url, &server_address).await?;
 
     cfg.validate_config()?;
 
@@ -269,4 +268,3 @@ pub(crate) async fn build_postgres_pool(cfg: &Config, url: &str) -> anyhow::Resu
     pg_config.max_lifetime = cfg.storage.postgres_pool.conn_max_lifetime;
     Ok(PostgresPool::new(&pg_config).await?)
 }
-

@@ -109,9 +109,7 @@ pub(super) async fn release_inventory_reservations(
     _released_at: DateTime<Utc>,
 ) -> StorageResult<u64> {
     #[cfg(test)]
-    store
-        .release_inventory_calls
-        .fetch_add(1, Ordering::SeqCst);
+    store.release_inventory_calls.fetch_add(1, Ordering::SeqCst);
     let mut reservations = store.inventory_reservations.lock();
     let mut count = 0_u64;
     for reservation in reservations.values_mut() {
@@ -243,7 +241,10 @@ pub(super) async fn update_inventory_batch(
                 created_at: now,
             };
             let adj_key = tenant_key(tenant_id, &adjustment.id);
-            store.inventory_adjustments.lock().insert(adj_key, adjustment);
+            store
+                .inventory_adjustments
+                .lock()
+                .insert(adj_key, adjustment);
 
             results.insert(product_id, (current_qty, next_qty));
         }

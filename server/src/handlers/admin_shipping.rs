@@ -397,7 +397,11 @@ pub async fn update_rate(
     }
 
     // Fetch existing rate to preserve created_at in the response
-    let existing_rates = match state.store.list_shipping_rates(&tenant.tenant_id, &req.profile_id, 1000, 0).await {
+    let existing_rates = match state
+        .store
+        .list_shipping_rates(&tenant.tenant_id, &req.profile_id, 1000, 0)
+        .await
+    {
         Ok(rates) => rates,
         Err(e) => {
             let (status, body) = error_response(
@@ -408,7 +412,10 @@ pub async fn update_rate(
             return json_error(status, body);
         }
     };
-    let original_created_at = existing_rates.iter().find(|r| r.id == rate_id).map(|r| r.created_at);
+    let original_created_at = existing_rates
+        .iter()
+        .find(|r| r.id == rate_id)
+        .map(|r| r.created_at);
 
     let now = Utc::now();
     let rate = ShippingRate {

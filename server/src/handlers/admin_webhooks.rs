@@ -116,7 +116,10 @@ pub async fn list_webhooks<S: Store + 'static>(
         _ => None,
     });
 
-    match store.list_webhooks(&tenant.tenant_id, status, cap_limit(query.limit)).await {
+    match store
+        .list_webhooks(&tenant.tenant_id, status, cap_limit(query.limit))
+        .await
+    {
         Ok(webhooks) => {
             let response = ListWebhooksResponse {
                 count: webhooks.len(),
@@ -243,7 +246,10 @@ pub async fn list_dlq<S: Store + 'static>(
     tenant: TenantContext,
     Query(query): Query<ListWebhooksQuery>,
 ) -> impl IntoResponse {
-    match store.list_dlq(&tenant.tenant_id, cap_limit(query.limit)).await {
+    match store
+        .list_dlq(&tenant.tenant_id, cap_limit(query.limit))
+        .await
+    {
         Ok(webhooks) => {
             let response = DlqListResponse {
                 count: webhooks.len(),

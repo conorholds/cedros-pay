@@ -125,10 +125,7 @@ pub(super) async fn list_webhooks(
     Ok(items)
 }
 
-pub(super) async fn retry_webhook(
-    store: &InMemoryStore,
-    webhook_id: &str,
-) -> StorageResult<()> {
+pub(super) async fn retry_webhook(store: &InMemoryStore, webhook_id: &str) -> StorageResult<()> {
     if let Some(wh) = store.webhooks.lock().get_mut(webhook_id) {
         wh.status = WebhookStatus::Pending;
         wh.next_attempt_at = Some(Utc::now());
@@ -138,10 +135,7 @@ pub(super) async fn retry_webhook(
     }
 }
 
-pub(super) async fn delete_webhook(
-    store: &InMemoryStore,
-    webhook_id: &str,
-) -> StorageResult<()> {
+pub(super) async fn delete_webhook(store: &InMemoryStore, webhook_id: &str) -> StorageResult<()> {
     store.webhooks.lock().remove(webhook_id);
     Ok(())
 }
@@ -178,8 +172,7 @@ pub(super) async fn dequeue_emails(
     let result: Vec<PendingEmail> = emails
         .values()
         .filter(|e| {
-            e.status == EmailStatus::Pending
-                && e.next_attempt_at.map_or(true, |next| next <= now)
+            e.status == EmailStatus::Pending && e.next_attempt_at.map_or(true, |next| next <= now)
         })
         .take(limit as usize)
         .cloned()
@@ -197,10 +190,7 @@ pub(super) async fn mark_email_processing(
     Ok(())
 }
 
-pub(super) async fn mark_email_success(
-    store: &InMemoryStore,
-    email_id: &str,
-) -> StorageResult<()> {
+pub(super) async fn mark_email_success(store: &InMemoryStore, email_id: &str) -> StorageResult<()> {
     if let Some(email) = store.emails.lock().get_mut(email_id) {
         email.status = EmailStatus::Completed;
         email.completed_at = Some(Utc::now());
@@ -302,17 +292,12 @@ pub(super) async fn get_idempotency_key(
     Ok(None)
 }
 
-pub(super) async fn delete_idempotency_key(
-    store: &InMemoryStore,
-    key: &str,
-) -> StorageResult<()> {
+pub(super) async fn delete_idempotency_key(store: &InMemoryStore, key: &str) -> StorageResult<()> {
     store.idempotency.lock().remove(key);
     Ok(())
 }
 
-pub(super) async fn cleanup_expired_idempotency_keys(
-    store: &InMemoryStore,
-) -> StorageResult<u64> {
+pub(super) async fn cleanup_expired_idempotency_keys(store: &InMemoryStore) -> StorageResult<u64> {
     let mut map = store.idempotency.lock();
     let before = map.len();
     map.retain(|_, (_, created, ttl)| created.elapsed() <= *ttl);

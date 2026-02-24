@@ -484,12 +484,12 @@ impl<S: Store + 'static> WebhookWorker<S> {
     fn circuit_breaker_for(&self, url: &str) -> SharedCircuitBreaker {
         let key = url::Url::parse(url)
             .ok()
-            .and_then(|u| u.host_str().map(|h| {
-                match u.port() {
+            .and_then(|u| {
+                u.host_str().map(|h| match u.port() {
                     Some(p) => format!("{}:{}", h, p),
                     None => h.to_string(),
-                }
-            }))
+                })
+            })
             .unwrap_or_else(|| url.to_string());
 
         let mut breakers = self.circuit_breakers.lock();
@@ -748,13 +748,23 @@ mod tests {
 
         // Trip circuit breaker on host A
         let fail_result = worker
-            .deliver_webhook("wh-fail", &format!("http://{}/webhook", fail_addr), &payload_bytes, &HashMap::new())
+            .deliver_webhook(
+                "wh-fail",
+                &format!("http://{}/webhook", fail_addr),
+                &payload_bytes,
+                &HashMap::new(),
+            )
             .await;
         assert!(fail_result.is_err());
 
         // Host B should still work (different host)
         let ok_result = worker
-            .deliver_webhook("wh-ok", &format!("http://{}/webhook", ok_addr), &payload_bytes, &HashMap::new())
+            .deliver_webhook(
+                "wh-ok",
+                &format!("http://{}/webhook", ok_addr),
+                &payload_bytes,
+                &HashMap::new(),
+            )
             .await;
         assert!(ok_result.is_ok(), "expected success on different host");
     }

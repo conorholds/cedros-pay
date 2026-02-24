@@ -8,11 +8,11 @@ use parking_lot::Mutex;
 use crate::config::Config;
 use crate::errors::ErrorCode;
 use crate::services::stripe::WebhookEvent;
-use crate::services::{ServiceError, ServiceResult};
+use crate::services::ServiceError;
 use crate::storage::InMemoryStore;
 use crate::webhooks::Notifier;
 
-use super::{require_session_url, StripeClient, StripeCheckoutSession};
+use super::{require_session_url, StripeCheckoutSession, StripeClient};
 
 #[test]
 fn test_require_session_url_missing() {

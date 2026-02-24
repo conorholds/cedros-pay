@@ -69,7 +69,17 @@ pub(super) async fn record_payments(
     builder.push_values(
         prepared,
         |mut b,
-         (signature, tenant_id, resource_id, wallet, user_id, amount, amount_asset, created_at, metadata_json)| {
+         (
+            signature,
+            tenant_id,
+            resource_id,
+            wallet,
+            user_id,
+            amount,
+            amount_asset,
+            created_at,
+            metadata_json,
+        )| {
             b.push_bind(signature)
                 .push_bind(tenant_id)
                 .push_bind(resource_id)
@@ -210,8 +220,7 @@ pub(super) async fn store_credits_hold(
     }
 
     // Existing hold found; only extend expiry if the original binding matches.
-    let update_query =
-        store.credits_hold_query(queries::credits_hold::UPDATE_EXPIRES_AT_IF_MATCH);
+    let update_query = store.credits_hold_query(queries::credits_hold::UPDATE_EXPIRES_AT_IF_MATCH);
     let updated = sqlx::query(&update_query)
         .bind(&hold.tenant_id)
         .bind(&hold.hold_id)
