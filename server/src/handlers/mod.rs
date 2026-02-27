@@ -40,6 +40,7 @@ pub mod purchases;
 pub mod refunds;
 pub mod response;
 pub mod rpc_proxy;
+pub mod storefront;
 pub mod stripe;
 pub mod subscriptions;
 pub mod verify;

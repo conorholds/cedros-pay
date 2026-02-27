@@ -453,7 +453,7 @@ export function createPaywallCommerceAdapter(opts: {
     try {
       const data = (await fetchJson(
         opts.serverUrl,
-        '/admin/config/shop',
+        '/paywall/v1/storefront',
         opts.apiKey,
         { retryableRead: true }
       )) as { config?: StorefrontConfig };
@@ -466,31 +466,16 @@ export function createPaywallCommerceAdapter(opts: {
 
   const getPaymentMethodsConfig = async (): Promise<PaymentMethodsConfig | null> => {
     try {
-      // Fetch all three payment config categories in parallel
-      const [stripeRes, x402Res, creditsRes] = await Promise.allSettled([
-        fetchJson(opts.serverUrl, '/admin/config/stripe', opts.apiKey, { retryableRead: true }),
-        fetchJson(opts.serverUrl, '/admin/config/x402', opts.apiKey, { retryableRead: true }),
-        fetchJson(opts.serverUrl, '/admin/config/cedros_login', opts.apiKey, { retryableRead: true }),
-      ]);
-
-      // Extract enabled status, defaulting to false if fetch failed
-      const stripeEnabled = stripeRes.status === 'fulfilled'
-        ? Boolean((stripeRes.value as { config?: { enabled?: boolean } })?.config?.enabled)
-        : false;
-      const cryptoEnabled = x402Res.status === 'fulfilled'
-        ? Boolean((x402Res.value as { config?: { enabled?: boolean } })?.config?.enabled)
-        : false;
-      const creditsEnabled = creditsRes.status === 'fulfilled'
-        ? Boolean((creditsRes.value as { config?: { enabled?: boolean } })?.config?.enabled)
-        : false;
-
-      return {
-        card: stripeEnabled,
-        crypto: cryptoEnabled,
-        credits: creditsEnabled,
-      };
+      const data = (await fetchJson(
+        opts.serverUrl,
+        '/paywall/v1/storefront',
+        opts.apiKey,
+        { retryableRead: true }
+      )) as { paymentMethods?: { stripe?: boolean; x402?: boolean; credits?: boolean } };
+      const pm = data.paymentMethods;
+      if (!pm) return null;
+      return { card: Boolean(pm.stripe), crypto: Boolean(pm.x402), credits: Boolean(pm.credits) };
     } catch {
-      // Config not available - return null to use defaults (all enabled)
       return null;
     }
   };

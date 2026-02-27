@@ -401,6 +401,10 @@ export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
         type: 'boolean',
         description: 'Send order confirmation emails to customers.',
       },
+      email_provider: {
+        description: 'Email service provider (mailgun, sendgrid, postmark, ses, resend, custom).',
+        showWhen: 'email_enabled',
+      },
       smtp_host: {
         description: 'SMTP server hostname.',
         showWhen: 'email_enabled',

@@ -119,6 +119,12 @@ export interface ICreditsManager {
   authorizeCartPayment(options: ProcessCreditsCartPaymentOptions): Promise<CreditsPaymentResult>;
 
   /**
+   * Release a previously created credits hold.
+   * This should be used when checkout fails after hold creation.
+   */
+  releaseHold(holdId: string, authToken: string): Promise<void>;
+
+  /**
    * Complete credits payment flow: create hold and authorize
    * Convenience method that combines createHold + authorizePayment
    * @param resource - Resource being purchased
@@ -483,6 +489,33 @@ export class CreditsManager implements ICreditsManager {
     }
   }
 
+  async releaseHold(holdId: string, authToken: string): Promise<void> {
+    if (!holdId) return;
+
+    try {
+      await this.circuitBreaker.execute(async () => {
+        const url = await this.routeDiscovery.buildUrl(`/paywall/v1/credits/hold/${holdId}/release`);
+        const response = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Idempotency-Key': generateUUID(),
+          },
+        });
+
+        if (!response.ok) {
+          const errorMessage = await parseErrorResponse(response, 'Failed to release credits hold');
+          throw new Error(errorMessage);
+        }
+      });
+    } catch (error) {
+      if (error instanceof CircuitBreakerOpenError) {
+        throw new Error('Credits service is temporarily unavailable. Please try again in a few moments.');
+      }
+      throw error;
+    }
+  }
+
   /**
    * Process a complete credits payment (convenience method)
    * Combines createHold + authorizePayment in one call
@@ -498,14 +531,16 @@ export class CreditsManager implements ICreditsManager {
     couponCode?: string,
     metadata?: Record<string, string>
   ): Promise<PaymentResult> {
+    let holdId: string | null = null;
     try {
       // Step 1: Create hold
       const hold = await this.createHold({ resource, couponCode, authToken });
+      holdId = hold.holdId;
 
       // Step 2: Authorize payment
       const result = await this.authorizePayment({
         resource,
-        holdId: hold.holdId,
+        holdId,
         couponCode,
         authToken,
         metadata,
@@ -517,6 +552,13 @@ export class CreditsManager implements ICreditsManager {
         error: result.error,
       };
     } catch (error) {
+      if (holdId) {
+        try {
+          await this.releaseHold(holdId, authToken);
+        } catch (releaseError) {
+          getLogger().warn('[CreditsManager] Failed to release hold after payment failure:', releaseError);
+        }
+      }
       return {
         success: false,
         error: formatError(error, 'Credits payment failed'),

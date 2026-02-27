@@ -1,29 +1,32 @@
 {
   "name": "@cedros/pay-react-native",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
-  "main": "./src/index.ts",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./lib/index.js",
+  "module": "./esm/index.js",
+  "types": "./types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
-      "require": "./src/index.ts"
+      "types": "./types/index.d.ts",
+      "import": "./esm/index.js",
+      "require": "./lib/index.js"
     },
     "./stripe-only": {
-      "types": "./src/stripe-only.ts",
-      "import": "./src/stripe-only.ts",
-      "require": "./src/stripe-only.ts"
+      "types": "./types/stripe-only.d.ts",
+      "import": "./esm/stripe-only.js",
+      "require": "./lib/stripe-only.js"
     },
     "./crypto-only": {
-      "types": "./src/crypto-only.ts",
-      "import": "./src/crypto-only.ts",
-      "require": "./src/crypto-only.ts"
+      "types": "./types/crypto-only.d.ts",
+      "import": "./esm/crypto-only.js",
+      "require": "./lib/crypto-only.js"
     }
   },
   "files": [
-    "src"
+    "lib",
+    "esm",
+    "types",
+    "src/i18n/translations"
   ],
   "keywords": [
     "payments",
@@ -109,6 +112,6 @@
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "prepublishOnly": "echo \"Publishing @cedros/pay-react-native...\""
+    "prepublishOnly": "npm run lint && npm run type-check && npm run build"
   }
 }

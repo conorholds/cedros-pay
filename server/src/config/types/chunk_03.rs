@@ -273,6 +273,7 @@ impl Default for MessagingConfig {
     fn default() -> Self {
         Self {
             email_enabled: false,
+            email_provider: String::new(),
             smtp_host: String::new(),
             smtp_port: default_smtp_port(),
             smtp_username: String::new(),

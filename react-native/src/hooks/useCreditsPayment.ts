@@ -202,6 +202,8 @@ export function useCreditsPayment() {
         holdId: null,
       });
 
+      let currentHoldId: string | null = null;
+
       try {
         // Step 1: Get cart quote
         const normalizedItems = normalizeCartItems(items);
@@ -225,7 +227,7 @@ export function useCreditsPayment() {
         });
 
         // Store holdId in local variable for cleanup in catch block
-        const currentHoldId = hold.holdId;
+        currentHoldId = hold.holdId;
 
         setState((prev) => ({
           ...prev,
@@ -255,9 +257,13 @@ export function useCreditsPayment() {
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Cart credits payment failed';
-        // TODO: Release the hold on error to prevent credits from being locked
-        // This requires adding a releaseHold method to CreditsManager
-        // and a corresponding backend endpoint
+        if (currentHoldId) {
+          try {
+            await creditsManager.releaseHold(currentHoldId, authToken);
+          } catch {
+            // Do not mask checkout failures when release fails.
+          }
+        }
         setState({
           status: 'error',
           error: errorMessage,

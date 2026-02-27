@@ -86,6 +86,7 @@ impl<S: Store + 'static> BuiltServices<S> {
             admin_ai_state,
             admin_ai_assistant_state,
             chat_state,
+            storefront_state,
         ) = build_pg_dependent_states(
             self.storage_pg_pool,
             stripe_client_for_admin.clone(),
@@ -127,6 +128,7 @@ impl<S: Store + 'static> BuiltServices<S> {
             chat_state,
             admin_chat_state,
             faqs_state,
+            storefront_state,
         }
     }
 }
@@ -137,6 +139,7 @@ type PgDependentStates = (
     Option<Arc<handlers::admin_ai::AdminAiState>>,
     Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
     Option<Arc<handlers::chat::ChatState>>,
+    Option<Arc<handlers::storefront::StorefrontState>>,
 );
 
 /// Build states that require a PostgreSQL pool (config, AI, chat, etc.).
@@ -169,6 +172,9 @@ fn build_pg_dependent_states<S: Store + 'static>(
                     cache: handlers::admin_ai_assistant::AiResponseCache::default(),
                 });
             let ai_service = Arc::new(services::AiService::new());
+            let storefront_state = Arc::new(handlers::storefront::StorefrontState {
+                repo: repo.clone(),
+            });
             let chat_state = Arc::new(handlers::chat::ChatState::new(
                 store,
                 repo,
@@ -182,8 +188,9 @@ fn build_pg_dependent_states<S: Store + 'static>(
                 Some(ai_state),
                 Some(ai_assistant_state),
                 Some(chat_state),
+                Some(storefront_state),
             )
         }
-        None => (None, None, None, None, None),
+        None => (None, None, None, None, None, None),
     }
 }

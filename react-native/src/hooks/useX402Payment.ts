@@ -5,6 +5,7 @@ import { useCedrosContext } from '../context';
 import type { PaymentState, X402Requirement, SettlementResponse, PaymentResult } from '../types';
 import { normalizeCartItems } from '../utils/cartHelpers';
 import { formatError } from '../utils/errorHandling';
+import { getLogger } from '../utils/logger';
 
 /**
  * Hook for x402 crypto payment flow
@@ -92,9 +93,9 @@ export function useX402Payment() {
       const isGasless = !!requirement.extra?.feePayer;
 
       if (isGasless) {
-        console.log('⚡ [useX402Payment] GASLESS FLOW - Backend pays fees');
+        getLogger().debug('[useX402Payment] Executing gasless flow');
         // Gasless flow: Backend builds transaction with compute budget, then co-signs and submits
-        console.log('🔨 [useX402Payment] Requesting backend to build gasless transaction');
+        getLogger().debug('[useX402Payment] Requesting backend gasless transaction');
         const { transaction: txBase64, blockhash } = await x402Manager.buildGaslessTransaction({
           resourceId,
           userWallet: (publicKey as PublicKey).toString(),
@@ -102,19 +103,19 @@ export function useX402Payment() {
           couponCode,
         });
 
-        console.log('📦 [useX402Payment] Deserializing transaction from backend');
+        getLogger().debug('[useX402Payment] Deserializing gasless transaction');
         const transaction = walletManager.deserializeTransaction(txBase64);
 
         // User signs only as transfer authority (not fee payer)
         // Pass blockhash to preserve backend's time-sensitive value and avoid race conditions
-        console.log('✍️ [useX402Payment] Requesting wallet to partially sign (transfer authority only)');
+        getLogger().debug('[useX402Payment] Requesting partial signature');
         const partialTx = await walletManager.partiallySignTransaction({
           transaction,
           signTransaction: signTransaction!,
           blockhash,
         });
 
-        console.log('📤 [useX402Payment] Submitting partially-signed transaction to backend');
+        getLogger().debug('[useX402Payment] Submitting partially signed transaction');
         const result = await x402Manager.submitGaslessTransaction({
           resource: resourceId,
           partialTx,
@@ -187,13 +188,13 @@ export function useX402Payment() {
 
       try {
         // Always fetch fresh requirement to avoid stale pricing with different resources/coupons
-        console.log('🔍 [useX402Payment] Fetching fresh quote for resource:', resource);
+        getLogger().debug('[useX402Payment] Fetching fresh quote');
         const currentRequirement = await x402Manager.requestQuote({ resource, couponCode });
-        console.log('✅ [useX402Payment] Got quote:', { payTo: currentRequirement.payTo, amount: currentRequirement.maxAmountRequired });
+        getLogger().debug('[useX402Payment] Quote fetched');
         setRequirement(currentRequirement);
 
         // Use shared payment flow
-        console.log('⚙️ [useX402Payment] Executing payment flow with fresh requirement');
+        getLogger().debug('[useX402Payment] Executing payment flow');
         const result = await executePaymentFlow(currentRequirement, resource, couponCode, metadata, 'regular');
 
         if (result.success) {

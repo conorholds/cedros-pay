@@ -1535,6 +1535,8 @@ Sections are addressed using the format `pluginId:sectionId`:
 
 See the [cedros-login documentation](https://github.com/cedros-dev/cedros-login) for full `AdminShell` API reference and custom plugin creation.
 
+> **Integration contract:** For complete embedding requirements (host context, section allowlists, route prefixes, auth troubleshooting), see [docs/admin-embedding-contract.md](./docs/admin-embedding-contract.md).
+
 ---
 
 ## Props Reference

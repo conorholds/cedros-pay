@@ -30,6 +30,7 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         admin_dashboard_state,
         admin_chat_state,
         chat_state,
+        storefront_state,
         paywall_prefix,
         store,
     } = states;
@@ -72,6 +73,14 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         router = router.nest(&paywall_prefix, chat_routes);
     }
 
+    // Public storefront settings endpoint (PostgreSQL only, no admin auth)
+    if let Some(storefront_state) = storefront_state {
+        let storefront_routes = Router::new()
+            .route("/storefront", get(handlers::storefront::get_storefront_config))
+            .with_state(storefront_state);
+        router = router.nest(&paywall_prefix, storefront_routes);
+    }
+
     // Admin chat routes (CRM-style review)
     let admin_chat_routes = build_admin_chat_routes(admin_chat_state, admin_auth_state.clone());
     router = router.nest("/admin", admin_chat_routes);
@@ -96,6 +105,7 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub admin_dashboard_state: Arc<handlers::admin::AdminState>,
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
     pub chat_state: Option<Arc<handlers::chat::ChatState>>,
+    pub storefront_state: Option<Arc<handlers::storefront::StorefrontState>>,
     pub paywall_prefix: String,
     pub store: Arc<S>,
 }
@@ -111,6 +121,7 @@ impl<S: Store + 'static> AdminRouteStates<S> {
             admin_dashboard_state: states.admin_dashboard_state.clone(),
             admin_chat_state: states.admin_chat_state.clone(),
             chat_state: states.chat_state.clone(),
+            storefront_state: states.storefront_state.clone(),
             paywall_prefix,
             store: states.store.clone(),
         }

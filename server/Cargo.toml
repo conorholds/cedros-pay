@@ -1,6 +1,6 @@
 [package]
 name = "cedros-pay"
-version = "1.1.15"
+version = "1.1.17"
 edition = "2021"
 rust-version = "1.75"
 description = "Cedros Pay - Payment processing library and server"

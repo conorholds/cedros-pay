@@ -15,6 +15,10 @@ export {
 // Admin Plugin - for use with cedros-login's AdminShell
 export {
   cedrosPayPlugin,
+  CEDROS_PAY_SECTIONS,
+  CEDROS_PAY_SECTION_IDS,
+  CEDROS_PAY_GROUPS,
+  type SectionReference,
   type AdminPlugin,
   type AdminSectionConfig,
   type AdminGroupConfig,

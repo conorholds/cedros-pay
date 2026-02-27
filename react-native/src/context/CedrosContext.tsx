@@ -63,6 +63,7 @@ const CedrosContext = createContext<CedrosContextValue | null>(null);
  */
 export function CedrosProvider({ config, children }: CedrosProviderProps) {
   const validatedConfig = useMemo(() => validateConfig(config), [config]);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Create context-scoped wallet pool (one per CedrosProvider instance)
   // Using useRef to ensure it's only created once per component lifecycle
@@ -78,16 +79,22 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
   useEffect(() => {
     let cancelled = false;
 
-    checkSolanaAvailability().then((check) => {
-      // Only update state if component is still mounted
-      if (cancelled) return;
+    checkSolanaAvailability()
+      .then((check) => {
+        // Only update state if component is still mounted
+        if (cancelled) return;
 
-      if (!check.available) {
-        setSolanaError(check.error || 'Solana dependencies not available');
-      } else {
-        setSolanaError(undefined); // undefined = available
-      }
-    });
+        if (!check.available) {
+          setSolanaError(check.error || 'Solana dependencies not available');
+        } else {
+          setSolanaError(undefined); // undefined = available
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        getLogger().error('[CedrosProvider] Solana availability check failed:', error);
+        setInitError('Failed to initialize Cedros provider');
+      });
 
     return () => {
       cancelled = true;
@@ -169,6 +176,10 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
       solanaError,
     };
   }, [validatedConfig, solanaError]);
+
+  if (initError) {
+    return <div role="alert">{initError}</div>;
+  }
 
   return (
     <CedrosContext.Provider value={contextValue}>

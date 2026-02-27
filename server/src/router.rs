@@ -33,6 +33,7 @@ pub(crate) struct RouterStates<S: Store> {
     pub chat_state: Option<Arc<handlers::chat::ChatState>>,
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
     pub faqs_state: Arc<handlers::faqs::FaqsState>,
+    pub storefront_state: Option<Arc<handlers::storefront::StorefrontState>>,
 }
 
 pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Router {

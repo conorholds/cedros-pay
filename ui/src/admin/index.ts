@@ -22,3 +22,11 @@ export type {
 
 // Plugin
 export { cedrosPayPlugin } from './plugin';
+
+// Section ID reference for integrators (deep-linking, allowlists, integration tests)
+export {
+  CEDROS_PAY_SECTIONS,
+  CEDROS_PAY_SECTION_IDS,
+  CEDROS_PAY_GROUPS,
+} from './sectionIds';
+export type { SectionReference } from './sectionIds';

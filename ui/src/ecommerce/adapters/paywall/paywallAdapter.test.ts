@@ -118,6 +118,84 @@ describe('paywall adapter fallback pagination', () => {
   });
 });
 
+describe('getStorefrontSettings', () => {
+  it('calls /paywall/v1/storefront and returns parsed config', async () => {
+    const config = { shopPage: { title: 'My Store', description: 'Welcome' }, catalog: { layout: 'grid' } };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/paywall/v1/storefront')) {
+        return jsonResponse({ config });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.getStorefrontSettings!();
+
+    expect(result).toEqual(config);
+    const urls = fetchMock.mock.calls.map(([arg]) => String(arg));
+    expect(urls).toContain('https://api.example.com/paywall/v1/storefront');
+  });
+
+  it('returns null on endpoint error (graceful degradation)', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ error: 'internal' }, 500));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.getStorefrontSettings!();
+
+    expect(result).toBeNull();
+  });
+
+  it('round-trips shopPage.title correctly from response', async () => {
+    const config = { shopPage: { title: 'Cedros Shop', description: 'Best deals' } };
+    const fetchMock = vi.fn(async () => jsonResponse({ config }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.getStorefrontSettings!();
+
+    expect(result?.shopPage?.title).toBe('Cedros Shop');
+    expect(result?.shopPage?.description).toBe('Best deals');
+  });
+});
+
+describe('getPaymentMethodsConfig', () => {
+  it('calls /paywall/v1/storefront and returns mapped config', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/paywall/v1/storefront')) {
+        return jsonResponse({
+          config: {},
+          paymentMethods: { stripe: true, x402: false, credits: true },
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.getPaymentMethodsConfig!();
+
+    expect(result).toEqual({ card: true, crypto: false, credits: true });
+    const urls = fetchMock.mock.calls.map(([arg]) => String(arg));
+    expect(urls).toContain('https://api.example.com/paywall/v1/storefront');
+  });
+
+  it('returns null on endpoint error', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ error: 'internal' }, 500));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.getPaymentMethodsConfig!();
+
+    expect(result).toBeNull();
+  });
+});
+
 describe('paywall adapter timeout/retry policy', () => {
   it('retries idempotent read requests on transient failures', async () => {
     const fetchMock = vi

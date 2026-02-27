@@ -147,6 +147,12 @@ export function CedrosPay(props: CedrosPayProps) {
 
   const endpoint = config.solanaEndpoint ?? clusterApiUrl(config.solanaCluster);
 
+  // Memoize wallets array to prevent WalletProvider re-initialization
+  const wallets = React.useMemo(
+    () => (advanced.wallets && advanced.wallets.length > 0 ? advanced.wallets : walletPool.getAdapters()),
+    [advanced.wallets, walletPool]
+  );
+
   // Validate input (after all hooks)
   if (!resource && (!items || items.length === 0)) {
     getLogger().error('CedrosPay: Must provide either "resource" or "items" prop');
@@ -167,12 +173,6 @@ export function CedrosPay(props: CedrosPayProps) {
   const layout = display.layout ?? 'vertical';
   const hideMessages = display.hideMessages ?? false;
   const autoDetectWallets = advanced.autoDetectWallets ?? true;
-
-  // Memoize wallets array to prevent WalletProvider re-initialization
-  const wallets = React.useMemo(
-    () => (advanced.wallets && advanced.wallets.length > 0 ? advanced.wallets : walletPool.getAdapters()),
-    [advanced.wallets, walletPool]
-  );
 
   const content = (
     <View style={[styles.content, layout === 'horizontal' && styles.horizontalLayout]}>

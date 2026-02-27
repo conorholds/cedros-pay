@@ -328,6 +328,9 @@ pub struct MessagingConfig {
     /// Enable email receipts to customers after purchase
     #[serde(default)]
     pub email_enabled: bool,
+    /// Email service provider (UI metadata: mailgun, sendgrid, postmark, ses, resend, custom)
+    #[serde(default)]
+    pub email_provider: String,
     /// SMTP server hostname
     #[serde(default)]
     pub smtp_host: String,
@@ -366,6 +369,7 @@ impl std::fmt::Debug for MessagingConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MessagingConfig")
             .field("email_enabled", &self.email_enabled)
+            .field("email_provider", &self.email_provider)
             .field("smtp_host", &self.smtp_host)
             .field("smtp_port", &self.smtp_port)
             .field("smtp_username", &self.smtp_username)

@@ -1,12 +1,4 @@
-/**
- * Messaging Section Component
- *
- * Store message settings using the single `messaging` category.
- * Tabs for organization:
- * - Messages: Enable/disable email and webhook notifications
- * - Email: SMTP/provider configuration
- * - Webhooks: Webhook URL and secret configuration
- */
+/** Messaging Section — email provider config, SMTP settings, and webhook configuration. */
 
 import { useState, useEffect, useCallback } from 'react';
 import { Icons } from './icons';
@@ -15,6 +7,8 @@ import { Toggle } from './Toggle';
 import { useAutosave } from './useAutosave';
 import { AutosaveIndicator } from './AutosaveIndicator';
 import type { IAdminAuthManager } from './AdminAuthManager';
+import { EMAIL_PROVIDERS, inferProvider } from './emailProviders';
+import type { EmailProvider } from './emailProviders';
 
 export interface MessagingSectionProps {
   serverUrl: string;
@@ -30,6 +24,7 @@ type MessagingTab = 'messages' | 'email' | 'webhooks';
 interface MessagingSettings {
   // Email settings
   email_enabled: boolean;
+  email_provider: string;
   smtp_host: string;
   smtp_port: number;
   smtp_username: string;
@@ -45,6 +40,7 @@ interface MessagingSettings {
 
 const DEFAULT_SETTINGS: MessagingSettings = {
   email_enabled: false,
+  email_provider: 'custom',
   smtp_host: '',
   smtp_port: 587,
   smtp_username: '',
@@ -84,7 +80,12 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
         data = await res.json();
       }
 
-      setSettings({ ...DEFAULT_SETTINGS, ...data.config });
+      const merged = { ...DEFAULT_SETTINGS, ...data.config };
+      // Infer provider from smtp_host when email_provider is empty (pre-existing installs)
+      if (!merged.email_provider) {
+        merged.email_provider = inferProvider(merged.smtp_host);
+      }
+      setSettings(merged);
     } catch {
       setSettings(DEFAULT_SETTINGS);
       setFetchError('Could not load saved settings. Showing defaults.');
@@ -145,6 +146,33 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
     }
     setSettings((s) => ({ ...s, [key]: value }));
   };
+
+  const handleProviderChange = (provider: EmailProvider) => {
+    const cfg = EMAIL_PROVIDERS[provider];
+    setSettings((s) => ({
+      ...s,
+      email_provider: provider,
+      smtp_host: cfg.host || s.smtp_host,
+      smtp_port: 587,
+      // Fixed username providers get it auto-set; others keep existing value
+      smtp_username: cfg.username || (cfg.showUsername ? s.smtp_username : ''),
+    }));
+  };
+
+  /** Handle credential (password/API key/token) changes, with Postmark dual-field logic */
+  const handleCredentialChange = (value: string) => {
+    const provider = (settings.email_provider || 'custom') as EmailProvider;
+    const cfg = EMAIL_PROVIDERS[provider];
+    setModifiedSecrets((prev) => new Set(prev).add('smtp_password'));
+    if (cfg.usernameEqualsPassword) {
+      // Postmark: server token is used as both SMTP username and password
+      setSettings((s) => ({ ...s, smtp_password: value, smtp_username: value }));
+    } else {
+      setSettings((s) => ({ ...s, smtp_password: value }));
+    }
+  };
+
+  const providerCfg = EMAIL_PROVIDERS[(settings.email_provider || 'custom') as EmailProvider] ?? EMAIL_PROVIDERS.custom;
 
   if (isLoading) {
     return (
@@ -268,7 +296,7 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
         {activeTab === 'email' && (
           <div className="cedros-admin__section">
             <p style={{ marginBottom: '1.5rem', fontSize: '0.875rem', opacity: 0.7 }}>
-              Configure your email provider for sending customer notifications.
+              Select your email service provider for automatic configuration.
             </p>
 
             {!settings.email_enabled && (
@@ -287,55 +315,83 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', opacity: settings.email_enabled ? 1 : 0.5 }}>
+              {/* Provider Dropdown */}
               <div className="cedros-admin__field">
-                <label className="cedros-admin__field-label">SMTP Host</label>
-                <input
-                  type="text"
+                <label className="cedros-admin__field-label">Email Provider</label>
+                <select
                   className="cedros-admin__input"
-                  value={settings.smtp_host}
-                  onChange={(e) => updateField('smtp_host', e.target.value)}
-                  placeholder="smtp.example.com"
+                  value={settings.email_provider || 'custom'}
+                  onChange={(e) => handleProviderChange(e.target.value as EmailProvider)}
                   disabled={!settings.email_enabled}
-                />
+                >
+                  {Object.entries(EMAIL_PROVIDERS).map(([key, { label }]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="cedros-admin__field">
-                <label className="cedros-admin__field-label">SMTP Port</label>
-                <input
-                  type="number"
-                  className="cedros-admin__input"
-                  value={settings.smtp_port}
-                  onChange={(e) => updateField('smtp_port', parseInt(e.target.value) || 587)}
-                  placeholder="587"
-                  disabled={!settings.email_enabled}
-                  style={{ maxWidth: 120 }}
-                />
-              </div>
+              {/* SMTP Host + Port — only for Custom SMTP */}
+              {settings.email_provider === 'custom' && (
+                <>
+                  <div className="cedros-admin__field">
+                    <label className="cedros-admin__field-label">SMTP Host</label>
+                    <input
+                      type="text"
+                      className="cedros-admin__input"
+                      value={settings.smtp_host}
+                      onChange={(e) => updateField('smtp_host', e.target.value)}
+                      placeholder="smtp.example.com"
+                      disabled={!settings.email_enabled}
+                    />
+                  </div>
 
-              <div className="cedros-admin__field">
-                <label className="cedros-admin__field-label">SMTP Username</label>
-                <input
-                  type="text"
-                  className="cedros-admin__input"
-                  value={settings.smtp_username}
-                  onChange={(e) => updateField('smtp_username', e.target.value)}
-                  placeholder="username or API key"
-                  disabled={!settings.email_enabled}
-                />
-              </div>
+                  <div className="cedros-admin__field">
+                    <label className="cedros-admin__field-label">SMTP Port</label>
+                    <input
+                      type="number"
+                      className="cedros-admin__input"
+                      value={settings.smtp_port}
+                      onChange={(e) => updateField('smtp_port', parseInt(e.target.value) || 587)}
+                      placeholder="587"
+                      disabled={!settings.email_enabled}
+                      style={{ maxWidth: 120 }}
+                    />
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', opacity: 0.6 }}>
+                      Common: 587 (TLS), 465 (SSL), 25 (unencrypted).
+                    </p>
+                  </div>
+                </>
+              )}
 
+              {/* SMTP Username — shown when provider needs user-supplied username */}
+              {providerCfg.showUsername && (
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">SMTP Username</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={settings.smtp_username}
+                    onChange={(e) => updateField('smtp_username', e.target.value)}
+                    placeholder={settings.email_provider === 'mailgun' ? 'postmaster@your-domain.com' : 'username'}
+                    disabled={!settings.email_enabled}
+                  />
+                </div>
+              )}
+
+              {/* Credential field (API Key / Server Token / SMTP Password) */}
               <div className="cedros-admin__field">
-                <label className="cedros-admin__field-label">SMTP Password</label>
+                <label className="cedros-admin__field-label">{providerCfg.credentialLabel}</label>
                 <input
                   type="password"
                   className="cedros-admin__input"
                   value={modifiedSecrets.has('smtp_password') ? settings.smtp_password : ''}
-                  onChange={(e) => updateField('smtp_password', e.target.value)}
-                  placeholder={settings.smtp_password ? '••••••••' : 'Enter password'}
+                  onChange={(e) => handleCredentialChange(e.target.value)}
+                  placeholder={settings.smtp_password ? '••••••••' : `Enter ${providerCfg.credentialLabel.toLowerCase()}`}
                   disabled={!settings.email_enabled}
                 />
               </div>
 
+              {/* From fields — always shown */}
               <div className="cedros-admin__field">
                 <label className="cedros-admin__field-label">From Email</label>
                 <input
@@ -343,9 +399,12 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
                   className="cedros-admin__input"
                   value={settings.from_email}
                   onChange={(e) => updateField('from_email', e.target.value)}
-                  placeholder="orders@yourstore.com"
+                  placeholder="noreply@example.com"
                   disabled={!settings.email_enabled}
                 />
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', opacity: 0.6 }}>
+                  Default sender email address.
+                </p>
               </div>
 
               <div className="cedros-admin__field">
@@ -358,6 +417,9 @@ export function MessagingSection({ serverUrl, apiKey, authManager }: MessagingSe
                   placeholder="Your Store"
                   disabled={!settings.email_enabled}
                 />
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', opacity: 0.6 }}>
+                  Default sender display name.
+                </p>
               </div>
             </div>
           </div>
