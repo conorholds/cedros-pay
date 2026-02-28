@@ -31,7 +31,7 @@ ed25519-dalek = "2"
 futures-util = "0.3"
 hex = "0.4"
 hmac = "0.12"
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
 subtle = "2"
 http-body-util = "0.1"
