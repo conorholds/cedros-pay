@@ -281,7 +281,7 @@ export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
         hidden: true, // Managed by token_mint selector
       },
       rpc_url: {
-        description: 'Custom Solana RPC endpoint. Leave empty to use the default public RPC.',
+        description: 'Solana RPC endpoint URL. Required for crypto payment verification (e.g., from Helius, QuickNode, or Alchemy).',
       },
       gasless_enabled: {
         type: 'toggle',

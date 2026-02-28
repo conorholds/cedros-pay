@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react-native",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./lib/index.js",
   "module": "./esm/index.js",

@@ -276,6 +276,11 @@ pub async fn get_config(
                 }
             }
 
+            // Backfill missing default keys so UI always shows all fields
+            for key in default_keys_for_category(&category) {
+                config.entry(key.to_string()).or_insert(JsonValue::Null);
+            }
+
             let response = GetConfigResponse {
                 category,
                 config: JsonValue::Object(config),
