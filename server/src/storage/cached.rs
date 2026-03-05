@@ -12,9 +12,9 @@ use chrono::{DateTime, Utc};
 use crate::models::StripeRefundRequest;
 use crate::models::{
     CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq, Fulfillment,
-    GiftCard, InventoryAdjustment, InventoryReservation, Order, OrderHistoryEntry,
-    PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile, ShippingRate, Subscription,
-    SubscriptionStatus, TaxRate,
+    GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation, Order,
+    OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
+    ShippingRate, Subscription, SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 use crate::storage::{
     AdminNonce, AdminStats, CreditsHold, DlqWebhook, IdempotencyResponse, PendingEmail,
@@ -897,6 +897,117 @@ impl<S: Store + 'static> Store for CachedStore<S> {
 
     async fn delete_collection(&self, tenant_id: &str, collection_id: &str) -> StorageResult<()> {
         self.inner.delete_collection(tenant_id, collection_id).await
+    }
+    async fn record_gift_card_redemption(&self, r: GiftCardRedemption) -> StorageResult<()> {
+        self.inner.record_gift_card_redemption(r).await
+    }
+    async fn list_gift_card_redemptions(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<GiftCardRedemption>> {
+        self.inner
+            .list_gift_card_redemptions(tenant_id, limit, offset)
+            .await
+    }
+    async fn get_gift_card_redemption_by_token(
+        &self,
+        token: &str,
+    ) -> StorageResult<Option<GiftCardRedemption>> {
+        self.inner.get_gift_card_redemption_by_token(token).await
+    }
+    async fn claim_gift_card_redemption(
+        &self,
+        id: &str,
+        recipient_user_id: &str,
+        credits_issued: i64,
+    ) -> StorageResult<()> {
+        self.inner
+            .claim_gift_card_redemption(id, recipient_user_id, credits_issued)
+            .await
+    }
+    async fn get_tenant_token22_mint(
+        &self,
+        tenant_id: &str,
+    ) -> StorageResult<Option<TenantToken22Mint>> {
+        self.inner.get_tenant_token22_mint(tenant_id).await
+    }
+    async fn upsert_tenant_token22_mint(&self, mint: TenantToken22Mint) -> StorageResult<()> {
+        self.inner.upsert_tenant_token22_mint(mint).await
+    }
+    async fn get_token22_mint_for_collection(
+        &self,
+        tenant_id: &str,
+        collection_id: &str,
+    ) -> StorageResult<Option<TenantToken22Mint>> {
+        self.inner
+            .get_token22_mint_for_collection(tenant_id, collection_id)
+            .await
+    }
+    async fn upsert_token22_mint_for_collection(
+        &self,
+        mint: TenantToken22Mint,
+    ) -> StorageResult<()> {
+        self.inner.upsert_token22_mint_for_collection(mint).await
+    }
+
+    // ─── Asset redemptions ──────────────────────────────────────────────────
+    async fn record_asset_redemption(
+        &self,
+        r: crate::models::AssetRedemption,
+    ) -> StorageResult<()> {
+        self.inner.record_asset_redemption(r).await
+    }
+    async fn get_asset_redemption(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> StorageResult<Option<crate::models::AssetRedemption>> {
+        self.inner.get_asset_redemption(tenant_id, id).await
+    }
+    async fn list_asset_redemptions(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<crate::models::AssetRedemption>> {
+        self.inner
+            .list_asset_redemptions(tenant_id, status, collection_id, limit, offset)
+            .await
+    }
+    async fn update_asset_redemption_status(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        status: &str,
+        admin_notes: Option<&str>,
+    ) -> StorageResult<()> {
+        self.inner
+            .update_asset_redemption_status(tenant_id, id, status, admin_notes)
+            .await
+    }
+    async fn update_asset_redemption_form_data(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        form_data: &serde_json::Value,
+    ) -> StorageResult<()> {
+        self.inner
+            .update_asset_redemption_form_data(tenant_id, id, form_data)
+            .await
+    }
+    async fn record_token_burn_signature(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        signature: &str,
+    ) -> StorageResult<()> {
+        self.inner
+            .record_token_burn_signature(tenant_id, id, signature)
+            .await
     }
 
     // ─────────────────────────────────────────────────────────────────────────

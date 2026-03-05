@@ -3,14 +3,14 @@ use std::time::Instant;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use chrono::Utc;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use parking_lot::RwLock;
 use serde::Serialize;
 
 use crate::workers::health_checker::HealthChecker;
 
 /// Server start time for uptime calculation
-static START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
+static START_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 /// Wallet entry per spec (02-http-endpoints.md lines 60-67)
 #[derive(Debug, Serialize)]

@@ -1,10 +1,12 @@
 import type { Order } from '../../types';
 import { cn } from '../../utils/cn';
 import { formatMoney } from '../../utils/money';
+import { safeHref } from '../../utils/safeHref';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { Separator } from '../ui/separator';
+import { RedemptionForm } from '../checkout/RedemptionForm';
 
 function statusColor(status: Order['status']): 'default' | 'secondary' | 'outline' {
   switch (status) {
@@ -27,10 +29,16 @@ export function OrderDetails({
   order,
   onBack,
   className,
+  serverUrl,
+  authToken,
 }: {
   order: Order;
   onBack?: () => void;
   className?: string;
+  /** Cedros Pay server URL — enables redemption forms for tokenized asset items. */
+  serverUrl?: string;
+  /** Auth token for authenticated redemption requests. */
+  authToken?: string;
 }) {
   const createdLabel = new Date(order.createdAt).toLocaleString(undefined, {
     year: 'numeric',
@@ -40,6 +48,7 @@ export function OrderDetails({
     minute: '2-digit',
   });
   const statusLabel = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+  const tokenizedItems = order.items.filter((it) => it.tokenizedAsset && it.productId);
 
   return (
     <Card
@@ -92,6 +101,35 @@ export function OrderDetails({
           ))}
         </div>
 
+        {order.metadata?.recipient_email ? (
+          <>
+            <Separator className="my-5" />
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/30">
+              <div className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">Gift card</div>
+              <div className="mt-1 text-xs text-emerald-800/90 dark:text-emerald-200/80">
+                Sent to <span className="font-medium">{order.metadata.recipient_email}</span>
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {serverUrl && tokenizedItems.length > 0 ? (
+          <>
+            <Separator className="my-5" />
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                Asset redemption
+              </div>
+              {tokenizedItems.map((it) => (
+                <div key={it.productId} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                  <div className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">{it.title}</div>
+                  <RedemptionForm serverUrl={serverUrl} productId={it.productId!} authToken={authToken} />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         <Separator className="my-5" />
 
         <div className="flex items-center justify-between">
@@ -101,18 +139,18 @@ export function OrderDetails({
           </span>
         </div>
 
-        {order.receiptUrl || order.invoiceUrl ? (
+        {safeHref(order.receiptUrl) || safeHref(order.invoiceUrl) ? (
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            {order.receiptUrl ? (
+            {safeHref(order.receiptUrl) ? (
               <Button asChild type="button" variant="ghost" size="sm" className="h-8 px-2">
-                <a href={order.receiptUrl} target="_blank" rel="noreferrer">
+                <a href={safeHref(order.receiptUrl)!} target="_blank" rel="noreferrer">
                   Receipt
                 </a>
               </Button>
             ) : null}
-            {order.invoiceUrl ? (
+            {safeHref(order.invoiceUrl) ? (
               <Button asChild type="button" variant="ghost" size="sm" className="h-8 px-2">
-                <a href={order.invoiceUrl} target="_blank" rel="noreferrer">
+                <a href={safeHref(order.invoiceUrl)!} target="_blank" rel="noreferrer">
                   Invoice
                 </a>
               </Button>

@@ -80,6 +80,20 @@ export type Product = {
     type: 'digital_download' | 'shipping' | 'service';
     notes?: string;
   };
+  /** Configuration for tokenized asset products */
+  tokenizedAssetConfig?: {
+    assetClassCollectionId: string;
+    /** Denormalized asset class for display (e.g., "securities", "commodities") */
+    assetClass?: string;
+    assetIdentifier?: string;
+    backingValueCents: number;
+    backingCurrency: string;
+    tokensPerUnit: number;
+    custodyProofUrl?: string;
+    nftMintAddress?: string;
+    /** Regulatory notice shown to buyers (denormalized from collection) */
+    regulatoryNotice?: string;
+  };
 };
 
 export type Category = {
@@ -119,6 +133,10 @@ export type OrderLineItem = {
   unitPrice: number;
   currency: string;
   imageUrl?: string;
+  /** Product ID — used to link back to catalog product. */
+  productId?: string;
+  /** Whether this item is a tokenized asset (eligible for redemption). */
+  tokenizedAsset?: boolean;
 };
 
 /** Order status values matching backend */
@@ -149,6 +167,8 @@ export type Order = {
   customerEmail?: string;
   /** Customer name (if collected) */
   customerName?: string;
+  /** Order-level metadata (e.g., recipient_email for gift cards, shipping_countries) */
+  metadata?: Record<string, string>;
 };
 
 export type CheckoutMode = 'none' | 'minimal' | 'shipping' | 'full';

@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::models::money::Money;
+use crate::models::tokenization::TokenizedAssetConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +137,17 @@ pub struct SubscriptionConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct GiftCardConfig {
+    pub face_value_cents: i64,
+    pub currency: String,
+    #[serde(default)]
+    pub secondary_market: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_in_days: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Product {
     pub id: String,
     /// Tenant ID for multi-tenant isolation per spec (10-middleware.md)
@@ -213,6 +225,10 @@ pub struct Product {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription: Option<SubscriptionConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub gift_card_config: Option<GiftCardConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenized_asset_config: Option<TokenizedAssetConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<DateTime<Utc>>,
@@ -228,6 +244,14 @@ impl Product {
             .as_ref()
             .map(|sub| !sub.billing_period.is_empty())
             .unwrap_or(false)
+    }
+
+    pub fn is_gift_card(&self) -> bool {
+        self.gift_card_config.is_some()
+    }
+
+    pub fn is_tokenized_asset(&self) -> bool {
+        self.tokenized_asset_config.is_some()
     }
 
     /// Look up a variant by ID

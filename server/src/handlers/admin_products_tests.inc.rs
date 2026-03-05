@@ -42,6 +42,8 @@ fn base_create_product_request() -> CreateProductRequest {
         variants: Vec::new(),
         active: true,
         metadata: HashMap::new(),
+        gift_card_config: None,
+        tokenized_asset_config: None,
     }
 }
 

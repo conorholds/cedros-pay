@@ -153,6 +153,7 @@ export { ShippingMethodSelector } from './components/checkout/ShippingMethodSele
 export { PaymentStep } from './components/checkout/PaymentStep';
 export { OrderReview } from './components/checkout/OrderReview';
 export { CheckoutReceipt } from './components/checkout/CheckoutReceipt';
+export type { CheckoutReceiptProps } from './components/checkout/CheckoutReceipt';
 export { CheckoutSuccessPage } from './components/checkout/CheckoutSuccessPage';
 export type { CheckoutSuccessPageProps } from './components/checkout/CheckoutSuccessPage';
 export { CheckoutCancelPage } from './components/checkout/CheckoutCancelPage';
@@ -164,6 +165,15 @@ export type { InventoryVerificationDialogProps } from './components/checkout/Inv
 export { OrderList } from './components/orders/OrderList';
 export { OrderCard } from './components/orders/OrderCard';
 export { OrderDetails } from './components/orders/OrderDetails';
+
+// Gift card components
+export { GiftCardRedemptionPage } from './components/gift-cards/GiftCardRedemptionPage';
+export type { GiftCardRedemptionPageProps } from './components/gift-cards/GiftCardRedemptionPage';
+
+// Asset tokenization components
+export { AssetBadge } from './components/catalog/AssetBadge';
+export { RedemptionForm } from './components/checkout/RedemptionForm';
+export type { RedemptionFormProps } from './components/checkout/RedemptionForm';
 
 // Templates
 export { ShopTemplate } from './templates/ShopTemplate';

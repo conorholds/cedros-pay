@@ -1131,6 +1131,63 @@ impl PaywallService {
                         }
                     }
                 }
+
+                // Fulfill gift card products (best-effort, post-payment)
+                if let Some(ref fulfillment) = self.gift_card_fulfillment {
+                    // Resolve recipient: explicit user_id > email lookup > buyer
+                    let cart_recipient_email = cart.metadata.get("recipient_email").cloned();
+                    let resolved_recipient = if let Some(uid) = cart.metadata.get("recipient_user_id") {
+                        Some(uid.clone())
+                    } else if let Some(ref email) = cart_recipient_email {
+                        if let Some(ref cl) = self.cedros_login {
+                            match cl.lookup_user_by_email(email).await {
+                                Ok(uid) => uid,
+                                Err(e) => {
+                                    warn!(error = %e, email = %email, "Failed to resolve gift card recipient by email");
+                                    None
+                                }
+                            }
+                        } else { None }
+                    } else { None };
+
+                    for item in &items {
+                        if let Ok(product) = self.products.get_product(tenant_id, &item.product_id).await {
+                            if product.is_gift_card() {
+                                let buyer = order_for_messaging.user_id.as_deref().unwrap_or("unknown");
+                                fulfillment
+                                    .fulfill_gift_card(
+                                        tenant_id,
+                                        &order_id,
+                                        &product,
+                                        buyer,
+                                        resolved_recipient.as_deref(),
+                                        cart_recipient_email.as_deref(),
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                }
+
+                // Fulfill tokenized asset products (best-effort, post-payment)
+                if let Some(ref asset_fulfillment) = self.asset_fulfillment {
+                    let buyer_user_id = order_for_messaging.user_id.as_deref();
+                    for item in &items {
+                        if let Ok(product) = self.products.get_product(tenant_id, &item.product_id).await {
+                            if product.is_tokenized_asset() {
+                                asset_fulfillment
+                                    .fulfill_tokenized_asset(
+                                        tenant_id,
+                                        &order_id,
+                                        &product,
+                                        buyer_user_id,
+                                        item.quantity,
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                }
             }
             Ok(false) => {
                 debug!(

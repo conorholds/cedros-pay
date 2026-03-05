@@ -20,7 +20,7 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde::Deserialize;
 
 use super::real_ip::TrustedProxy;
@@ -36,7 +36,7 @@ const BEARER_PREFIX: &str = "Bearer ";
 
 /// JWT secret loaded from environment (CEDROS_JWT_SECRET)
 /// If not set, JWT-based tenant extraction is disabled (fail closed)
-static JWT_SECRET: Lazy<Option<String>> = Lazy::new(|| {
+static JWT_SECRET: LazyLock<Option<String>> = LazyLock::new(|| {
     std::env::var("CEDROS_JWT_SECRET")
         .ok()
         .filter(|s| !s.is_empty())

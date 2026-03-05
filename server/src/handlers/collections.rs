@@ -150,6 +150,7 @@ mod tests {
                 description: None,
                 product_ids: vec!["p1".to_string()],
                 active: true,
+                tokenization_config: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -164,6 +165,7 @@ mod tests {
                 description: None,
                 product_ids: vec![],
                 active: false,
+                tokenization_config: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -203,6 +205,7 @@ mod tests {
                 description: None,
                 product_ids: vec![],
                 active: false,
+                tokenization_config: None,
                 created_at: now,
                 updated_at: now,
             })

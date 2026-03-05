@@ -5,7 +5,7 @@
 //! - Excessively long inputs that could cause DoS
 //! - Malformed data that could cause unexpected behavior
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 /// Maximum length for resource identifiers
@@ -19,15 +19,15 @@ const MAX_EMAIL_LENGTH: usize = 254;
 
 /// Pattern for safe identifiers: alphanumeric, underscore, hyphen, colon, forward slash
 /// Allows paths like "product/premium" or "tier:gold"
-static SAFE_IDENTIFIER_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:/]+$").expect("valid regex pattern"));
+static SAFE_IDENTIFIER_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9_\-:/]+$").expect("valid regex pattern"));
 
 /// Pattern for coupon codes: alphanumeric, underscore, hyphen (case-insensitive)
-static COUPON_CODE_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").expect("valid regex pattern"));
+static COUPON_CODE_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").expect("valid regex pattern"));
 
 /// Basic email pattern - validates format, not deliverability
-static EMAIL_PATTERN: Lazy<Regex> = Lazy::new(|| {
+static EMAIL_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
         .expect("valid regex pattern")
 });

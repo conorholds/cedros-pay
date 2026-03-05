@@ -81,6 +81,10 @@ pub struct CreateProductRequest {
     pub active: bool,
     #[serde(default)]
     pub metadata: HashMap<String, String>,
+    #[serde(default)]
+    pub gift_card_config: Option<crate::models::GiftCardConfig>,
+    #[serde(default)]
+    pub tokenized_asset_config: Option<crate::models::TokenizedAssetConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,6 +177,37 @@ pub(crate) fn validate_product_checkout_fields(
                 );
                 return Err((status, body));
             }
+        }
+    }
+
+    if let Some(ref gc) = req.gift_card_config {
+        if gc.face_value_cents <= 0 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some("giftCardConfig.faceValueCents must be > 0".to_string()),
+                Some(serde_json::json!({ "field": "giftCardConfig.faceValueCents" })),
+            );
+            return Err((status, body));
+        }
+        // AML: FinCEN $10,000 cap for closed-loop prepaid cards
+        if gc.face_value_cents > 1_000_000 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some(
+                    "giftCardConfig.faceValueCents exceeds $10,000 AML limit for prepaid cards"
+                        .to_string(),
+                ),
+                Some(serde_json::json!({ "field": "giftCardConfig.faceValueCents" })),
+            );
+            return Err((status, body));
+        }
+        if gc.currency.len() != 3 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some("giftCardConfig.currency must be a 3-letter code".to_string()),
+                Some(serde_json::json!({ "field": "giftCardConfig.currency" })),
+            );
+            return Err((status, body));
         }
     }
 

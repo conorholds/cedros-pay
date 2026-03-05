@@ -26,6 +26,8 @@ use crate::models::{
 use crate::observability::record_payment;
 use crate::repositories::{CouponRepository, ProductRepository};
 use crate::services::cedros_login::CedrosLoginClient;
+use crate::services::asset_fulfillment::AssetFulfillmentService;
+use crate::services::gift_card_fulfillment::GiftCardFulfillmentService;
 use crate::services::messaging::MessagingService;
 use crate::services::{ServiceError, ServiceResult, SubscriptionChecker};
 use crate::storage::Store;
@@ -70,6 +72,12 @@ pub struct PaywallService {
 
     /// Optional messaging service for email receipts and order webhooks
     messaging: Option<Arc<dyn MessagingService>>,
+
+    /// Optional gift card fulfillment service
+    gift_card_fulfillment: Option<Arc<GiftCardFulfillmentService>>,
+
+    /// Optional asset fulfillment service
+    asset_fulfillment: Option<Arc<AssetFulfillmentService>>,
 }
 
 impl PaywallService {
@@ -104,6 +112,8 @@ impl PaywallService {
             wallet_user_cache: crate::ttl_cache::TtlCache::new(10_000),
             payment_callback: None,
             messaging: None,
+            gift_card_fulfillment: None,
+            asset_fulfillment: None,
         }
     }
 
@@ -139,6 +149,18 @@ impl PaywallService {
     /// Set messaging service for email receipts and order webhooks
     pub fn with_messaging(mut self, service: Arc<dyn MessagingService>) -> Self {
         self.messaging = Some(service);
+        self
+    }
+
+    /// Set gift card fulfillment service
+    pub fn with_gift_card_fulfillment(mut self, service: Arc<GiftCardFulfillmentService>) -> Self {
+        self.gift_card_fulfillment = Some(service);
+        self
+    }
+
+    /// Set asset fulfillment service
+    pub fn with_asset_fulfillment(mut self, service: Arc<AssetFulfillmentService>) -> Self {
+        self.asset_fulfillment = Some(service);
         self
     }
 
@@ -227,6 +249,37 @@ impl PaywallService {
     ) -> Option<String> {
         let client = self.cedros_login.as_ref()?;
         client.extract_user_id_from_auth_header(auth_header).await
+    }
+
+    /// Check credits balance for a user via cedros-login.
+    pub(crate) async fn check_credits_balance(
+        &self,
+        user_id: &str,
+    ) -> Result<crate::services::cedros_login::CreditsBalance, crate::services::cedros_login::CedrosLoginError>
+    {
+        let client = self
+            .cedros_login
+            .as_ref()
+            .ok_or(crate::services::cedros_login::CedrosLoginError::NotConfigured)?;
+        client.check_balance(user_id).await
+    }
+
+    /// Add credits to a user as part of gift card claim fulfillment.
+    pub(crate) async fn add_credits_for_gift_card(
+        &self,
+        user_id: &str,
+        amount: i64,
+        currency: &str,
+        reference_id: &str,
+    ) -> Result<crate::services::cedros_login::CreditsBalance, crate::services::cedros_login::CedrosLoginError>
+    {
+        let client = self
+            .cedros_login
+            .as_ref()
+            .ok_or(crate::services::cedros_login::CedrosLoginError::NotConfigured)?;
+        client
+            .add_credits(user_id, amount, currency, "gift_card", reference_id)
+            .await
     }
 }
 

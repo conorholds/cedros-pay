@@ -26,6 +26,7 @@ export function buildCheckoutSchema(opts: {
     notes: z.string().max(500).optional(),
     shippingAddress: opts.requireShippingAddress ? addressSchema : addressSchema.optional(),
     billingAddress: opts.requireBillingAddress ? addressSchema : addressSchema.optional(),
+    recipientEmail: z.string().email('Valid recipient email required').or(z.literal('')).optional(),
     discountCode: z.string().optional(),
     tipAmount: z.number().min(0).optional(),
     shippingMethodId: z.string().optional(),

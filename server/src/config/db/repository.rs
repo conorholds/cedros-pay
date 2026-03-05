@@ -90,6 +90,7 @@ pub const KNOWN_CATEGORIES: &[&str] = &[
     "cedros_login",
     "messaging",
     "ai",
+    "gift_cards",
 ];
 
 /// Default config keys for each known category.
@@ -182,6 +183,24 @@ pub fn default_keys_for_category(category: &str) -> &'static [&'static str] {
             "webhook_timeout",
         ],
         "ai" => &["gemini_api_key", "openai_api_key"],
+        "gift_cards" => &[
+            "enabled",
+            "secondary_market_enabled",
+            "transfer_fee_bps",
+            "max_transfer_fee",
+            "treasury_address",
+            "token_name",
+            "token_symbol",
+            "token_decimals",
+            "mint_address",
+            "business_state",
+            "min_gift_card_value_cents",
+            "max_gift_card_value_cents",
+            "liquidity_pool_address",
+            "buyback_rate_bps",
+            "liquidity_usdc_amount",
+            "liquidity_deployed_at",
+        ],
         _ => &[],
     }
 }

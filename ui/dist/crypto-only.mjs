@@ -1,23 +1,23 @@
-import { O as ke, B as ve, D as fe, y as Ie, A as me, w as Be, x as ye, z as V, V as _e, W as We } from "./styles--eKKnfdj.mjs";
-import { v as Ue, t as Ye, C as Ve, a as He, f as Je, d as Xe, b as Ze, c as et, P as tt, R as rt, I as nt, S as at, e as st, g as ot, n as it, M as ct, J as lt, r as ut, m as dt, o as pt, q as ft, L as mt, N as yt, F as gt, E as bt, K as St, H as wt, p as ht, s as Ct, h as xt, k as Pt, Q as Et, i as Rt, u as Tt, j as kt, l as vt, G as It } from "./styles--eKKnfdj.mjs";
-import { u as H, m as z, a as qe, i as y } from "./CedrosContext-BE6P5PQ0.mjs";
-import { f as _t, C as Wt, e as qt, d as Mt, E as Lt, K as At, L as Dt, h as Ot, R as Nt, g as zt, b as Kt, j as Qt, c as $t, r as Ft, v as Gt, n as jt } from "./CedrosContext-BE6P5PQ0.mjs";
-import { d as Yt, a as Vt, b as Ht, C as Jt, c as Xt, i as Zt } from "./index-CufXF9Yd.mjs";
-import { C as tr, u as rr } from "./CryptoButton-CksMkZjL.mjs";
+import { O as ke, B as ve, D as fe, y as Be, A as me, w as Ie, x as ye, z as V, V as _e, W as We } from "./styles-2VMpwuaI.mjs";
+import { v as Ue, t as Ye, C as Ve, a as He, f as Je, d as Xe, b as Ze, c as et, P as tt, R as rt, I as nt, S as at, e as st, g as ot, n as it, M as ct, J as lt, r as ut, m as dt, o as pt, q as ft, L as mt, N as yt, F as gt, E as bt, K as St, H as wt, p as ht, s as Ct, h as xt, k as Pt, Q as Et, i as Rt, u as Tt, j as kt, l as vt, G as Bt } from "./styles-2VMpwuaI.mjs";
+import { d as _t, a as Wt, b as qt, C as Mt, e as Lt, c as At, i as Dt, u as Ot } from "./index-CKNB7XsA.mjs";
+import { u as H, m as z, a as qe, i as y } from "./CedrosContext-BlArEF7k.mjs";
+import { f as zt, C as Kt, e as Qt, d as $t, E as Ft, K as Gt, L as jt, h as Ut, R as Yt, g as Vt, b as Ht, j as Jt, c as Xt, r as Zt, v as er, n as tr } from "./CedrosContext-BlArEF7k.mjs";
+import { C as nr, u as ar } from "./CryptoButton-CREryx1l.mjs";
 import { jsxs as K, jsx as x } from "react/jsx-runtime";
-import { useState as I, useRef as N, useCallback as h, useMemo as G, useEffect as Q } from "react";
+import { useState as B, useRef as N, useCallback as h, useMemo as G, useEffect as Q } from "react";
 import { useWallet as J } from "@solana/wallet-adapter-react";
 import { WalletReadyState as ge } from "@solana/wallet-adapter-base";
 import { WalletIcon as Me } from "@solana/wallet-adapter-react-ui";
-import { WalletPool as ar, createWalletPool as sr } from "./walletPool-DShNjCQ6.mjs";
+import { WalletPool as or, createWalletPool as ir } from "./walletPool-DgQsh7Se.mjs";
 function Le() {
-  const { subscriptionManager: r, x402Manager: c, walletManager: f } = H(), { publicKey: i, signTransaction: R } = J(), [S, p] = I({
+  const { subscriptionManager: r, x402Manager: c, walletManager: f } = H(), { publicKey: i, signTransaction: R } = J(), [S, p] = B({
     status: "idle",
     error: null,
     sessionId: null,
     subscriptionStatus: null,
     expiresAt: null
-  }), [T, P] = I(null), E = N(!1), C = h(() => {
+  }), [T, P] = B(null), E = N(!1), C = h(() => {
     if (!i) {
       const s = "Wallet not connected";
       return p((t) => ({ ...t, status: "error", error: s })), { valid: !1, error: s };
@@ -187,7 +187,7 @@ function Le() {
       i,
       R
     ]
-  ), B = h(() => {
+  ), I = h(() => {
     p({
       status: "idle",
       error: null,
@@ -202,7 +202,7 @@ function Le() {
     checkStatus: k,
     requestQuote: W,
     processPayment: g,
-    reset: B
+    reset: I
   };
 }
 function $e({
@@ -222,7 +222,7 @@ function $e({
 }) {
   const {
     connected: g,
-    connecting: B,
+    connecting: I,
     connect: s,
     disconnect: t,
     select: n,
@@ -259,11 +259,11 @@ function $e({
   }, [b, w, r]), Q(() => {
     b === "error" && m && (fe("crypto", m, r), ee.current?.(m));
   }, [b, m, r]);
-  const oe = typeof window < "u" && window.top !== window.self, [ie, A] = I(!1), [ce, U] = I(!1), [le, D] = I(!1), O = _;
+  const oe = typeof window < "u" && window.top !== window.self, [ie, A] = B(!1), [ce, U] = B(!1), [le, D] = B(!1), O = _;
   Q(() => {
     let e = !1;
     return e || (async () => {
-      if (ce && a && !g && !B) {
+      if (ce && a && !g && !I) {
         y().debug(
           "[CryptoSubscribeButton] Wallet detected, attempting auto-connect:",
           a.adapter.name
@@ -281,8 +281,8 @@ function $e({
     })(), () => {
       e = !0;
     };
-  }, [a, ce, g, B, s]), Q(() => {
-    g && le && o && a && (Ie(a.adapter.name, o.toString()), y().debug("[CryptoSubscribeButton] Processing pending subscription payment"), D(!1), A(!1), me("crypto", r), te.current(r, c, { couponCode: i, intervalDays: f }));
+  }, [a, ce, g, I, s]), Q(() => {
+    g && le && o && a && (Be(a.adapter.name, o.toString()), y().debug("[CryptoSubscribeButton] Processing pending subscription payment"), D(!1), A(!1), me("crypto", r), te.current(r, c, { couponCode: i, intervalDays: f }));
   }, [g, le, o, a, r, c, i, f]);
   const ue = h(async () => {
     if (y().debug("[CryptoSubscribeButton] executeSubscriptionFlow called", {
@@ -290,7 +290,7 @@ function $e({
       wallet: a?.adapter.name,
       resource: r,
       interval: c
-    }), Be("crypto", r), p && p("crypto"), O) {
+    }), Ie("crypto", r), p && p("crypto"), O) {
       y().error("[CryptoSubscribeButton] Solana dependencies missing:", O), fe("crypto", O, r), P && P(O);
       return;
     }
@@ -350,7 +350,7 @@ function $e({
       deduplicationWindowMs: 0
     }),
     [de, ue]
-  ), pe = b === "loading" || b === "checking", $ = w === "active" || w === "trialing", xe = S || pe || B || !!O || $;
+  ), pe = b === "loading" || b === "checking", $ = w === "active" || w === "trialing", xe = S || pe || I || !!O || $;
   let F = be;
   if (pe)
     F = v("ui.processing");
@@ -560,11 +560,11 @@ function $e({
   );
 }
 function Fe() {
-  const { x402Manager: r, walletManager: c } = H(), { publicKey: f, signTransaction: i } = J(), [R, S] = I({
+  const { x402Manager: r, walletManager: c } = H(), { publicKey: f, signTransaction: i } = J(), [R, S] = B({
     status: "idle",
     error: null,
     transactionId: null
-  }), [p, T] = I(null), [P, E] = I(null), C = N(!1), k = h(
+  }), [p, T] = B(null), [P, E] = B(null), C = N(!1), k = h(
     async (s) => {
       try {
         S((n) => ({ ...n, status: "loading" }));
@@ -685,7 +685,7 @@ function Fe() {
       }
     },
     [f, i, r, c]
-  ), B = h(() => {
+  ), I = h(() => {
     S({
       status: "idle",
       error: null,
@@ -699,56 +699,57 @@ function Fe() {
     fetchRefundQuote: k,
     processRefund: W,
     processGaslessRefund: g,
-    reset: B
+    reset: I
   };
 }
 export {
   Ue as CEDROS_EVENTS,
-  Yt as CEDROS_PAY_GROUPS,
-  Vt as CEDROS_PAY_SECTIONS,
-  Ht as CEDROS_PAY_SECTION_IDS,
-  _t as CIRCUIT_BREAKER_PRESETS,
+  _t as CEDROS_PAY_GROUPS,
+  Wt as CEDROS_PAY_SECTIONS,
+  qt as CEDROS_PAY_SECTION_IDS,
+  zt as CIRCUIT_BREAKER_PRESETS,
   Ye as CSP_PRESETS,
   Ve as CedrosPay,
-  Jt as CedrosPayAdminDashboard,
-  Wt as CedrosProvider,
-  qt as CircuitBreakerOpenError,
-  Mt as CircuitState,
+  Mt as CedrosPayAdminDashboard,
+  Kt as CedrosProvider,
+  Qt as CircuitBreakerOpenError,
+  $t as CircuitState,
+  Lt as CreditsBalance,
   He as CreditsButton,
   Je as CreditsSubscribeButton,
-  tr as CryptoButton,
+  nr as CryptoButton,
   $e as CryptoSubscribeButton,
-  Lt as ERROR_CATEGORIES,
-  At as KNOWN_STABLECOINS,
-  Dt as LogLevel,
-  Ot as Logger,
+  Ft as ERROR_CATEGORIES,
+  Gt as KNOWN_STABLECOINS,
+  jt as LogLevel,
+  Ut as Logger,
   Xe as PaymentMethodBadge,
   Ze as PaymentModal,
   et as ProductPrice,
   tt as PurchaseButton,
-  Nt as RATE_LIMITER_PRESETS,
-  zt as RETRY_PRESETS,
+  Yt as RATE_LIMITER_PRESETS,
+  Vt as RETRY_PRESETS,
   rt as RPC_PROVIDERS,
   nt as SECURITY_RECOMMENDATIONS,
   at as StripeButton,
   st as SubscribeButton,
   ot as SubscriptionManagementPanel,
-  ar as WalletPool,
+  or as WalletPool,
   it as calculateDiscountPercentage,
-  Xt as cedrosPayPlugin,
-  Kt as createCircuitBreaker,
-  Qt as createLogger,
-  $t as createRateLimiter,
+  At as cedrosPayPlugin,
+  Ht as createCircuitBreaker,
+  Jt as createLogger,
+  Xt as createRateLimiter,
   ct as createTranslator,
-  sr as createWalletPool,
+  ir as createWalletPool,
   lt as detectLocale,
-  Zt as ecommerce,
+  Dt as ecommerce,
   fe as emitPaymentError,
   me as emitPaymentProcessing,
-  Be as emitPaymentStart,
+  Ie as emitPaymentStart,
   ve as emitPaymentSuccess,
   ye as emitWalletConnect,
-  Ie as emitWalletConnected,
+  Be as emitWalletConnected,
   V as emitWalletError,
   ut as formatCSP,
   dt as formatCouponCodes,
@@ -762,10 +763,11 @@ export {
   St as loadLocale,
   wt as logSecurityReport,
   ht as parseCouponCodes,
-  Ft as retryWithBackoff,
+  Zt as retryWithBackoff,
   Ct as stackCheckoutCoupons,
   H as useCedrosContext,
   qe as useCedrosTheme,
+  Ot as useCreditsBalance,
   xt as useCreditsPayment,
   Pt as useCreditsSubscription,
   Le as useCryptoSubscription,
@@ -776,8 +778,8 @@ export {
   kt as useSubscription,
   vt as useSubscriptionManagement,
   ke as useTranslation,
-  rr as useX402Payment,
-  Gt as validateConfig,
-  It as validateSecurity,
-  jt as validateTokenMint
+  ar as useX402Payment,
+  er as validateConfig,
+  Bt as validateSecurity,
+  tr as validateTokenMint
 };

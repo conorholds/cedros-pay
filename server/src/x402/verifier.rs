@@ -6,8 +6,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::message::VersionedMessage;
 use solana_sdk::pubkey::Pubkey;
@@ -819,11 +819,11 @@ impl SolanaVerifier {
                         if let Some(confirmation_status) = &status.confirmation_status {
                             let is_confirmed = match self.commitment.commitment {
                                 solana_sdk::commitment_config::CommitmentLevel::Finalized => {
-                                    confirmation_status == &solana_transaction_status::TransactionConfirmationStatus::Finalized
+                                    confirmation_status == &solana_transaction_status_client_types::TransactionConfirmationStatus::Finalized
                                 }
                                 solana_sdk::commitment_config::CommitmentLevel::Confirmed => {
-                                    confirmation_status == &solana_transaction_status::TransactionConfirmationStatus::Confirmed
-                                        || confirmation_status == &solana_transaction_status::TransactionConfirmationStatus::Finalized
+                                    confirmation_status == &solana_transaction_status_client_types::TransactionConfirmationStatus::Confirmed
+                                        || confirmation_status == &solana_transaction_status_client_types::TransactionConfirmationStatus::Finalized
                                 }
                                 _ => {
                                     // For processed or other levels, accept any confirmation

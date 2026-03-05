@@ -138,6 +138,13 @@ export interface ICreditsManager {
     couponCode?: string,
     metadata?: Record<string, string>
   ): Promise<PaymentResult>;
+
+  /**
+   * Get the authenticated user's credits balance
+   * @param authToken - JWT token from cedros-login
+   * @returns Balance info (available, held, currency) or null if unavailable
+   */
+  getBalance(authToken: string): Promise<{ available: number; held: number; currency: string } | null>;
 }
 
 /**
@@ -577,6 +584,30 @@ export class CreditsManager implements ICreditsManager {
         success: false,
         error: formatError(error, 'Credits payment failed'),
       };
+    }
+  }
+
+  async getBalance(authToken: string): Promise<{ available: number; held: number; currency: string } | null> {
+    try {
+      return await this.circuitBreaker.execute(async () => {
+        const url = await this.routeDiscovery.buildUrl('/paywall/v1/credits/balance');
+        const response = await fetchWithTimeout(url, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+
+        if (!response.ok) {
+          const errorMessage = await parseErrorResponse(response, 'Failed to fetch credits balance');
+          throw new Error(errorMessage);
+        }
+
+        return await response.json();
+      });
+    } catch (error) {
+      if (error instanceof CircuitBreakerOpenError) {
+        throw new Error('Credits service is temporarily unavailable. Please try again in a few moments.');
+      }
+      throw error;
     }
   }
 }

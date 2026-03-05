@@ -2,29 +2,31 @@ use axum::{
     body::Body,
     http::{header, HeaderValue, Request, Response},
 };
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use rand::Rng;
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
+use crate::x402::utils::hex_encode;
+
 // Pre-parsed security header values - these are static and known-valid at compile time
 // Using Lazy to avoid repeated parsing and eliminate runtime .unwrap() calls
-static HEADER_NOSNIFF: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("nosniff"));
-static HEADER_DENY: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("DENY"));
-static HEADER_CSP: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("default-src 'none'"));
-static HEADER_REFERRER_POLICY: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("strict-origin-when-cross-origin"));
-static HEADER_HSTS: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("max-age=31536000; includeSubDomains"));
-static HEADER_CACHE_CONTROL: Lazy<HeaderValue> = Lazy::new(|| HeaderValue::from_static("no-store"));
-static HEADER_PERMISSIONS_POLICY: Lazy<HeaderValue> =
-    Lazy::new(|| HeaderValue::from_static("camera=(), microphone=(), geolocation=()"));
+static HEADER_NOSNIFF: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("nosniff"));
+static HEADER_DENY: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("DENY"));
+static HEADER_CSP: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("default-src 'none'"));
+static HEADER_REFERRER_POLICY: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("strict-origin-when-cross-origin"));
+static HEADER_HSTS: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("max-age=31536000; includeSubDomains"));
+static HEADER_CACHE_CONTROL: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("no-store"));
+static HEADER_PERMISSIONS_POLICY: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("camera=(), microphone=(), geolocation=()"));
 
 /// Generate a request ID per spec (16-formats.md)
 /// Format: "req_" + hex(16 random bytes)
 fn generate_request_id() -> String {
     let bytes: [u8; 16] = rand::thread_rng().gen();
-    format!("req_{}", hex::encode(bytes))
+    format!("req_{}", hex_encode(bytes))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use prometheus::{
     register_counter_vec_with_registry, register_gauge_vec_with_registry,
     register_gauge_with_registry, register_histogram_vec_with_registry, CounterVec, Gauge,
@@ -11,7 +11,7 @@ use super::REGISTRY;
 // HTTP Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static HTTP_REQUESTS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static HTTP_REQUESTS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "http_requests_total",
         "Total number of HTTP requests",
@@ -21,7 +21,7 @@ pub(super) static HTTP_REQUESTS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("http_requests_total metric")
 });
 
-pub(super) static HTTP_REQUEST_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static HTTP_REQUEST_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "http_request_duration_seconds",
         "HTTP request latency in seconds",
@@ -32,7 +32,7 @@ pub(super) static HTTP_REQUEST_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(
     .expect("http_request_duration_seconds metric")
 });
 
-pub(super) static HTTP_REQUESTS_IN_FLIGHT: Lazy<Gauge> = Lazy::new(|| {
+pub(super) static HTTP_REQUESTS_IN_FLIGHT: LazyLock<Gauge> = LazyLock::new(|| {
     register_gauge_with_registry!(
         "http_requests_in_flight",
         "Current number of active HTTP requests",
@@ -45,7 +45,7 @@ pub(super) static HTTP_REQUESTS_IN_FLIGHT: Lazy<Gauge> = Lazy::new(|| {
 // Payment Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static PAYMENTS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static PAYMENTS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "payments_total",
         "Total number of payment attempts",
@@ -55,7 +55,7 @@ pub(super) static PAYMENTS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("payments_total metric")
 });
 
-pub(super) static PAYMENT_AMOUNT_CENTS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static PAYMENT_AMOUNT_CENTS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "payment_amount_cents",
         "Payment amounts in cents",
@@ -66,7 +66,7 @@ pub(super) static PAYMENT_AMOUNT_CENTS: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("payment_amount_cents metric")
 });
 
-pub(super) static PAYMENT_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static PAYMENT_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "payment_duration_seconds",
         "Payment processing time in seconds",
@@ -81,7 +81,7 @@ pub(super) static PAYMENT_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
 // Stripe Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static STRIPE_API_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static STRIPE_API_CALLS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "stripe_api_calls_total",
         "Total Stripe API calls",
@@ -91,7 +91,7 @@ pub(super) static STRIPE_API_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("stripe_api_calls_total metric")
 });
 
-pub(super) static STRIPE_API_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static STRIPE_API_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "stripe_api_duration_seconds",
         "Stripe API call latency in seconds",
@@ -102,7 +102,7 @@ pub(super) static STRIPE_API_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(||
     .expect("stripe_api_duration_seconds metric")
 });
 
-pub(super) static STRIPE_ERRORS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static STRIPE_ERRORS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "stripe_errors_total",
         "Total Stripe API errors",
@@ -116,7 +116,7 @@ pub(super) static STRIPE_ERRORS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
 // Solana Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static SOLANA_RPC_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static SOLANA_RPC_CALLS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "solana_rpc_calls_total",
         "Total Solana RPC calls",
@@ -126,7 +126,7 @@ pub(super) static SOLANA_RPC_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("solana_rpc_calls_total metric")
 });
 
-pub(super) static SOLANA_RPC_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static SOLANA_RPC_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "solana_rpc_duration_seconds",
         "Solana RPC call latency in seconds",
@@ -137,7 +137,7 @@ pub(super) static SOLANA_RPC_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(||
     .expect("solana_rpc_duration_seconds metric")
 });
 
-pub(super) static SOLANA_TX_CONFIRMATIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static SOLANA_TX_CONFIRMATIONS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "solana_tx_confirmations_total",
         "Total transaction confirmation results",
@@ -147,7 +147,7 @@ pub(super) static SOLANA_TX_CONFIRMATIONS_TOTAL: Lazy<CounterVec> = Lazy::new(||
     .expect("solana_tx_confirmations_total metric")
 });
 
-pub(super) static SOLANA_WALLET_BALANCE_SOL: Lazy<GaugeVec> = Lazy::new(|| {
+pub(super) static SOLANA_WALLET_BALANCE_SOL: LazyLock<GaugeVec> = LazyLock::new(|| {
     register_gauge_vec_with_registry!(
         "solana_wallet_balance_sol",
         "Wallet balances in SOL",
@@ -161,7 +161,7 @@ pub(super) static SOLANA_WALLET_BALANCE_SOL: Lazy<GaugeVec> = Lazy::new(|| {
 // Webhook Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static WEBHOOKS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static WEBHOOKS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "webhooks_total",
         "Total webhook delivery attempts",
@@ -171,7 +171,7 @@ pub(super) static WEBHOOKS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("webhooks_total metric")
 });
 
-pub(super) static WEBHOOK_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static WEBHOOK_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "webhook_duration_seconds",
         "Webhook delivery latency in seconds",
@@ -182,7 +182,7 @@ pub(super) static WEBHOOK_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("webhook_duration_seconds metric")
 });
 
-pub(super) static WEBHOOK_QUEUE_SIZE: Lazy<GaugeVec> = Lazy::new(|| {
+pub(super) static WEBHOOK_QUEUE_SIZE: LazyLock<GaugeVec> = LazyLock::new(|| {
     register_gauge_vec_with_registry!(
         "webhook_queue_size",
         "Webhook queue sizes by status (pending, dequeued, dlq)",
@@ -192,7 +192,7 @@ pub(super) static WEBHOOK_QUEUE_SIZE: Lazy<GaugeVec> = Lazy::new(|| {
     .expect("webhook_queue_size metric")
 });
 
-pub(super) static WEBHOOK_DLQ_SIZE: Lazy<Gauge> = Lazy::new(|| {
+pub(super) static WEBHOOK_DLQ_SIZE: LazyLock<Gauge> = LazyLock::new(|| {
     register_gauge_with_registry!(
         "webhook_dlq_size",
         "Webhook dead letter queue size",
@@ -205,7 +205,7 @@ pub(super) static WEBHOOK_DLQ_SIZE: Lazy<Gauge> = Lazy::new(|| {
 // Coupon Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static COUPON_OPERATIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static COUPON_OPERATIONS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "coupon_operations_total",
         "Total coupon operations (apply, increment, etc.)",
@@ -215,7 +215,7 @@ pub(super) static COUPON_OPERATIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("coupon_operations_total metric")
 });
 
-pub(super) static COUPON_DISCOUNT_AMOUNT: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static COUPON_DISCOUNT_AMOUNT: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "coupon_discount_amount",
         "Coupon discount amounts applied (in atomic units)",
@@ -230,7 +230,7 @@ pub(super) static COUPON_DISCOUNT_AMOUNT: Lazy<HistogramVec> = Lazy::new(|| {
 // Rate Limit Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static RATE_LIMIT_REJECTIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static RATE_LIMIT_REJECTIONS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "rate_limit_rejections_total",
         "Total rate limit rejections",
@@ -244,7 +244,7 @@ pub(super) static RATE_LIMIT_REJECTIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
 // Circuit Breaker Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static CIRCUIT_BREAKER_STATE: Lazy<GaugeVec> = Lazy::new(|| {
+pub(super) static CIRCUIT_BREAKER_STATE: LazyLock<GaugeVec> = LazyLock::new(|| {
     register_gauge_vec_with_registry!(
         "circuit_breaker_state",
         "Circuit breaker state (0=closed, 1=half-open, 2=open)",
@@ -254,7 +254,7 @@ pub(super) static CIRCUIT_BREAKER_STATE: Lazy<GaugeVec> = Lazy::new(|| {
     .expect("circuit_breaker_state metric")
 });
 
-pub(super) static CIRCUIT_BREAKER_FAILURES_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static CIRCUIT_BREAKER_FAILURES_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "circuit_breaker_failures_total",
         "Total circuit breaker failures",
@@ -268,7 +268,7 @@ pub(super) static CIRCUIT_BREAKER_FAILURES_TOTAL: Lazy<CounterVec> = Lazy::new(|
 // Database Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static DB_QUERIES_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static DB_QUERIES_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "db_queries_total",
         "Total database queries",
@@ -278,7 +278,7 @@ pub(super) static DB_QUERIES_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("db_queries_total metric")
 });
 
-pub(super) static DB_QUERY_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static DB_QUERY_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "db_query_duration_seconds",
         "Database query latency in seconds",
@@ -289,7 +289,7 @@ pub(super) static DB_QUERY_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("db_query_duration_seconds metric")
 });
 
-pub(super) static DB_ERRORS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static DB_ERRORS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "db_errors_total",
         "Total database errors",
@@ -299,7 +299,7 @@ pub(super) static DB_ERRORS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("db_errors_total metric")
 });
 
-pub(super) static DB_CONNECTIONS_OPEN: Lazy<Gauge> = Lazy::new(|| {
+pub(super) static DB_CONNECTIONS_OPEN: LazyLock<Gauge> = LazyLock::new(|| {
     register_gauge_with_registry!(
         "db_connections_open",
         "Number of open database connections in the pool",
@@ -308,7 +308,7 @@ pub(super) static DB_CONNECTIONS_OPEN: Lazy<Gauge> = Lazy::new(|| {
     .expect("db_connections_open metric")
 });
 
-pub(super) static DB_CONNECTIONS_IDLE: Lazy<Gauge> = Lazy::new(|| {
+pub(super) static DB_CONNECTIONS_IDLE: LazyLock<Gauge> = LazyLock::new(|| {
     register_gauge_with_registry!(
         "db_connections_idle",
         "Number of idle database connections in the pool",
@@ -321,7 +321,7 @@ pub(super) static DB_CONNECTIONS_IDLE: Lazy<Gauge> = Lazy::new(|| {
 // AI Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub(super) static AI_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static AI_CALLS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "ai_calls_total",
         "Total AI API calls",
@@ -331,7 +331,7 @@ pub(super) static AI_CALLS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
     .expect("ai_calls_total metric")
 });
 
-pub(super) static AI_CALL_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
+pub(super) static AI_CALL_DURATION_SECONDS: LazyLock<HistogramVec> = LazyLock::new(|| {
     register_histogram_vec_with_registry!(
         "ai_call_duration_seconds",
         "AI API call latency in seconds",
@@ -342,7 +342,7 @@ pub(super) static AI_CALL_DURATION_SECONDS: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("ai_call_duration_seconds metric")
 });
 
-pub(super) static AI_RATE_LIMIT_REJECTIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static AI_RATE_LIMIT_REJECTIONS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "ai_rate_limit_rejections_total",
         "Total AI rate limit rejections",
@@ -352,7 +352,7 @@ pub(super) static AI_RATE_LIMIT_REJECTIONS_TOTAL: Lazy<CounterVec> = Lazy::new(|
     .expect("ai_rate_limit_rejections_total metric")
 });
 
-pub(super) static AI_CACHE_HITS_TOTAL: Lazy<CounterVec> = Lazy::new(|| {
+pub(super) static AI_CACHE_HITS_TOTAL: LazyLock<CounterVec> = LazyLock::new(|| {
     register_counter_vec_with_registry!(
         "ai_cache_hits_total",
         "Total AI response cache hits",

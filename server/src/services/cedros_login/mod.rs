@@ -607,6 +607,146 @@ impl CedrosLoginClient {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Gift card fulfillment helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Add credits to a user's account (for gift card fulfillment).
+    ///
+    /// Calls: POST /admin/users/{user_id}/credits/add
+    pub async fn add_credits(
+        &self,
+        user_id: &str,
+        amount: i64,
+        currency: &str,
+        reference_type: &str,
+        reference_id: &str,
+    ) -> Result<CreditsBalance, CedrosLoginError> {
+        let url = format!("{}/admin/users/{}/credits/add", self.base_url, user_id);
+
+        let body = serde_json::json!({
+            "amount": amount,
+            "currency": currency,
+            "referenceType": reference_type,
+            "referenceId": reference_id,
+        });
+
+        let response = self
+            .client
+            .post(&url)
+            .header("X-Admin-Api-Key", &self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| CedrosLoginError::Http(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(CedrosLoginError::Http(format!(
+                "add credits failed ({}): {}",
+                status, error_text
+            )));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| CedrosLoginError::Http(format!("invalid add_credits response: {}", e)))
+    }
+
+    /// Look up user ID by email address.
+    ///
+    /// Calls: GET /admin/users/by-email/{email}
+    /// Returns None if no user is associated with this email.
+    pub async fn lookup_user_by_email(
+        &self,
+        email: &str,
+    ) -> Result<Option<String>, CedrosLoginError> {
+        let url = format!("{}/admin/users/by-email/{}", self.base_url, email);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-Admin-Api-Key", &self.api_key)
+            .send()
+            .await
+            .map_err(|e| CedrosLoginError::Http(e.to_string()))?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(CedrosLoginError::Http(format!(
+                "email lookup failed ({}): {}",
+                status, error_text
+            )));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct EmailLookupResponse {
+            user_id: Option<String>,
+        }
+
+        let parsed: EmailLookupResponse = response
+            .json()
+            .await
+            .map_err(|e| CedrosLoginError::Http(format!("invalid email lookup response: {}", e)))?;
+        Ok(parsed.user_id)
+    }
+
+    /// Get a user's embedded wallet address.
+    ///
+    /// Calls: GET /admin/users/{user_id}/wallet
+    pub async fn get_embedded_wallet(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<String>, CedrosLoginError> {
+        let url = format!("{}/admin/users/{}/wallet", self.base_url, user_id);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-Admin-Api-Key", &self.api_key)
+            .send()
+            .await
+            .map_err(|e| CedrosLoginError::Http(e.to_string()))?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(CedrosLoginError::Http(format!(
+                "get embedded wallet failed ({}): {}",
+                status, error_text
+            )));
+        }
+
+        #[derive(serde::Deserialize)]
+        struct WalletResponse {
+            wallet_address: Option<String>,
+        }
+
+        let parsed: WalletResponse = response
+            .json()
+            .await
+            .map_err(|e| CedrosLoginError::Http(format!("invalid wallet response: {}", e)))?;
+        Ok(parsed.wallet_address)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Internal JWKS helpers
     // ─────────────────────────────────────────────────────────────────────────
 

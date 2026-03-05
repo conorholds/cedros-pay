@@ -13,6 +13,8 @@ use chrono::Utc;
 use http_body_util::{BodyExt, Limited};
 use sha2::{Digest, Sha256};
 
+use crate::x402::utils::hex_encode;
+
 use crate::constants::{HEADER_IDEMPOTENCY_KEY, IDEMPOTENCY_KEY_TTL, MAX_REQUEST_BODY_SIZE};
 
 const MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE: usize = 256 * 1024;
@@ -126,7 +128,7 @@ pub async fn idempotency_middleware<S: Store + 'static>(
         let mut hasher = Sha256::new();
         hasher.update(&body_bytes);
         let result = hasher.finalize();
-        hex::encode(result) // Full 32 bytes = 64 hex chars
+        hex_encode(result) // Full 32 bytes = 64 hex chars
     };
 
     // Build cache key: {tenant_id}:{METHOD}:{PATH}:{idempotency_key}

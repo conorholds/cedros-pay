@@ -4,7 +4,7 @@
 //! (default 1 second) to reduce load during high-traffic scenarios.
 //! Matches Go server's `internal/httpserver/rpc_proxy.go` behavior.
 
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::hash::Hash;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

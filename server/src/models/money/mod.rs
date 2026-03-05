@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::RwLock;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -603,7 +603,7 @@ impl fmt::Display for Money {
     }
 }
 
-static ASSET_REGISTRY: Lazy<RwLock<HashMap<String, Asset>>> = Lazy::new(|| {
+static ASSET_REGISTRY: LazyLock<RwLock<HashMap<String, Asset>>> = LazyLock::new(|| {
     let mut map = HashMap::new();
     map.insert(
         "USD".to_string(),

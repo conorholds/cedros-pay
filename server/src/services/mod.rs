@@ -7,6 +7,10 @@ pub mod paywall;
 pub mod stripe;
 pub mod stripe_webhooks;
 pub mod subscriptions;
+pub mod asset_fulfillment;
+pub mod gift_card_fulfillment;
+pub mod metaplex_core;
+pub mod token22;
 
 use async_trait::async_trait;
 
@@ -114,6 +118,10 @@ pub use paywall::{PaywallService, RefundQuoteResponse};
 pub use stripe::StripeClient;
 pub use stripe_webhooks::{StripeEventType, StripeWebhookProcessor};
 pub use subscriptions::{ChangeSubscriptionResult, StripeSubscriptionUpdate, SubscriptionService};
+
+pub use asset_fulfillment::AssetFulfillmentService;
+pub use gift_card_fulfillment::GiftCardFulfillmentService;
+pub use metaplex_core::MetaplexCoreService;
 
 pub use ai::{
     parse_json_response, slugify, AiError, AiService, CategoriesResult, ChatOrchestrator,

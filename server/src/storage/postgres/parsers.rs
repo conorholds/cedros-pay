@@ -382,6 +382,12 @@ pub fn parse_collection(row: PgRow) -> StorageResult<Collection> {
     let product_ids: Vec<String> = serde_json::from_value(product_ids_json)
         .map_err(|e| StorageError::internal("failed to parse collection product_ids", e))?;
 
+    let tokenization_config: Option<crate::models::TokenizationConfig> =
+        row.try_get::<Option<serde_json::Value>, _>("tokenization_config")
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_value(v).ok());
+
     Ok(Collection {
         id: row.get("id"),
         tenant_id: parse_tenant_id(&row, "collection")?,
@@ -389,6 +395,7 @@ pub fn parse_collection(row: PgRow) -> StorageResult<Collection> {
         description: row.get("description"),
         product_ids,
         active: row.get("active"),
+        tokenization_config,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })

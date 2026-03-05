@@ -492,6 +492,93 @@ export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
       jwt_audience: { hidden: true }, // Internal auth config
     },
   },
+  gift_cards: {
+    label: 'Gift Cards',
+    description: 'Gift card issuance, expiry, and Token-22 secondary market settings',
+    secrets: [],
+    icon: '🎁',
+    fields: {
+      enabled: { hidden: true }, // Shown in header toggle
+      secondary_market_enabled: {
+        type: 'toggle',
+        description: 'Enable Token-22 secondary market for gift card store credit tokens.',
+      },
+      transfer_fee_bps: {
+        type: 'number',
+        description: 'Transfer fee in basis points charged on secondary market trades (e.g. 250 = 2.5%).',
+      },
+      max_transfer_fee: {
+        type: 'number',
+        description: 'Maximum transfer fee in token atomic units (e.g. 500 = $5.00 with 2 decimals).',
+      },
+      treasury_address: {
+        type: 'solana_address',
+        description: 'Solana wallet address where collected transfer fees are sent.',
+      },
+      token_name: {
+        description: 'Display name for the store credit token (e.g. "Store Credits USD").',
+      },
+      token_symbol: {
+        description: 'Token symbol for the store credit token (e.g. "storeUSD").',
+      },
+      token_decimals: {
+        type: 'number',
+        description: 'Number of decimal places for the token (default: 2 for cent precision).',
+      },
+      mint_address: {
+        type: 'solana_address',
+        description: 'Solana Token-22 mint address (auto-populated after initialization).',
+      },
+      business_state: {
+        type: 'dropdown',
+        options: [
+          'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+          'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+          'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+          'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+          'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+          'DC','PR',
+        ],
+        description: 'US state where your business is registered. Determines applicable gift card regulations.',
+      },
+      min_gift_card_value_cents: {
+        type: 'number',
+        description: 'Minimum gift card face value in cents. Auto-suggested based on state cash-out threshold.',
+      },
+      max_gift_card_value_cents: {
+        type: 'number',
+        description: 'Maximum gift card face value in cents. Default $10,000 (AML compliance).',
+      },
+      liquidity_pool_address: {
+        type: 'solana_address',
+        description: 'Meteora DLMM pool address for gift card secondary market buyback.',
+      },
+      buyback_rate_bps: {
+        type: 'number',
+        description: 'Buyback rate in basis points (8000 = 80 cents on the dollar).',
+      },
+      liquidity_usdc_amount: {
+        type: 'number',
+        description: 'USDC amount deposited into the liquidity pool (in atomic units).',
+        hidden: true,
+      },
+      liquidity_deployed_at: {
+        description: 'ISO timestamp when the liquidity pool was deployed.',
+        hidden: true,
+      },
+    },
+  },
+  tokenization: {
+    label: 'Asset Tokenization',
+    description: 'Settings for tokenized asset classes and on-chain minting',
+    secrets: [],
+    icon: '🪙',
+    fields: {
+      enabled: { type: 'toggle', description: 'Enable asset tokenization features.' },
+      default_transfer_fee_bps: { type: 'number', description: 'Default transfer fee in basis points for tokenized asset transfers (e.g. 250 = 2.5%).' },
+      require_custody_proof: { type: 'toggle', description: 'Require a custody proof URL before an asset class can be activated.' },
+    },
+  },
   shop: {
     label: 'Storefront',
     description: 'Product pages & display settings',

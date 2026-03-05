@@ -398,6 +398,8 @@ function buildOrderFromCheckout(payload: CheckoutSessionPayload): Order {
       unitPrice: product.price,
       currency: payload.options.currency,
       imageUrl: product.images[0]?.url,
+      productId: product.id,
+      tokenizedAsset: Boolean(product.tokenizedAssetConfig),
     };
   });
   const total = items.reduce((acc, i) => acc + i.qty * i.unitPrice, 0);

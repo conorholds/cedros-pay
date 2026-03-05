@@ -70,6 +70,15 @@ export {
   type AdminAuth,
 } from './configApi';
 
+// Asset tokenization admin components
+export const AssetClassesTab = lazySection<SectionProps>(() =>
+  import('./AssetClassesTab').then((module) => ({ default: module.AssetClassesTab }))
+);
+export const AssetRedemptionManager = lazySection<SectionProps>(() =>
+  import('./AssetRedemptionManager').then((module) => ({ default: module.AssetRedemptionManager }))
+);
+export { RedemptionFormBuilder, type RedemptionConfig, type RedemptionField } from './RedemptionFormBuilder';
+
 // Admin auth for wallet + cedros-login integration
 export {
   AdminAuthManager,

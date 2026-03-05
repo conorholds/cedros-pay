@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::hash::Hash;
 use solana_sdk::instruction::Instruction;
@@ -68,7 +68,7 @@ pub struct GaslessTransactionBuilder {
 }
 
 /// Memo Program v1 (legacy) pubkey, parsed once at startup.
-static MEMO_V1_PUBKEY: once_cell::sync::Lazy<Pubkey> = once_cell::sync::Lazy::new(|| {
+static MEMO_V1_PUBKEY: std::sync::LazyLock<Pubkey> = std::sync::LazyLock::new(|| {
     Pubkey::from_str("Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo").expect("valid memo v1 pubkey")
 });
 
@@ -86,6 +86,7 @@ pub(crate) fn validate_transaction_programs(tx: &VersionedTransaction) -> Result
         spl_memo::id(),                     // Memo Program v2
         spl_associated_token_account::id(), // ATA Program
         *MEMO_V1_PUBKEY,                    // Memo Program v1 (legacy)
+        solana_sdk::pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"), // Token-22 Program
     ];
 
     let account_keys = match &tx.message {

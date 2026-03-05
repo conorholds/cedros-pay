@@ -36,6 +36,7 @@ export function CheckoutForm({ className }: { className?: string }) {
     (config.checkout.allowShipping ?? false) && req.shippingAddress && (mode === 'shipping' || mode === 'full');
 
   const showContact = req.email !== 'none' || req.name !== 'none' || req.phone !== 'none';
+  const hasGiftCard = cart.items.some((item) => item.metadata?.product_type === 'gift_card');
 
   const defaultAddress = {
     line1: '',
@@ -136,6 +137,30 @@ export function CheckoutForm({ className }: { className?: string }) {
           </div>
         </section>
       )}
+
+      {hasGiftCard ? (
+        <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-sm font-semibold text-neutral-950 dark:text-neutral-50">Gift card recipient</div>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">Optional</div>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="checkout-recipient-email">Recipient email</Label>
+            <Input
+              id="checkout-recipient-email"
+              type="email"
+              value={checkout.values.recipientEmail ?? ''}
+              onChange={(e) => checkout.setField('recipientEmail', e.target.value)}
+              placeholder="recipient@example.com"
+              aria-invalid={Boolean(checkout.fieldErrors.recipientEmail)}
+            />
+            <FieldError message={checkout.fieldErrors.recipientEmail} />
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+              Leave blank to credit your own account. If provided, the gift card value will be credited to the recipient&apos;s account.
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {wantsShipping ? (
         <AddressForm

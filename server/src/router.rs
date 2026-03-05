@@ -34,6 +34,11 @@ pub(crate) struct RouterStates<S: Store> {
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
     pub faqs_state: Arc<handlers::faqs::FaqsState>,
     pub storefront_state: Option<Arc<handlers::storefront::StorefrontState>>,
+    pub asset_redemption_state: Arc<handlers::asset_redemptions::AssetRedemptionState>,
+    /// Token-22 service — used by admin routes for mint management.
+    pub token22_service: Option<Arc<crate::services::token22::Token22Service>>,
+    /// Asset fulfillment service — threaded for admin-side token burn on completion.
+    pub asset_fulfillment: Option<Arc<crate::services::AssetFulfillmentService>>,
 }
 
 pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Router {
@@ -47,6 +52,7 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
     let idempotency_state = Arc::new(middleware::IdempotencyState::new(states.store.clone()));
 
     let paywall_routes = build_paywall_routes(states.app_state.clone(), idempotency_state);
+    let gift_card_claim_routes = build_gift_card_claim_routes(states.app_state.clone());
     let stripe_redirects = build_stripe_redirect_routes(states.app_state.clone());
     let stripe_webhook = build_stripe_webhook_route(states.app_state.clone());
     let products_routes = build_product_routes(states.products_state.clone());
@@ -58,11 +64,15 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
     let metrics_routes = build_metrics_routes(states.metrics_state.clone());
     let health_routes = build_health_routes(states.health_state.clone());
 
+    let asset_redemption_routes =
+        build_asset_redemption_routes(states.asset_redemption_state.clone());
     let admin_states = AdminRouteStates::from_router_states(&states, paywall_prefix.clone());
 
     let mut router = Router::new()
         .merge(health_routes)
         .nest(&paywall_prefix, paywall_routes)
+        .nest(&paywall_prefix, gift_card_claim_routes)
+        .nest(&paywall_prefix, asset_redemption_routes)
         .nest(&paywall_prefix, products_routes)
         .nest(&paywall_prefix, collections_routes)
         .nest(&paywall_prefix, faqs_routes)
@@ -110,6 +120,10 @@ fn build_paywall_routes<S: Store + 'static>(
         .route(
             "/x402-transaction/verify",
             get(handlers::stripe::verify_x402_transaction::<S>),
+        )
+        .route(
+            "/credits/balance",
+            get(handlers::credits::get_credits_balance::<S>),
         )
         .route(
             "/credits/authorize",
@@ -197,6 +211,10 @@ fn build_product_routes(state: Arc<handlers::products::ProductsAppState>) -> Rou
         .route(
             "/products/by-slug/{slug}",
             get(handlers::products::get_product_by_slug),
+        )
+        .route(
+            "/products/{id}/nft-metadata",
+            get(handlers::nft_metadata::get_nft_metadata),
         )
         .route("/products.txt", get(handlers::products::products_txt))
         .route(
@@ -340,4 +358,40 @@ fn build_health_routes(
             middleware::timeout::health_timeout_middleware,
         ))
         .with_state(health_state)
+}
+
+/// Buyer-facing asset redemption routes — no payment timeout or idempotency middleware.
+fn build_asset_redemption_routes(
+    state: Arc<handlers::asset_redemptions::AssetRedemptionState>,
+) -> Router {
+    Router::new()
+        .route(
+            "/asset-redemption/{productId}/form",
+            get(handlers::asset_redemptions::get_redemption_form),
+        )
+        .route(
+            "/asset-redemption/{productId}/submit",
+            post(handlers::asset_redemptions::submit_redemption),
+        )
+        .route(
+            "/asset-redemption/{productId}/status",
+            get(handlers::asset_redemptions::get_redemption_status),
+        )
+        .with_state(state)
+}
+
+/// Gift card claim routes — no payment timeout or idempotency middleware.
+fn build_gift_card_claim_routes<S: Store + 'static>(
+    app_state: Arc<handlers::paywall::AppState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/gift-card/claim/{token}",
+            get(handlers::credits::get_gift_card_claim::<S>),
+        )
+        .route(
+            "/gift-card/claim/{token}",
+            post(handlers::credits::claim_gift_card::<S>),
+        )
+        .with_state(app_state)
 }

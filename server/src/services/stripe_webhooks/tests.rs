@@ -3,6 +3,7 @@ use super::*;
 use parking_lot::Mutex;
 
 use crate::models::{CartQuote, PaymentTransaction, RefundQuote, Subscription, SubscriptionStatus};
+use crate::x402::utils::hex_encode;
 use crate::storage::{
     AdminNonce, AdminStats, CreditsHold, DlqWebhook, IdempotencyResponse, InMemoryStore,
     PendingEmail, PendingWebhook, Purchase, StorageError, StorageResult, Store, WebhookStatus,
@@ -1196,6 +1197,119 @@ impl Store for FailingCompleteIdempotencyStore {
     async fn cleanup_old_emails(&self, _retention_days: i32) -> StorageResult<u64> {
         unimplemented!()
     }
+
+    async fn record_gift_card_redemption(
+        &self,
+        _r: crate::models::GiftCardRedemption,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+
+    async fn list_gift_card_redemptions(
+        &self,
+        _tenant_id: &str,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::GiftCardRedemption>> {
+        unimplemented!()
+    }
+
+    async fn get_gift_card_redemption_by_token(
+        &self,
+        _token: &str,
+    ) -> StorageResult<Option<crate::models::GiftCardRedemption>> {
+        unimplemented!()
+    }
+
+    async fn claim_gift_card_redemption(
+        &self,
+        _id: &str,
+        _recipient_user_id: &str,
+        _credits_issued: i64,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+
+    async fn get_tenant_token22_mint(
+        &self,
+        _tenant_id: &str,
+    ) -> StorageResult<Option<crate::models::TenantToken22Mint>> {
+        unimplemented!()
+    }
+
+    async fn upsert_tenant_token22_mint(
+        &self,
+        _mint: crate::models::TenantToken22Mint,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+
+    async fn get_token22_mint_for_collection(
+        &self,
+        _tenant_id: &str,
+        _collection_id: &str,
+    ) -> StorageResult<Option<crate::models::TenantToken22Mint>> {
+        unimplemented!()
+    }
+
+    async fn upsert_token22_mint_for_collection(
+        &self,
+        _mint: crate::models::TenantToken22Mint,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+
+    async fn record_asset_redemption(
+        &self,
+        _r: crate::models::AssetRedemption,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+
+    async fn get_asset_redemption(
+        &self,
+        _tenant_id: &str,
+        _id: &str,
+    ) -> StorageResult<Option<crate::models::AssetRedemption>> {
+        unimplemented!()
+    }
+
+    async fn list_asset_redemptions(
+        &self,
+        _tenant_id: &str,
+        _status: Option<&str>,
+        _collection_id: Option<&str>,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::AssetRedemption>> {
+        unimplemented!()
+    }
+
+    async fn update_asset_redemption_status(
+        &self,
+        _tenant_id: &str,
+        _id: &str,
+        _status: &str,
+        _admin_notes: Option<&str>,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+    async fn update_asset_redemption_form_data(
+        &self,
+        _tenant_id: &str,
+        _id: &str,
+        _form_data: &serde_json::Value,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+    async fn record_token_burn_signature(
+        &self,
+        _tenant_id: &str,
+        _id: &str,
+        _signature: &str,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
 }
 
 #[tokio::test]
@@ -1262,7 +1376,7 @@ async fn test_process_webhook_does_not_release_claim_on_completion_failure() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     processor.process_webhook(&body, &header).await.unwrap();
@@ -1361,7 +1475,7 @@ async fn test_checkout_completed_records_stripe_payment() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     processor.process_webhook(&body, &header).await.unwrap();
@@ -1794,7 +1908,7 @@ async fn test_checkout_completed_records_stripe_payment_user_id_from_metadata() 
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     processor.process_webhook(&body, &header).await.unwrap();
@@ -1854,7 +1968,7 @@ async fn test_checkout_completed_ignores_untrusted_user_id_metadata() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     processor.process_webhook(&body, &header).await.unwrap();
@@ -1913,7 +2027,7 @@ async fn test_checkout_completed_rejects_missing_tenant_id_in_production() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     let res = processor.process_webhook(&body, &header).await;
@@ -1967,7 +2081,7 @@ async fn test_checkout_completed_does_not_notify_when_already_recorded() {
         let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
         let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
         mac.update(signed_payload.as_bytes());
-        let sig = hex::encode(mac.finalize().into_bytes());
+        let sig = hex_encode(mac.finalize().into_bytes());
         let header = format!("t={},v1={}", ts, sig);
 
         processor.process_webhook(&body, &header).await.unwrap();
@@ -2025,7 +2139,7 @@ async fn test_checkout_completed_rejects_unknown_currency() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     let result = processor.process_webhook(&body, &header).await;
@@ -2077,7 +2191,7 @@ async fn test_checkout_completed_rejects_missing_amount_total() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     let result = processor.process_webhook(&body, &header).await;
@@ -2135,7 +2249,7 @@ async fn test_checkout_completed_requires_resource_id() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     let result = processor.process_webhook(&body, &header).await;
@@ -2188,7 +2302,7 @@ async fn test_checkout_completed_cart_missing_quote_errors() {
     let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
     let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
     mac.update(signed_payload.as_bytes());
-    let sig = hex::encode(mac.finalize().into_bytes());
+    let sig = hex_encode(mac.finalize().into_bytes());
     let header = format!("t={},v1={}", ts, sig);
 
     let result = processor.process_webhook(&body, &header).await;
@@ -2250,7 +2364,7 @@ async fn test_subscription_created_is_idempotent_by_stripe_id() {
         let signed_payload = format!("{}.{}", ts, String::from_utf8_lossy(&body));
         let mut mac = Hmac::<Sha256>::new_from_slice(cfg.stripe.webhook_secret.as_bytes()).unwrap();
         mac.update(signed_payload.as_bytes());
-        let sig = hex::encode(mac.finalize().into_bytes());
+        let sig = hex_encode(mac.finalize().into_bytes());
         let header = format!("t={},v1={}", ts, sig);
 
         processor.process_webhook(&body, &header).await.unwrap();

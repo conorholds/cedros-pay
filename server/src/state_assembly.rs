@@ -107,6 +107,13 @@ impl<S: Store + 'static> BuiltServices<S> {
 
         let faqs_state = Arc::new(handlers::faqs::FaqsState::new(app_state.store.clone()));
 
+        let asset_redemption_state =
+            Arc::new(handlers::asset_redemptions::AssetRedemptionState {
+                store: app_state.store.clone(),
+                products: self.product_repo.clone(),
+                cedros_login: self.cedros_login_client.clone(),
+            });
+
         let route_prefix = self.config.server.route_prefix.clone();
 
         RouterStates {
@@ -129,6 +136,9 @@ impl<S: Store + 'static> BuiltServices<S> {
             admin_chat_state,
             faqs_state,
             storefront_state,
+            asset_redemption_state,
+            token22_service: self.token22_service,
+            asset_fulfillment: self.asset_fulfillment,
         }
     }
 }

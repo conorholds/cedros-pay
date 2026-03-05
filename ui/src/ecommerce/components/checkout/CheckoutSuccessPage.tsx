@@ -29,6 +29,12 @@ export interface CheckoutSuccessPageProps {
   className?: string;
   /** Additional CSS class for the receipt card */
   receiptClassName?: string;
+  /** Cedros Pay server URL — required for tokenized asset redemption prompts. */
+  serverUrl?: string;
+  /** Auth token for authenticated redemption requests. */
+  authToken?: string;
+  /** Product IDs for tokenized assets in this order (renders redemption form). */
+  tokenizedProductIds?: string[];
 }
 
 export function CheckoutSuccessPage({
@@ -36,6 +42,9 @@ export function CheckoutSuccessPage({
   onViewOrders,
   className,
   receiptClassName,
+  serverUrl,
+  authToken,
+  tokenizedProductIds,
 }: CheckoutSuccessPageProps) {
   const result = useCheckoutResultFromUrl();
 
@@ -67,6 +76,9 @@ export function CheckoutSuccessPage({
         onContinueShopping={onContinueShopping}
         onViewOrders={onViewOrders}
         className={cn('w-full max-w-lg', receiptClassName)}
+        serverUrl={serverUrl}
+        authToken={authToken}
+        tokenizedProductIds={tokenizedProductIds}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 //! Prometheus metrics implementation
 //!
 //! # Thread Safety
-//! All metrics use `once_cell::sync::Lazy` for lazy initialization, ensuring each
+//! All metrics use `std::sync::LazyLock` for lazy initialization, ensuring each
 //! metric is registered exactly once regardless of how many threads access it.
 //!
 //! # Error Handling
@@ -11,10 +11,10 @@
 //! cause startup failure rather than silent degradation. We also use a private
 //! registry to avoid collisions with other libraries using the global registry.
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use prometheus::Registry;
 
-static REGISTRY: Lazy<Registry> = Lazy::new(Registry::new);
+static REGISTRY: LazyLock<Registry> = LazyLock::new(Registry::new);
 
 mod defs;
 mod gather;

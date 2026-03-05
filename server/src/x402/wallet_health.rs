@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::RwLock;
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use tracing::{debug, error, info, warn};

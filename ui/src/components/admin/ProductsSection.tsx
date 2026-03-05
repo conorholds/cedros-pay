@@ -27,7 +27,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     slug: '',
     imageUrl: '',
     description: '',
-    productType: 'one_time' as 'one_time' | 'pay_per_access' | 'subscription',
+    productType: 'one_time' as 'one_time' | 'pay_per_access' | 'subscription' | 'gift_card' | 'tokenized_asset',
     priceUsd: '' as '' | number,
     fiatCurrency: 'usd',
     cryptoToken: 'USDC',
@@ -44,6 +44,8 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     fulfillmentNotes: '',
     shippingCountriesCsv: '',
     inventoryQuantity: '' as '' | number,
+    giftCardConfig: null as null | { faceValueCents: number; currency: string; secondaryMarket: boolean; expiresInDays: number | null },
+    tokenizedAssetConfig: null as null | { assetClassCollectionId: string; backingValueCents: number; backingCurrency: string; tokensPerUnit: number; custodyProofUrl: string | null },
   });
 
   const buildCatalogMetadata = (p: typeof newProduct) => {
@@ -95,6 +97,8 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     return metadata;
   };
 
+  const [assetCollections, setAssetCollections] = useState<Array<{ id: string; name: string }>>([]);
+
   const getProductTitle = (p: Product) => p.metadata?.title || p.description || p.id;
   const getProductImageUrl = (p: Product) => p.metadata?.image_url;
 
@@ -125,7 +129,23 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    // Fetch asset class collections for the dropdown
+    (async () => {
+      try {
+        let data: { collections: Array<{ id: string; name: string; tokenizationConfig?: unknown }> };
+        if (authManager?.isAuthenticated()) {
+          data = await authManager.fetchWithAuth('/admin/collections');
+        } else {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (apiKey) headers['X-API-Key'] = apiKey;
+          const res = await fetch(`${serverUrl}/admin/collections`, { headers });
+          if (!res.ok) return;
+          data = await res.json();
+        }
+        setAssetCollections((data.collections || []).filter(c => c.tokenizationConfig).map(c => ({ id: c.id, name: c.name })));
+      } catch { /* non-critical — text input fallback still works */ }
+    })();
+  }, [fetchProducts, serverUrl, apiKey, authManager]);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +180,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
       const fiatAmountCents = Math.round(priceUsdNum * 100);
       const cryptoAtomicAmount = Math.round(priceUsdNum * 1_000_000);
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         id: newProduct.id,
         description: newProduct.description,
         fiatAmountCents,
@@ -173,6 +193,14 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
           ...buildCatalogMetadata(newProduct),
         },
       };
+
+      if (productType === 'gift_card' && newProduct.giftCardConfig) {
+        payload.giftCardConfig = newProduct.giftCardConfig;
+      }
+
+      if (productType === 'tokenized_asset' && newProduct.tokenizedAssetConfig) {
+        payload.tokenizedAssetConfig = newProduct.tokenizedAssetConfig;
+      }
 
       if (authManager?.isAuthenticated()) {
         await authManager.fetchWithAuth('/admin/products', {
@@ -214,6 +242,8 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         fulfillmentNotes: '',
         shippingCountriesCsv: '',
         inventoryQuantity: '',
+        giftCardConfig: null,
+        tokenizedAssetConfig: null,
       });
       setShowAddForm(false);
       fetchProducts();
@@ -233,6 +263,8 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         return 'Pay per access';
       case 'one_time':
         return 'One-time purchase';
+      case 'gift_card':
+        return 'Gift card';
       default:
         return 'One-time purchase';
     }
@@ -394,11 +426,22 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
           <div className="cedros-admin__form-row">
             <FormDropdown
               value={newProduct.productType}
-              onChange={(val) => setNewProduct(p => ({ ...p, productType: val as 'one_time' | 'pay_per_access' | 'subscription' }))}
+              onChange={(val) => setNewProduct(p => ({
+                ...p,
+                productType: val as 'one_time' | 'pay_per_access' | 'subscription' | 'gift_card' | 'tokenized_asset',
+                giftCardConfig: val === 'gift_card'
+                  ? (p.giftCardConfig ?? { faceValueCents: 0, currency: 'usd', secondaryMarket: false, expiresInDays: null })
+                  : null,
+                tokenizedAssetConfig: val === 'tokenized_asset'
+                  ? (p.tokenizedAssetConfig ?? { assetClassCollectionId: '', backingValueCents: 0, backingCurrency: 'usd', tokensPerUnit: 1, custodyProofUrl: null })
+                  : null,
+              }))}
               options={[
                 { value: 'one_time', label: 'One-time purchase' },
                 { value: 'pay_per_access', label: 'Pay per access' },
                 { value: 'subscription', label: 'Subscription' },
+                { value: 'gift_card', label: 'Gift card' },
+                { value: 'tokenized_asset', label: 'Tokenized asset' },
               ]}
               label="Product Type"
             />
@@ -420,6 +463,178 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
               label="Fulfillment"
             />
           </div>
+
+          {newProduct.productType === 'gift_card' && (<>
+          <div className="cedros-admin__form-row">
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Gift card face value (USD cents)</label>
+              <input
+                type="number"
+                className="cedros-admin__input"
+                value={newProduct.giftCardConfig?.faceValueCents ?? ''}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  giftCardConfig: {
+                    faceValueCents: parseInt(e.target.value) || 0,
+                    currency: p.giftCardConfig?.currency ?? 'usd',
+                    secondaryMarket: p.giftCardConfig?.secondaryMarket ?? false,
+                    expiresInDays: p.giftCardConfig?.expiresInDays ?? null,
+                  },
+                }))}
+                placeholder="e.g., 5000 for $50.00"
+                min="1"
+                required
+              />
+              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                Face value in cents (e.g. 5000 = $50.00). Must be greater than 0.
+              </div>
+            </div>
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Gift card currency</label>
+              <input
+                type="text"
+                className="cedros-admin__input"
+                value={newProduct.giftCardConfig?.currency ?? ''}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  giftCardConfig: {
+                    faceValueCents: p.giftCardConfig?.faceValueCents ?? 0,
+                    currency: e.target.value.toLowerCase().slice(0, 3),
+                    secondaryMarket: p.giftCardConfig?.secondaryMarket ?? false,
+                    expiresInDays: p.giftCardConfig?.expiresInDays ?? null,
+                  },
+                }))}
+                placeholder="usd"
+                maxLength={3}
+                required
+              />
+              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                ISO 4217 3-letter currency code (e.g. usd, eur, gbp).
+              </div>
+            </div>
+          </div>
+          <div className="cedros-admin__form-row">
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Expiration (days)</label>
+              <input
+                type="number"
+                className="cedros-admin__input"
+                value={newProduct.giftCardConfig?.expiresInDays ?? ''}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  giftCardConfig: {
+                    faceValueCents: p.giftCardConfig?.faceValueCents ?? 0,
+                    currency: p.giftCardConfig?.currency ?? 'usd',
+                    secondaryMarket: p.giftCardConfig?.secondaryMarket ?? false,
+                    expiresInDays: e.target.value === '' ? null : parseInt(e.target.value) || 0,
+                  },
+                }))}
+                placeholder="Leave blank for no expiry"
+                min="0"
+              />
+              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                Number of days until gift card expires. Leave blank for no expiry.
+              </div>
+            </div>
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Secondary market (Token-22)</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={newProduct.giftCardConfig?.secondaryMarket ?? false}
+                  onChange={(e) => setNewProduct(p => ({
+                    ...p,
+                    giftCardConfig: {
+                      faceValueCents: p.giftCardConfig?.faceValueCents ?? 0,
+                      currency: p.giftCardConfig?.currency ?? 'usd',
+                      secondaryMarket: e.target.checked,
+                      expiresInDays: p.giftCardConfig?.expiresInDays ?? null,
+                    },
+                  }))}
+                />
+                Enable Token-22 secondary market trading
+              </label>
+              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                Mints store credit tokens to recipient&apos;s embedded wallet for peer-to-peer trading with transfer fees.
+              </div>
+            </div>
+          </div>
+          </>)}
+
+          {newProduct.productType === 'tokenized_asset' && (<>
+          <div className="cedros-admin__form-row">
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Asset class collection</label>
+              {assetCollections.length > 0 ? (
+                <select
+                  className="cedros-admin__input"
+                  value={newProduct.tokenizedAssetConfig?.assetClassCollectionId ?? ''}
+                  onChange={(e) => setNewProduct(p => ({
+                    ...p,
+                    tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, assetClassCollectionId: e.target.value },
+                  }))}
+                  required
+                >
+                  <option value="">Select asset class...</option>
+                  {assetCollections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="cedros-admin__input"
+                  value={newProduct.tokenizedAssetConfig?.assetClassCollectionId ?? ''}
+                  onChange={(e) => setNewProduct(p => ({
+                    ...p,
+                    tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, assetClassCollectionId: e.target.value },
+                  }))}
+                  placeholder="Collection ID of the asset class"
+                  required
+                />
+              )}
+            </div>
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Backing value (cents)</label>
+              <input
+                type="number"
+                className="cedros-admin__input"
+                value={newProduct.tokenizedAssetConfig?.backingValueCents ?? 0}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, backingValueCents: Number(e.target.value) },
+                }))}
+                min={0}
+              />
+            </div>
+          </div>
+          <div className="cedros-admin__form-row">
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Tokens per unit</label>
+              <input
+                type="number"
+                className="cedros-admin__input"
+                value={newProduct.tokenizedAssetConfig?.tokensPerUnit ?? 1}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, tokensPerUnit: Number(e.target.value) },
+                }))}
+                min={1}
+              />
+            </div>
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Custody proof URL</label>
+              <input
+                type="text"
+                className="cedros-admin__input"
+                value={newProduct.tokenizedAssetConfig?.custodyProofUrl ?? ''}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, custodyProofUrl: e.target.value || null },
+                }))}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+          </>)}
 
           {newProduct.fulfillmentType === 'shipping' && (
           <div className="cedros-admin__form-row">

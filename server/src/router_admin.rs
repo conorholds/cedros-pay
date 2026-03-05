@@ -31,6 +31,8 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         admin_chat_state,
         chat_state,
         storefront_state,
+        token22_admin_state,
+        asset_redemption_admin_state,
         paywall_prefix,
         store,
     } = states;
@@ -90,7 +92,71 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         build_dashboard_routes(admin_dashboard_state, admin_auth_state.clone());
     router = router.nest("/admin", admin_dashboard_routes);
 
+    // Token-22 admin routes (optional — only registered when Token22Service is configured)
+    if let Some(t22_state) = token22_admin_state {
+        let token22_routes = build_token22_routes(t22_state, admin_auth_state.clone());
+        router = router.nest("/admin", token22_routes);
+    }
+
+    // Asset redemption admin routes
+    if let Some(ar_state) = asset_redemption_admin_state {
+        let ar_routes = build_asset_redemption_routes(ar_state, admin_auth_state.clone());
+        router = router.nest("/admin", ar_routes);
+    }
+
     router
+}
+
+fn build_asset_redemption_routes<S: Store + 'static>(
+    ar_state: Arc<handlers::admin_asset_redemptions::AssetRedemptionAdminState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/asset-redemptions",
+            get(handlers::admin_asset_redemptions::list_redemptions),
+        )
+        .route(
+            "/asset-redemptions/{id}/status",
+            patch(handlers::admin_asset_redemptions::update_status),
+        )
+        .route(
+            "/asset-redemptions/{id}/complete",
+            post(handlers::admin_asset_redemptions::complete_redemption),
+        )
+        .with_state(ar_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_token22_routes<S: Store + 'static>(
+    token22_state: Arc<handlers::admin_token22::Token22AdminState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/token22/initialize",
+            post(handlers::admin_token22::initialize_mint),
+        )
+        .route(
+            "/token22/status",
+            get(handlers::admin_token22::get_status),
+        )
+        .route(
+            "/token22/harvest-fees",
+            post(handlers::admin_token22::harvest_fees),
+        )
+        .route(
+            "/gift-card-redemptions",
+            get(handlers::admin_token22::list_gift_card_redemptions),
+        )
+        .with_state(token22_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
 }
 
 /// Holds the state values needed for admin route construction, extracted from
@@ -106,6 +172,9 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub admin_chat_state: Arc<handlers::admin_chats::AdminChatState>,
     pub chat_state: Option<Arc<handlers::chat::ChatState>>,
     pub storefront_state: Option<Arc<handlers::storefront::StorefrontState>>,
+    pub token22_admin_state: Option<Arc<handlers::admin_token22::Token22AdminState>>,
+    pub asset_redemption_admin_state:
+        Option<Arc<handlers::admin_asset_redemptions::AssetRedemptionAdminState>>,
     pub paywall_prefix: String,
     pub store: Arc<S>,
 }
@@ -122,6 +191,19 @@ impl<S: Store + 'static> AdminRouteStates<S> {
             admin_chat_state: states.admin_chat_state.clone(),
             chat_state: states.chat_state.clone(),
             storefront_state: states.storefront_state.clone(),
+            token22_admin_state: states.token22_service.clone().map(|t22| {
+                Arc::new(handlers::admin_token22::Token22AdminState {
+                    token22: t22,
+                    store: states.store.clone() as Arc<dyn Store>,
+                })
+            }),
+            asset_redemption_admin_state: Some(Arc::new(
+                handlers::admin_asset_redemptions::AssetRedemptionAdminState {
+                    store: states.store.clone() as Arc<dyn Store>,
+                    products: states.products_state.product_repo.clone(),
+                    asset_fulfillment: states.asset_fulfillment.clone(),
+                },
+            )),
             paywall_prefix,
             store: states.store.clone(),
         }

@@ -20,7 +20,7 @@
 
 use std::collections::HashMap;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// Known stablecoin mint addresses mapped to their symbols.
 /// These are the ONLY tokens that should be used for payments.
@@ -30,7 +30,7 @@ use once_cell::sync::Lazy;
 /// - Incorrect pricing (1 SOL ≠ $1, 1 BONK ≠ $1)
 /// - Precision loss from improper rounding
 /// - Potential payment failures
-pub static KNOWN_STABLECOINS: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+pub static KNOWN_STABLECOINS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     // Mainnet stablecoins
     m.insert("CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH", "CASH"); // CASH stablecoin (mainnet)
@@ -46,7 +46,7 @@ pub static KNOWN_STABLECOINS: Lazy<HashMap<&'static str, &'static str>> = Lazy::
 /// Reverse lookup: symbol -> mint address for O(1) lookups
 /// Note: For symbols with multiple networks, this returns the mainnet address.
 /// Use `get_mint_for_symbol_on_network` for network-specific lookups.
-static SYMBOL_TO_MINT: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+static SYMBOL_TO_MINT: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     // Mainnet addresses (default)
     m.insert("CASH", "CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH");

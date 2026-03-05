@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { AssetBadge } from './AssetBadge';
 import { Price } from './Price';
 
 const ASPECT_CLASSES: Record<ProductCardLayout, string> = {
@@ -82,6 +83,12 @@ export function ProductCard({
                 {t}
               </Badge>
             ))}
+          </div>
+        ) : null}
+
+        {product.tokenizedAssetConfig ? (
+          <div className="pointer-events-none absolute right-3 bottom-3">
+            <AssetBadge assetClass={product.tokenizedAssetConfig?.assetClass ?? ''} />
           </div>
         ) : null}
 

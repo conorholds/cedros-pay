@@ -33,6 +33,8 @@ export {
 } from './admin';
 export { StripeButton } from './components/StripeButton';
 export { CreditsButton } from './components/CreditsButton';
+export { CreditsBalance } from './components/CreditsBalance';
+export type { CreditsBalanceProps } from './components/CreditsBalance';
 export { PurchaseButton } from './components/PurchaseButton';
 export type { PurchaseButtonProps } from './components/PurchaseButton';
 export { PaymentModal } from './components/PaymentModal';
@@ -53,6 +55,8 @@ export { CedrosProvider, useCedrosContext, useCedrosTheme, type CedrosContextVal
 // Hooks
 export { useStripeCheckout } from './hooks/useStripeCheckout';
 export { useCreditsPayment } from './hooks/useCreditsPayment';
+export { useCreditsBalance } from './hooks/useCreditsBalance';
+export type { CreditsBalanceState } from './hooks/useCreditsBalance';
 export { usePaymentMode } from './hooks/usePaymentMode';
 export { useSubscription } from './hooks/useSubscription';
 export { useCreditsSubscription } from './hooks/useCreditsSubscription';

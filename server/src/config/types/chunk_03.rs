@@ -437,13 +437,13 @@ mod tests {
 
     #[test]
     fn test_postgres_pool_config_alias_max_idle_conns() {
-        let yaml = r#"
-max_open_conns: 10
-max_idle_conns: 3
-conn_max_lifetime: 60
-"#;
+        let json = r#"{
+            "max_open_conns": 10,
+            "max_idle_conns": 3,
+            "conn_max_lifetime": 60
+        }"#;
 
-        let pool: PostgresPoolConfig = serde_yaml::from_str(yaml).unwrap();
+        let pool: PostgresPoolConfig = serde_json::from_str(json).unwrap();
         assert_eq!(pool.max_open_conns, 10);
         assert_eq!(pool.min_connections, 3);
         assert_eq!(pool.conn_max_lifetime, Duration::from_secs(60));

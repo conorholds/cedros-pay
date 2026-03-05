@@ -9,7 +9,7 @@ use sha2::Sha256;
 
 use crate::models::{PaymentEvent, RefundEvent};
 use crate::storage::{PendingWebhook, Store, WebhookStatus};
-use crate::x402::utils::generate_event_id;
+use crate::x402::utils::{generate_event_id, hex_encode};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -231,7 +231,7 @@ impl<S: Store> HttpNotifier<S> {
         let mut mac = mac;
         mac.update(payload_bytes);
         let result = mac.finalize();
-        Some(hex::encode(result.into_bytes()))
+        Some(hex_encode(result.into_bytes()))
     }
 
     /// Enqueue a webhook with an existing event_id (preserves idempotency)

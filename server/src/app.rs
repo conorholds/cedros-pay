@@ -53,6 +53,10 @@ pub struct BuiltServices<S: Store> {
     pub(crate) storage_pg_pool: Option<PgPool>,
     /// Cedros-login client for JWT validation (if configured)
     pub(crate) cedros_login_client: Option<Arc<services::CedrosLoginClient>>,
+    /// Token-22 service — shared by fulfillment services and admin routes.
+    pub(crate) token22_service: Option<Arc<services::token22::Token22Service>>,
+    /// Asset fulfillment service — available for admin-side token burn.
+    pub(crate) asset_fulfillment: Option<Arc<services::AssetFulfillmentService>>,
     /// Email worker handle — kept alive so panics are logged instead of silently lost.
     /// Not read directly; held to keep the worker alive for the server's lifetime.
     #[allow(dead_code)]
@@ -175,6 +179,49 @@ async fn build_services_internal<S: Store + 'static>(
         paywall_service = paywall_service.with_payment_callback(cb.clone());
     }
     paywall_service = paywall_service.with_messaging(messaging_service.clone());
+
+    // Token-22 service — shared by fulfillment services and admin routes
+    let built_token22_service = if !cfg.x402.rpc_url.is_empty() {
+        services::token22::Token22Service::new_from_config(&cfg.x402)
+            .ok()
+            .map(Arc::new)
+    } else {
+        None
+    };
+
+    // Metaplex Core service for non-fungible asset NFTs
+    let built_metaplex_core = if !cfg.x402.rpc_url.is_empty() {
+        services::MetaplexCoreService::new_from_config(
+            &cfg.x402,
+            cfg.server.public_url.clone(),
+        )
+        .ok()
+        .map(Arc::new)
+    } else {
+        None
+    };
+
+    // Wire fulfillment services when cedros-login is available
+    let mut built_asset_fulfillment: Option<Arc<services::AssetFulfillmentService>> = None;
+    if let Some(ref cl) = cedros_login_client {
+        let gc_fulfillment = Arc::new(services::GiftCardFulfillmentService::new(
+            cl.clone(),
+            built_token22_service.clone(),
+            store.clone() as Arc<dyn Store>,
+        ));
+        paywall_service = paywall_service.with_gift_card_fulfillment(gc_fulfillment);
+
+        let asset_fulfillment = Arc::new(services::AssetFulfillmentService::new(
+            cl.clone(),
+            built_token22_service.clone(),
+            built_metaplex_core.clone(),
+            store.clone() as Arc<dyn Store>,
+            product_repo.clone(),
+        ));
+        paywall_service = paywall_service.with_asset_fulfillment(asset_fulfillment.clone());
+        built_asset_fulfillment = Some(asset_fulfillment);
+    }
+
     let paywall_service = Arc::new(paywall_service);
 
     let mut subscription_service =
@@ -253,6 +300,8 @@ async fn build_services_internal<S: Store + 'static>(
         storage_pg_pool,
         cedros_login_client,
         email_worker_handle,
+        token22_service: built_token22_service,
+        asset_fulfillment: built_asset_fulfillment,
     })
 }
 
@@ -435,6 +484,8 @@ pub(crate) fn paywall_resource_to_product(resource: &PaywallResource) -> Product
         metadata: resource.metadata.clone(),
         active: true,
         subscription: None,
+        gift_card_config: None,
+        tokenized_asset_config: None,
         created_at: None,
         updated_at: None,
     }

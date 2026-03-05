@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::signature::Signature;
 use solana_sdk::transaction::VersionedTransaction;
 use tokio::sync::{mpsc, oneshot, Semaphore};

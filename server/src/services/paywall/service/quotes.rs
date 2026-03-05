@@ -35,6 +35,14 @@ impl PaywallService {
             });
         }
 
+        // Gift card pre-purchase validation: require cedros-login
+        if product.is_gift_card() && self.cedros_login.is_none() {
+            return Err(ServiceError::Coded {
+                code: ErrorCode::ConfigError,
+                message: "gift card products require cedros-login integration".into(),
+            });
+        }
+
         // Collect applicable coupons
         let applied_coupons = self
             .select_coupons(tenant_id, resource, coupon_code, None)
@@ -240,6 +248,14 @@ impl PaywallService {
                     code: ErrorCode::ResourceNotFound,
                     message: format!("resource not found: {}", resource_id),
                 })?;
+
+            // Gift card pre-purchase validation
+            if product.is_gift_card() && self.cedros_login.is_none() {
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::ConfigError,
+                    message: "gift card products require cedros-login integration".into(),
+                });
+            }
 
             // Validate variant_id if provided
             if let Some(vid) = variant_id {

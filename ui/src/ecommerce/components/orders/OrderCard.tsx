@@ -1,6 +1,7 @@
 import type { Order } from '../../types';
 import { cn } from '../../utils/cn';
 import { formatMoney } from '../../utils/money';
+import { safeHref } from '../../utils/safeHref';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -79,16 +80,16 @@ export function OrderCard({
 
           <div className="col-span-2 mt-3 flex items-center justify-between gap-3 border-t border-neutral-200/70 pt-3 dark:border-neutral-800">
             <div className="flex items-center gap-1">
-              {order.receiptUrl ? (
+              {safeHref(order.receiptUrl) ? (
                 <Button asChild type="button" variant="ghost" size="sm" className="h-8 px-2">
-                  <a href={order.receiptUrl} target="_blank" rel="noreferrer">
+                  <a href={safeHref(order.receiptUrl)!} target="_blank" rel="noreferrer">
                     Receipt
                   </a>
                 </Button>
               ) : null}
-              {order.invoiceUrl ? (
+              {safeHref(order.invoiceUrl) ? (
                 <Button asChild type="button" variant="ghost" size="sm" className="h-8 px-2">
-                  <a href={order.invoiceUrl} target="_blank" rel="noreferrer">
+                  <a href={safeHref(order.invoiceUrl)!} target="_blank" rel="noreferrer">
                     Invoice
                   </a>
                 </Button>

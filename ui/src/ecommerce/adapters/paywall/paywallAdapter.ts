@@ -17,6 +17,7 @@ type PaywallProduct = {
   shippingProfile?: string;
   checkoutRequirements?: Product['checkoutRequirements'];
   fulfillment?: Product['fulfillment'];
+  tokenizedAssetConfig?: Product['tokenizedAssetConfig'];
   // Pricing
   fiatAmountCents?: number;
   compareAtAmountCents?: number;
@@ -142,6 +143,7 @@ function mapPaywallProductToEcommerceProduct(p: PaywallProduct): Product {
     shippingProfile: normalizeShippingProfile(p.shippingProfile),
     checkoutRequirements: p.checkoutRequirements,
     fulfillment: p.fulfillment,
+    tokenizedAssetConfig: p.tokenizedAssetConfig,
     attributes: shippingCountries.length
       ? {
           shippingCountries: shippingCountries.join(','),

@@ -196,8 +196,8 @@ where
         resp: mpsc::Sender<Result<Vec<SocketAddr>, String>>,
     }
 
-    static DNS_POOL: once_cell::sync::Lazy<mpsc::Sender<DnsJob>> =
-        once_cell::sync::Lazy::new(|| {
+    static DNS_POOL: std::sync::LazyLock<mpsc::Sender<DnsJob>> =
+        std::sync::LazyLock::new(|| {
             const WORKERS: usize = 4;
             let (tx, rx) = mpsc::channel::<DnsJob>();
             let rx = std::sync::Arc::new(Mutex::new(rx));

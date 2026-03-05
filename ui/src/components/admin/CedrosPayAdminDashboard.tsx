@@ -56,12 +56,19 @@ const LazyMessagingSection = lazy(() =>
 const LazyFAQSection = lazy(() =>
   import('./FAQSection').then((module) => ({ default: module.FAQSection }))
 );
+const LazyToken22Section = lazy(() =>
+  import('./Token22Section').then((module) => ({ default: module.Token22Section }))
+);
+const LazyOrdersSection = lazy(() =>
+  import('./OrdersSection').then((module) => ({ default: module.OrdersSection }))
+);
 
 /** Available dashboard sections */
 export type DashboardSection =
   | 'products'
   | 'subscriptions'
   | 'transactions'
+  | 'orders'
   | 'coupons'
   | 'refunds'
   | 'storefront'
@@ -69,6 +76,7 @@ export type DashboardSection =
   | 'faqs'
   | 'payment-settings'
   | 'messaging'
+  | 'token22'
   | 'settings';
 
 /** Theme mode for the dashboard */
@@ -126,6 +134,7 @@ const SECTION_GROUPS: SectionGroup[] = [
     label: 'Menu',
     sections: [
       { id: 'transactions', label: 'Transactions', icon: Icons.transactions },
+      { id: 'orders', label: 'Orders', icon: Icons.transactions },
       { id: 'products', label: 'Products', icon: Icons.products },
       { id: 'subscriptions', label: 'Subscriptions', icon: Icons.calendarRepeat },
       { id: 'coupons', label: 'Coupons', icon: Icons.coupons },
@@ -140,6 +149,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'ai-settings', label: 'Store AI', icon: Icons.brain },
       { id: 'faqs', label: 'Knowledge Base', icon: Icons.faq },
       { id: 'payment-settings', label: 'Payment Options', icon: Icons.creditCard },
+      { id: 'token22', label: 'Gift Cards & Token-22', icon: Icons.wallet },
       { id: 'messaging', label: 'Store Messages', icon: Icons.mail },
       { id: 'settings', label: 'Store Server', icon: Icons.server },
     ],
@@ -199,7 +209,7 @@ export function CedrosPayAdminDashboard({
   serverUrl,
   apiKey,
   title = 'Cedros Pay',
-  sections = ['transactions', 'products', 'subscriptions', 'coupons', 'refunds', 'storefront', 'ai-settings', 'faqs', 'payment-settings', 'messaging', 'settings'],
+  sections = ['transactions', 'orders', 'products', 'subscriptions', 'coupons', 'refunds', 'storefront', 'ai-settings', 'faqs', 'payment-settings', 'messaging', 'settings'],
   defaultSection = 'transactions',
   refreshInterval: _refreshInterval = 30000,
   pageSize = 20,
@@ -358,6 +368,16 @@ export function CedrosPayAdminDashboard({
               authManager={authManager}
             />
           )}
+          {activeSection === 'orders' && (
+            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
+              <LazyOrdersSection
+                serverUrl={serverUrl}
+                apiKey={apiKey}
+                pageSize={pageSize}
+                authManager={authManager}
+              />
+            </Suspense>
+          )}
           {activeSection === 'coupons' && (
             <CouponsSection
               serverUrl={serverUrl}
@@ -414,6 +434,15 @@ export function CedrosPayAdminDashboard({
           {activeSection === 'messaging' && (
             <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
               <LazyMessagingSection
+                serverUrl={serverUrl}
+                apiKey={apiKey}
+                authManager={authManager}
+              />
+            </Suspense>
+          )}
+          {activeSection === 'token22' && (
+            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
+              <LazyToken22Section
                 serverUrl={serverUrl}
                 apiKey={apiKey}
                 authManager={authManager}

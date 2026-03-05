@@ -9,10 +9,10 @@ use thiserror::Error;
 
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq, Fulfillment,
-    GiftCard, InventoryAdjustment, InventoryReservation, Order, OrderHistoryEntry, PaymentMethod,
-    PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile, ShippingRate, Subscription,
-    SubscriptionStatus, TaxRate,
+    AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
+    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
+    Order, OrderHistoryEntry, PaymentMethod, PaymentTransaction, RefundQuote, ReturnRequest,
+    ShippingProfile, ShippingRate, Subscription, SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 
 pub mod cached;
@@ -688,6 +688,92 @@ pub trait Store: Send + Sync {
         deduction: i64,
         updated_at: DateTime<Utc>,
     ) -> StorageResult<Option<i64>>;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Gift card redemptions (credits-based fulfillment tracking)
+    // ─────────────────────────────────────────────────────────────────────────
+    async fn record_gift_card_redemption(&self, r: GiftCardRedemption) -> StorageResult<()>;
+    async fn list_gift_card_redemptions(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<GiftCardRedemption>>;
+    /// Look up a pending redemption by its one-time claim token.
+    /// Returns None if the token does not exist.
+    async fn get_gift_card_redemption_by_token(
+        &self,
+        token: &str,
+    ) -> StorageResult<Option<GiftCardRedemption>>;
+    /// Mark a redemption as claimed: set claimed = true, recipient_user_id, credits_issued.
+    async fn claim_gift_card_redemption(
+        &self,
+        id: &str,
+        recipient_user_id: &str,
+        credits_issued: i64,
+    ) -> StorageResult<()>;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tenant Token-22 mints (secondary market config)
+    // ─────────────────────────────────────────────────────────────────────────
+    async fn get_tenant_token22_mint(
+        &self,
+        tenant_id: &str,
+    ) -> StorageResult<Option<TenantToken22Mint>>;
+    async fn upsert_tenant_token22_mint(&self, mint: TenantToken22Mint) -> StorageResult<()>;
+    /// Get Token-22 mint for a specific collection (asset class).
+    async fn get_token22_mint_for_collection(
+        &self,
+        tenant_id: &str,
+        collection_id: &str,
+    ) -> StorageResult<Option<TenantToken22Mint>>;
+    /// Upsert Token-22 mint for a specific collection (asset class).
+    async fn upsert_token22_mint_for_collection(
+        &self,
+        mint: TenantToken22Mint,
+    ) -> StorageResult<()>;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Asset redemptions (tokenized asset lifecycle tracking)
+    // ─────────────────────────────────────────────────────────────────────────
+    async fn record_asset_redemption(&self, r: AssetRedemption) -> StorageResult<()>;
+    async fn get_asset_redemption(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> StorageResult<Option<AssetRedemption>>;
+    async fn list_asset_redemptions(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<AssetRedemption>>;
+    async fn update_asset_redemption_status(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        status: &str,
+        admin_notes: Option<&str>,
+    ) -> StorageResult<()>;
+    /// Persist buyer-submitted form data and transition status to `info_submitted`.
+    async fn update_asset_redemption_form_data(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        form_data: &serde_json::Value,
+    ) -> StorageResult<()>;
+    /// Record the Solana signature from burning tokens at redemption completion.
+    ///
+    /// Sets `token_burn_signature` on the identified redemption. Returns
+    /// `StorageError::NotFound` if the record does not exist for this tenant.
+    async fn record_token_burn_signature(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        signature: &str,
+    ) -> StorageResult<()>;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Collections

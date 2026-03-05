@@ -3,6 +3,8 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use subtle::ConstantTimeEq;
 
+use crate::x402::utils::hex_encode;
+
 use crate::constants::WEBHOOK_TIMESTAMP_TOLERANCE;
 use crate::errors::ErrorCode;
 use crate::services::{ServiceError, ServiceResult};
@@ -82,7 +84,7 @@ pub(crate) fn verify_stripe_webhook_signature(
     let mut mac = Hmac::<Sha256>::new_from_slice(webhook_secret.as_bytes())
         .map_err(|_| ServiceError::Internal("HMAC key error".into()))?;
     mac.update(&signed_payload);
-    let expected = hex::encode(mac.finalize().into_bytes());
+    let expected = hex_encode(mac.finalize().into_bytes());
 
     // S-04: Compare signatures using constant-time fold to avoid short-circuit timing leak.
     // Iterator::any() would short-circuit on first match, leaking positional information.
@@ -118,7 +120,7 @@ mod tests {
 
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("mac");
         mac.update(&signed);
-        let expected = hex::encode(mac.finalize().into_bytes());
+        let expected = hex_encode(mac.finalize().into_bytes());
 
         let header = format!("t={},v1={}", ts, expected);
         verify_stripe_webhook_signature(&payload, &header, secret).expect("verify");

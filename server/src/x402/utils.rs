@@ -4,10 +4,21 @@ use base64::{
 };
 use rand::RngCore;
 use solana_sdk::pubkey::Pubkey;
+use std::fmt::Write;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::warn;
+
+/// Encode bytes as lowercase hex string. Replaces the `hex` crate (only `encode` was used).
+pub(crate) fn hex_encode(bytes: impl AsRef<[u8]>) -> String {
+    let bytes = bytes.as_ref();
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(s, "{b:02x}");
+    }
+    s
+}
 
 /// Error type for RPC call attempts with timeout
 #[derive(Debug)]
@@ -197,7 +208,7 @@ pub fn generate_memo_nonce() -> String {
 pub fn generate_cart_id() -> String {
     let mut bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut bytes);
-    format!("cart_{}", hex::encode(bytes))
+    format!("cart_{}", hex_encode(bytes))
 }
 
 /// Validate cart ID format per spec (16-formats.md)
@@ -226,7 +237,7 @@ pub fn validate_cart_id(cart_id: &str) -> Result<(), ErrorCode> {
 pub fn generate_refund_id() -> String {
     let mut bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut bytes);
-    format!("refund_{}", hex::encode(bytes))
+    format!("refund_{}", hex_encode(bytes))
 }
 
 /// Validate refund ID format per spec (16-formats.md)
@@ -255,7 +266,7 @@ pub fn validate_refund_id(refund_id: &str) -> Result<(), ErrorCode> {
 pub fn generate_event_id() -> String {
     let mut bytes = [0u8; 12];
     if rand::thread_rng().try_fill_bytes(&mut bytes).is_ok() {
-        format!("evt_{}", hex::encode(bytes))
+        format!("evt_{}", hex_encode(bytes))
     } else {
         // Fallback to timestamp
         format!(
@@ -291,7 +302,7 @@ pub fn validate_event_id(event_id: &str) -> Result<(), ErrorCode> {
 pub fn generate_request_id() -> String {
     let mut bytes = [0u8; 16];
     if rand::thread_rng().try_fill_bytes(&mut bytes).is_ok() {
-        format!("req_{}", hex::encode(bytes))
+        format!("req_{}", hex_encode(bytes))
     } else {
         "req_fallback".to_string()
     }
@@ -323,7 +334,7 @@ pub fn validate_request_id(request_id: &str) -> Result<(), ErrorCode> {
 pub fn generate_nonce_id() -> String {
     let mut bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut bytes);
-    hex::encode(bytes)
+    hex_encode(bytes)
 }
 
 /// Generate webhook ID per spec (16-formats.md)
@@ -336,7 +347,7 @@ pub fn generate_webhook_id() -> String {
     });
     let mut suffix = [0u8; 6];
     rand::thread_rng().fill_bytes(&mut suffix);
-    format!("webhook_{}_{}", nanos, hex::encode(suffix))
+    format!("webhook_{}_{}", nanos, hex_encode(suffix))
 }
 
 /// Validate webhook ID format per spec (16-formats.md)
@@ -417,7 +428,7 @@ pub fn hash_resource_id(resource_id: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(resource_id.as_bytes());
-    hex::encode(hasher.finalize())
+    hex_encode(hasher.finalize())
 }
 
 /// Check if an error string indicates a rate limit error

@@ -6,7 +6,7 @@ use std::time::Duration;
 use chrono::{DateTime, TimeDelta, Utc};
 use parking_lot::RwLock;
 use serde::Serialize;
-use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_rpc_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 use tokio::sync::watch;

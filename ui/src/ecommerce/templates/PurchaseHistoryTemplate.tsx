@@ -12,10 +12,16 @@ export function PurchaseHistoryTemplate({
   className,
   isSignedIn = true,
   onLogin,
+  serverUrl,
+  authToken,
 }: {
   className?: string;
   isSignedIn?: boolean;
   onLogin?: () => void;
+  /** Cedros Pay server URL — enables redemption forms for tokenized asset orders. */
+  serverUrl?: string;
+  /** Auth token for authenticated redemption requests. */
+  authToken?: string;
 }) {
   const { orders, isLoading, error } = useOrders();
   const [selected, setSelected] = React.useState<Order | null>(null);
@@ -66,7 +72,7 @@ export function PurchaseHistoryTemplate({
           </div>
         ) : selected ? (
           <div className="mt-8">
-            <OrderDetails order={selected} onBack={() => setSelected(null)} />
+            <OrderDetails order={selected} onBack={() => setSelected(null)} serverUrl={serverUrl} authToken={authToken} />
           </div>
         ) : (
           <div className="mt-8">

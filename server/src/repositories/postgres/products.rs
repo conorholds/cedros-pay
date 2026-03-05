@@ -8,7 +8,7 @@ use sqlx::{FromRow, PgPool};
 
 use crate::models::money::{get_asset, Money};
 use crate::models::{
-    CheckoutRequirements, FulfillmentInfo, Product, ProductImage, ProductVariant,
+    CheckoutRequirements, FulfillmentInfo, GiftCardConfig, Product, ProductImage, ProductVariant,
     ProductVariationConfig, SubscriptionConfig,
 };
 use crate::repositories::{ProductRepository, ProductRepositoryError};
@@ -57,6 +57,8 @@ struct ProductRow {
     subscription_stripe_price_id: Option<String>,
     subscription_allow_x402: Option<bool>,
     subscription_grace_period_hours: Option<i32>,
+    gift_card_config: Option<serde_json::Value>,
+    tokenized_asset_config: Option<serde_json::Value>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -71,7 +73,7 @@ const PRODUCT_SELECT_COLUMNS: &str = r#"
     variants, variation_config, crypto_account, memo_template,
     metadata, active, subscription_billing_period, subscription_billing_interval,
     subscription_trial_days, subscription_stripe_price_id, subscription_allow_x402,
-    subscription_grace_period_hours, created_at, updated_at
+    subscription_grace_period_hours, gift_card_config, tokenized_asset_config, created_at, updated_at
 "#;
 
 impl ProductRow {
@@ -140,6 +142,12 @@ impl ProductRow {
         let fulfillment: Option<FulfillmentInfo> = self
             .fulfillment
             .and_then(|v| serde_json::from_value(v).ok());
+        let gift_card_config: Option<GiftCardConfig> = self
+            .gift_card_config
+            .and_then(|v| serde_json::from_value(v).ok());
+        let tokenized_asset_config: Option<crate::models::TokenizedAssetConfig> = self
+            .tokenized_asset_config
+            .and_then(|v| serde_json::from_value(v).ok());
 
         Product {
             id: self.id,
@@ -173,6 +181,8 @@ impl ProductRow {
             metadata,
             active: self.active,
             subscription,
+            gift_card_config,
+            tokenized_asset_config,
             created_at: Some(self.created_at),
             updated_at: Some(self.updated_at),
         }
@@ -524,6 +534,20 @@ impl ProductRepository for PostgresProductRepository {
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
+        let gift_card_config: Option<serde_json::Value> = product
+            .gift_card_config
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        let tokenized_asset_config: Option<serde_json::Value> = product
+            .tokenized_asset_config
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
         let (sub_period, sub_interval, sub_trial, sub_stripe, sub_x402, sub_grace) =
             match &product.subscription {
                 Some(s) => (
@@ -550,7 +574,8 @@ impl ProductRepository for PostgresProductRepository {
                 crypto_account, memo_template,
                 metadata, active, subscription_billing_period, subscription_billing_interval,
                 subscription_trial_days, subscription_stripe_price_id, subscription_allow_x402,
-                subscription_grace_period_hours, inventory_quantity, inventory_policy, created_at, updated_at
+                subscription_grace_period_hours, inventory_quantity, inventory_policy,
+                gift_card_config, tokenized_asset_config, created_at, updated_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8,
@@ -561,7 +586,7 @@ impl ProductRepository for PostgresProductRepository {
                 $23, $24, $25, $26, $27,
                 $28, $29,
                 $30, $31, $32, $33, $34, $35, $36, $37,
-                $38, $39, $40, $41
+                $38, $39, $40, $41, $42, $43
             )
             "#,
             self.table_name
@@ -607,6 +632,8 @@ impl ProductRepository for PostgresProductRepository {
             .bind(sub_grace)
             .bind(product.inventory_quantity)
             .bind(&product.inventory_policy)
+            .bind(&gift_card_config)
+            .bind(&tokenized_asset_config)
             .bind(now)
             .bind(now)
             .execute(&self.pool)
@@ -678,6 +705,20 @@ impl ProductRepository for PostgresProductRepository {
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
+        let gift_card_config: Option<serde_json::Value> = product
+            .gift_card_config
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        let tokenized_asset_config: Option<serde_json::Value> = product
+            .tokenized_asset_config
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
         let (sub_period, sub_interval, sub_trial, sub_stripe, sub_x402, sub_grace) =
             match &product.subscription {
                 Some(s) => (
@@ -732,8 +773,10 @@ impl ProductRepository for PostgresProductRepository {
                 subscription_grace_period_hours = $36,
                 inventory_quantity = $37,
                 inventory_policy = $38,
-                updated_at = $39
-            WHERE id = $1 AND tenant_id = $40
+                gift_card_config = $39,
+                tokenized_asset_config = $40,
+                updated_at = $41
+            WHERE id = $1 AND tenant_id = $42
             "#,
             self.table_name
         );
@@ -777,8 +820,10 @@ impl ProductRepository for PostgresProductRepository {
             .bind(sub_grace)
             .bind(product.inventory_quantity)
             .bind(&product.inventory_policy)
+            .bind(&gift_card_config)
+            .bind(&tokenized_asset_config)
             .bind(Utc::now())
-            .bind(&product.tenant_id) // $40: tenant isolation
+            .bind(&product.tenant_id) // $42: tenant isolation
             .execute(&self.pool)
             .await
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;

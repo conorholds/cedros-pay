@@ -171,6 +171,9 @@ function useCheckoutState(): CheckoutContextValue {
                shipping_countries: Array.from(shippingCountries).join(','),
              }
            : {}),
+         ...(valid.values.recipientEmail
+           ? { recipient_email: valid.values.recipientEmail }
+           : {}),
        };
 
       try {

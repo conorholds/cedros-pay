@@ -173,3 +173,219 @@ pub(super) async fn delete_collection(
         Err(StorageError::NotFound)
     }
 }
+
+pub(super) async fn record_gift_card_redemption(
+    store: &InMemoryStore,
+    r: GiftCardRedemption,
+) -> StorageResult<()> {
+    let key = tenant_key(&r.tenant_id, &r.id);
+    store.gift_card_redemptions.lock().insert(key, r);
+    Ok(())
+}
+
+pub(super) async fn list_gift_card_redemptions(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    limit: i32,
+    offset: i32,
+) -> StorageResult<Vec<GiftCardRedemption>> {
+    if limit <= 0 {
+        return Ok(Vec::new());
+    }
+    let mut items: Vec<_> = store
+        .gift_card_redemptions
+        .lock()
+        .values()
+        .filter(|r| r.tenant_id == tenant_id)
+        .cloned()
+        .collect();
+    items.sort_by_key(|r| std::cmp::Reverse(r.created_at));
+    let offset = offset.max(0) as usize;
+    let limit = limit as usize;
+    if offset >= items.len() {
+        return Ok(Vec::new());
+    }
+    let end = (offset + limit).min(items.len());
+    Ok(items[offset..end].to_vec())
+}
+
+pub(super) async fn get_gift_card_redemption_by_token(
+    store: &InMemoryStore,
+    token: &str,
+) -> StorageResult<Option<GiftCardRedemption>> {
+    let found = store
+        .gift_card_redemptions
+        .lock()
+        .values()
+        .find(|r| r.redemption_token.as_deref() == Some(token))
+        .cloned();
+    Ok(found)
+}
+
+pub(super) async fn claim_gift_card_redemption(
+    store: &InMemoryStore,
+    id: &str,
+    recipient_user_id: &str,
+    credits_issued: i64,
+) -> StorageResult<()> {
+    // Iterate all shards — the key is tenant_key(tenant_id, id) but we only have id.
+    let mut map = store.gift_card_redemptions.lock();
+    let entry = map.values_mut().find(|r| r.id == id);
+    match entry {
+        Some(r) if !r.claimed => {
+            r.claimed = true;
+            r.recipient_user_id = recipient_user_id.to_string();
+            r.credits_issued = credits_issued;
+            r.redemption_token = None;
+            Ok(())
+        }
+        Some(_) => Err(StorageError::Conflict),
+        None => Err(StorageError::NotFound),
+    }
+}
+
+pub(super) async fn get_tenant_token22_mint(
+    store: &InMemoryStore,
+    tenant_id: &str,
+) -> StorageResult<Option<TenantToken22Mint>> {
+    let key = tenant_key(tenant_id, "__gift_card__");
+    Ok(store.tenant_token22_mints.lock().get(&key).cloned())
+}
+
+pub(super) async fn upsert_tenant_token22_mint(
+    store: &InMemoryStore,
+    mint: TenantToken22Mint,
+) -> StorageResult<()> {
+    let key = tenant_key(&mint.tenant_id, "__gift_card__");
+    store.tenant_token22_mints.lock().insert(key, mint);
+    Ok(())
+}
+
+pub(super) async fn get_token22_mint_for_collection(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    collection_id: &str,
+) -> StorageResult<Option<TenantToken22Mint>> {
+    let key = tenant_key(tenant_id, collection_id);
+    Ok(store.tenant_token22_mints.lock().get(&key).cloned())
+}
+
+pub(super) async fn upsert_token22_mint_for_collection(
+    store: &InMemoryStore,
+    mint: TenantToken22Mint,
+) -> StorageResult<()> {
+    let key = tenant_key(
+        &mint.tenant_id,
+        mint.collection_id.as_deref().unwrap_or("__gift_card__"),
+    );
+    store.tenant_token22_mints.lock().insert(key, mint);
+    Ok(())
+}
+
+// ─── Asset redemptions ──────────────────────────────────────────────────────
+
+pub(super) async fn record_asset_redemption(
+    store: &InMemoryStore,
+    r: crate::models::AssetRedemption,
+) -> StorageResult<()> {
+    store.asset_redemptions.lock().insert(r.id.clone(), r);
+    Ok(())
+}
+
+pub(super) async fn get_asset_redemption(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    id: &str,
+) -> StorageResult<Option<crate::models::AssetRedemption>> {
+    Ok(store
+        .asset_redemptions
+        .lock()
+        .get(id)
+        .filter(|r| r.tenant_id == tenant_id)
+        .cloned())
+}
+
+pub(super) async fn list_asset_redemptions(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    status: Option<&str>,
+    collection_id: Option<&str>,
+    limit: i32,
+    offset: i32,
+) -> StorageResult<Vec<crate::models::AssetRedemption>> {
+    let guard = store.asset_redemptions.lock();
+    let mut items: Vec<_> = guard
+        .values()
+        .filter(|r| r.tenant_id == tenant_id)
+        .filter(|r| {
+            status.map_or(true, |s| {
+                serde_json::to_value(&r.status)
+                    .ok()
+                    .and_then(|v| v.as_str().map(|x| x == s))
+                    .unwrap_or(false)
+            })
+        })
+        .filter(|r| collection_id.map_or(true, |c| r.collection_id == c))
+        .cloned()
+        .collect();
+    items.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(items
+        .into_iter()
+        .skip(offset as usize)
+        .take(limit as usize)
+        .collect())
+}
+
+pub(super) async fn update_asset_redemption_status(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    id: &str,
+    status: &str,
+    admin_notes: Option<&str>,
+) -> StorageResult<()> {
+    let mut guard = store.asset_redemptions.lock();
+    let r = guard
+        .get_mut(id)
+        .filter(|r| r.tenant_id == tenant_id)
+        .ok_or(StorageError::NotFound)?;
+    r.status = serde_json::from_value(serde_json::Value::String(status.to_string()))
+        .unwrap_or(crate::models::AssetRedemptionStatus::PendingInfo);
+    if let Some(notes) = admin_notes {
+        r.admin_notes = Some(notes.to_string());
+    }
+    r.updated_at = chrono::Utc::now();
+    Ok(())
+}
+
+pub(super) async fn update_asset_redemption_form_data(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    id: &str,
+    form_data: &serde_json::Value,
+) -> StorageResult<()> {
+    let mut guard = store.asset_redemptions.lock();
+    let r = guard
+        .get_mut(id)
+        .filter(|r| r.tenant_id == tenant_id)
+        .ok_or(StorageError::NotFound)?;
+    r.form_data = form_data.clone();
+    r.status = crate::models::AssetRedemptionStatus::InfoSubmitted;
+    r.updated_at = chrono::Utc::now();
+    Ok(())
+}
+
+pub(super) async fn record_token_burn_signature(
+    store: &InMemoryStore,
+    tenant_id: &str,
+    id: &str,
+    signature: &str,
+) -> StorageResult<()> {
+    let mut guard = store.asset_redemptions.lock();
+    let r = guard
+        .get_mut(id)
+        .filter(|r| r.tenant_id == tenant_id)
+        .ok_or(StorageError::NotFound)?;
+    r.token_burn_signature = Some(signature.to_string());
+    r.updated_at = chrono::Utc::now();
+    Ok(())
+}

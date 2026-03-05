@@ -177,6 +177,8 @@ pub async fn create_product(
         metadata: req.metadata,
         active: req.active,
         subscription: None,
+        gift_card_config: req.gift_card_config,
+        tokenized_asset_config: req.tokenized_asset_config,
         created_at: Some(Utc::now()),
         updated_at: Some(Utc::now()),
     };
@@ -296,6 +298,8 @@ pub async fn update_product(
         metadata: req.metadata,
         active: req.active,
         subscription: existing.subscription,
+        gift_card_config: req.gift_card_config.or(existing.gift_card_config),
+        tokenized_asset_config: req.tokenized_asset_config.or(existing.tokenized_asset_config),
         created_at: existing.created_at,
         updated_at: Some(Utc::now()),
     };

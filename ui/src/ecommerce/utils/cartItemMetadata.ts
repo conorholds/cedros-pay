@@ -17,5 +17,9 @@ export function buildCartItemMetadataFromProduct(product: Product): Record<strin
      metadata.shippingCountries = shippingCountries;
    }
 
+  if (product.tokenizedAssetConfig) {
+    metadata.tokenizedAsset = 'true';
+  }
+
   return Object.keys(metadata).length ? metadata : undefined;
 }

@@ -9,3 +9,17 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Optional peer dependencies — ambient declarations for dynamic imports
+declare module '@meteora-ag/dlmm' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const DLMM: any;
+  export default DLMM;
+}
+
+declare module 'bn.js' {
+  class BN {
+    constructor(value: number | string);
+  }
+  export default BN;
+}

@@ -368,6 +368,7 @@ async fn test_list_products_filters_by_collection() {
             description: None,
             product_ids: vec![p1.id.clone(), p2.id.clone()],
             active: true,
+            tokenization_config: None,
             created_at: now,
             updated_at: now,
         })
@@ -414,6 +415,7 @@ async fn test_list_products_collection_pagination_skips_inactive() {
             description: None,
             product_ids: vec![p2.id.clone(), p1.id.clone()],
             active: true,
+            tokenization_config: None,
             created_at: now,
             updated_at: now,
         })

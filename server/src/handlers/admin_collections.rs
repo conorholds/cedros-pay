@@ -36,6 +36,7 @@ pub struct CreateCollectionRequest {
     pub product_ids: Vec<String>,
     #[serde(default = "default_active")]
     pub active: bool,
+    pub tokenization_config: Option<crate::models::TokenizationConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +48,7 @@ pub struct UpdateCollectionRequest {
     pub product_ids: Vec<String>,
     #[serde(default = "default_active")]
     pub active: bool,
+    pub tokenization_config: Option<crate::models::TokenizationConfig>,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,6 +144,34 @@ pub async fn create_collection(
         }
     };
 
+    // Validate tokenization config if present
+    if let Some(ref tc) = req.tokenization_config {
+        if tc.transfer_fee_bps < 0 || tc.transfer_fee_bps > 10_000 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some("transfer_fee_bps must be 0-10000".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+        if tc.max_transfer_fee < 0 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some("max_transfer_fee must be non-negative".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+        if tc.token_decimals < 0 || tc.token_decimals > 9 {
+            let (status, body) = error_response(
+                ErrorCode::InvalidField,
+                Some("token_decimals must be 0-9".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
     let now = Utc::now();
     let collection = Collection {
         id: req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
@@ -150,6 +180,7 @@ pub async fn create_collection(
         description: req.description,
         product_ids,
         active: req.active,
+        tokenization_config: req.tokenization_config,
         created_at: now,
         updated_at: now,
     };
@@ -216,6 +247,7 @@ pub async fn update_collection(
         description: req.description,
         product_ids,
         active: req.active,
+        tokenization_config: req.tokenization_config.or(existing.tokenization_config),
         created_at: existing.created_at,
         updated_at: Utc::now(),
     };
@@ -294,6 +326,7 @@ mod tests {
             description: None,
             product_ids: vec!["prod-1".to_string(), "prod-2".to_string()],
             active: true,
+            tokenization_config: None,
         };
 
         let response = create_collection(State(state), tenant.clone(), Json(request))
@@ -326,6 +359,7 @@ mod tests {
             description: None,
             product_ids: vec![],
             active: true,
+            tokenization_config: None,
         };
 
         let response = create_collection(State(state), tenant, Json(request))

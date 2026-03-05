@@ -702,9 +702,9 @@ pub mod gift_cards {
 pub mod collections {
     pub const INSERT: &str = r#"
         INSERT INTO collections (
-            id, tenant_id, name, description, product_ids, active, created_at, updated_at
+            id, tenant_id, name, description, product_ids, active, tokenization_config, created_at, updated_at
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     "#;
 
     pub const UPDATE: &str = r#"
@@ -713,18 +713,19 @@ pub mod collections {
             description = $4,
             product_ids = $5,
             active = $6,
-            updated_at = $7
+            tokenization_config = $7,
+            updated_at = $8
         WHERE tenant_id = $1 AND id = $2
     "#;
 
     pub const GET: &str = r#"
-        SELECT id, tenant_id, name, description, product_ids, active, created_at, updated_at
+        SELECT id, tenant_id, name, description, product_ids, active, tokenization_config, created_at, updated_at
         FROM collections
         WHERE tenant_id = $1 AND id = $2
     "#;
 
     pub const LIST: &str = r#"
-        SELECT id, tenant_id, name, description, product_ids, active, created_at, updated_at
+        SELECT id, tenant_id, name, description, product_ids, active, tokenization_config, created_at, updated_at
         FROM collections
         WHERE tenant_id = $1
           AND ($2::boolean IS NULL OR active = $2)

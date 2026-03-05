@@ -12,6 +12,7 @@ import { ProductGallery } from '../components/catalog/ProductGallery';
 import { VariantSelector } from '../components/catalog/VariantSelector';
 import { QuantitySelector } from '../components/catalog/QuantitySelector';
 import { Price } from '../components/catalog/Price';
+import { AssetBadge } from '../components/catalog/AssetBadge';
 import { Button } from '../components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { Skeleton } from '../components/ui/skeleton';
@@ -19,6 +20,75 @@ import { ErrorState } from '../components/general/ErrorState';
 import { ProductGrid } from '../components/catalog/ProductGrid';
 import { useOptionalToast } from '../components/general/toast';
 import { parseCsv } from '../../utils/csvHelpers';
+import { formatMoney } from '../utils/money';
+import { safeHref } from '../utils/safeHref';
+
+function TokenizedAssetInfo({
+  config,
+  currency,
+}: {
+  config: NonNullable<Product['tokenizedAssetConfig']>;
+  currency: string;
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+      <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        Tokenized Asset
+      </div>
+      <div className="mt-2 space-y-1.5 text-sm text-neutral-700 dark:text-neutral-300">
+        <div className="flex justify-between">
+          <span>Backing value</span>
+          <span className="font-medium text-neutral-950 dark:text-neutral-50">
+            {formatMoney({ amount: config.backingValueCents / 100, currency: config.backingCurrency || currency })}
+          </span>
+        </div>
+        {config.assetIdentifier ? (
+          <div className="flex justify-between">
+            <span>Asset ID</span>
+            <span className="font-mono text-xs text-neutral-950 dark:text-neutral-50">{config.assetIdentifier}</span>
+          </div>
+        ) : null}
+        {config.tokensPerUnit > 1 ? (
+          <div className="flex justify-between">
+            <span>Tokens per unit</span>
+            <span className="font-medium text-neutral-950 dark:text-neutral-50">{config.tokensPerUnit}</span>
+          </div>
+        ) : null}
+        {safeHref(config.custodyProofUrl) ? (
+          <div className="flex justify-between">
+            <span>Custody proof</span>
+            <a
+              href={safeHref(config.custodyProofUrl)!}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium underline underline-offset-2"
+            >
+              View document
+            </a>
+          </div>
+        ) : null}
+        {config.nftMintAddress ? (
+          <div className="flex justify-between">
+            <span>On-chain token</span>
+            <a
+              href={`https://solscan.io/account/${config.nftMintAddress}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-xs font-medium underline underline-offset-2"
+            >
+              {config.nftMintAddress.slice(0, 4)}...{config.nftMintAddress.slice(-4)}
+            </a>
+          </div>
+        ) : null}
+      </div>
+      {config.regulatoryNotice ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          {config.regulatoryNotice}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function ProductTemplate({
   slug,
@@ -201,7 +271,12 @@ export function ProductTemplate({
           <ProductGallery images={product.images} />
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">{product.title}</h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-semibold tracking-tight">{product.title}</h1>
+                {product.tokenizedAssetConfig?.assetClass ? (
+                  <AssetBadge assetClass={product.tokenizedAssetConfig.assetClass} />
+                ) : null}
+              </div>
               <div className="mt-3">
                 <Price amount={unitPrice} currency={product.currency} compareAt={compareAt} />
               </div>
@@ -213,6 +288,10 @@ export function ProductTemplate({
                 </div>
               ) : null}
               <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">{product.description}</p>
+
+              {product.tokenizedAssetConfig ? (
+                <TokenizedAssetInfo config={product.tokenizedAssetConfig} currency={product.currency} />
+              ) : null}
             </div>
 
             <VariantSelector

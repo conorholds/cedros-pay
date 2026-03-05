@@ -11,7 +11,21 @@ fn env_float(name: &str) -> Option<f64> {
 }
 
 fn env_duration(name: &str) -> Option<Duration> {
-    env_var(name).and_then(|v| humantime::parse_duration(&v).ok())
+    env_var(name).and_then(|v| parse_duration_simple(&v))
+}
+
+/// Parse a duration string like "30s", "5m", "1h", or bare seconds "30".
+fn parse_duration_simple(s: &str) -> Option<Duration> {
+    let s = s.trim();
+    if let Some(n) = s.strip_suffix('s') {
+        n.trim().parse::<u64>().ok().map(Duration::from_secs)
+    } else if let Some(n) = s.strip_suffix('m') {
+        n.trim().parse::<u64>().ok().map(|m| Duration::from_secs(m * 60))
+    } else if let Some(n) = s.strip_suffix('h') {
+        n.trim().parse::<u64>().ok().map(|h| Duration::from_secs(h * 3600))
+    } else {
+        s.parse::<u64>().ok().map(Duration::from_secs)
+    }
 }
 
 fn collect_sequential_env(prefix: &str) -> Vec<String> {
