@@ -11,7 +11,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{Customer, CustomerAddress};
@@ -126,7 +126,7 @@ pub async fn create_customer(
     let now = Utc::now();
     let customer = Customer {
         id: req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         email: req.email.trim().to_string(),
         name: req.name,
         phone: req.phone,
@@ -136,7 +136,10 @@ pub async fn create_customer(
     };
 
     match state.store.create_customer(customer.clone()).await {
-        Ok(()) => json_ok(customer),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "customer", &customer.id, "create", None).await;
+            json_ok(customer)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -192,7 +195,10 @@ pub async fn update_customer(
     };
 
     match state.store.update_customer(updated.clone()).await {
-        Ok(()) => json_ok(updated),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "customer", &id, "update", None).await;
+            json_ok(updated)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,

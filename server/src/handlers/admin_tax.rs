@@ -11,7 +11,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::TaxRate;
@@ -179,7 +179,7 @@ pub async fn create_tax_rate(
     let now = Utc::now();
     let rate = TaxRate {
         id: req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         name: req.name.trim().to_string(),
         country,
         region,
@@ -190,7 +190,10 @@ pub async fn create_tax_rate(
     };
 
     match state.store.create_tax_rate(rate.clone()).await {
-        Ok(()) => json_ok(rate),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "tax_rate", &rate.id, "create", None).await;
+            json_ok(rate)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -268,7 +271,10 @@ pub async fn update_tax_rate(
     };
 
     match state.store.update_tax_rate(updated.clone()).await {
-        Ok(()) => json_ok(updated),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "tax_rate", &id, "update", None).await;
+            json_ok(updated)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -294,7 +300,10 @@ pub async fn delete_tax_rate(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     match state.store.delete_tax_rate(&tenant.tenant_id, &id).await {
-        Ok(()) => json_ok(serde_json::json!({ "deleted": true })),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "tax_rate", &id, "delete", None).await;
+            json_ok(serde_json::json!({ "deleted": true }))
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,

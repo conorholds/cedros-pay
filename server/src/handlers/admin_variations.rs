@@ -12,7 +12,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 #[cfg(test)]
@@ -210,6 +210,7 @@ pub async fn update_variations(
     // Save product
     match state.product_repo.update_product(product.clone()).await {
         Ok(()) => {
+            audit(&*state.store, &tenant, "product", &product_id, "update_variations", None).await;
             let response = UpdateVariationsResponse {
                 success: true,
                 message: format!(
@@ -300,6 +301,8 @@ pub async fn bulk_update_inventory(
     // Save product
     match state.product_repo.update_product(product.clone()).await {
         Ok(()) => {
+            audit(&*state.store, &tenant, "product", &product_id, "bulk_update_inventory", None)
+                .await;
             let response = BulkInventoryUpdateResponse {
                 success: true,
                 message: format!("Updated inventory for {} variants", updated_count),

@@ -1310,6 +1310,25 @@ impl Store for FailingCompleteIdempotencyStore {
     ) -> StorageResult<()> {
         unimplemented!()
     }
+
+    async fn record_admin_audit(
+        &self,
+        _entry: crate::models::AdminAuditEntry,
+    ) -> StorageResult<()> {
+        Ok(())
+    }
+
+    async fn list_admin_audit(
+        &self,
+        _tenant_id: &str,
+        _resource_type: Option<&str>,
+        _resource_id: Option<&str>,
+        _actor: Option<&str>,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::AdminAuditEntry>> {
+        Ok(vec![])
+    }
 }
 
 #[tokio::test]

@@ -10,7 +10,7 @@ use axum::{
 use chrono::Utc;
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::{AdminProductInfo, AdminState, ListProductsResponse};
+use crate::handlers::admin::{audit, AdminProductInfo, AdminState, ListProductsResponse};
 use crate::handlers::admin_products_stripe::{stripe_ids_for_create, stripe_ids_for_update};
 use crate::handlers::admin_products_types::{
     resolve_crypto, resolve_fiat, validate_product_checkout_fields, AdjustInventoryRequest,
@@ -184,7 +184,18 @@ pub async fn create_product(
     };
 
     match state.product_repo.create_product(product.clone()).await {
-        Ok(()) => json_ok(AdminProductInfo::from(&product)).into_response(),
+        Ok(()) => {
+            audit(
+                &*state.store,
+                &tenant,
+                "product",
+                &product.id,
+                "create",
+                Some(serde_json::json!({"title": &product.title})),
+            )
+            .await;
+            json_ok(AdminProductInfo::from(&product)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to create product");
             let (status, body) = error_response(
@@ -305,7 +316,10 @@ pub async fn update_product(
     };
 
     match state.product_repo.update_product(product.clone()).await {
-        Ok(()) => json_ok(AdminProductInfo::from(&product)).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "product", &id, "update", None).await;
+            json_ok(AdminProductInfo::from(&product)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to update product");
             let (status, body) = error_response(
@@ -361,7 +375,10 @@ pub async fn delete_product(
         .delete_product(&tenant.tenant_id, &id)
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({"deleted": true})).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "product", &id, "delete", None).await;
+            json_ok(serde_json::json!({"deleted": true})).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to delete product");
             let (status, body) = error_response(
@@ -408,7 +425,18 @@ pub async fn set_product_inventory(
     product.updated_at = Some(Utc::now());
 
     match state.product_repo.update_product(product.clone()).await {
-        Ok(()) => json_ok(AdminProductInfo::from(&product)).into_response(),
+        Ok(()) => {
+            audit(
+                &*state.store,
+                &tenant,
+                "product",
+                &id,
+                "set_inventory",
+                Some(serde_json::json!({"quantity": req.quantity})),
+            )
+            .await;
+            json_ok(AdminProductInfo::from(&product)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, product_id = %id, "Failed to set product inventory");
             let (status, body) = error_response(
@@ -483,7 +511,18 @@ pub async fn adjust_product_inventory(
 
     // Fetch updated product for response
     match state.product_repo.get_product(&tenant.tenant_id, &id).await {
-        Ok(product) => json_ok(AdminProductInfo::from(&product)).into_response(),
+        Ok(product) => {
+            audit(
+                &*state.store,
+                &tenant,
+                "product",
+                &id,
+                "adjust_inventory",
+                Some(serde_json::json!({"delta": req.delta})),
+            )
+            .await;
+            json_ok(AdminProductInfo::from(&product)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, product_id = %id, "Failed to fetch product after adjustment");
             let (status, body) = error_response(

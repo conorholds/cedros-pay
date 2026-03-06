@@ -11,9 +11,9 @@ use chrono::{DateTime, Utc};
 
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq, Fulfillment,
-    GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation, Order,
-    OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
+    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
+    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
+    Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
     ShippingRate, Subscription, SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 use crate::storage::{
@@ -665,6 +665,23 @@ impl<S: Store + 'static> Store for CachedStore<S> {
     ) -> StorageResult<(i32, i32)> {
         self.inner
             .adjust_inventory_atomic(tenant_id, product_id, delta)
+            .await
+    }
+
+    async fn record_admin_audit(&self, entry: AdminAuditEntry) -> StorageResult<()> {
+        self.inner.record_admin_audit(entry).await
+    }
+    async fn list_admin_audit(
+        &self,
+        tenant_id: &str,
+        resource_type: Option<&str>,
+        resource_id: Option<&str>,
+        actor: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<AdminAuditEntry>> {
+        self.inner
+            .list_admin_audit(tenant_id, resource_type, resource_id, actor, limit, offset)
             .await
     }
 

@@ -11,7 +11,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::Faq;
@@ -173,7 +173,7 @@ pub async fn create_faq(
     let now = Utc::now();
     let faq = Faq {
         id: uuid::Uuid::new_v4().to_string(),
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         question,
         answer,
         keywords: normalize_keywords(req.keywords),
@@ -185,7 +185,10 @@ pub async fn create_faq(
     };
 
     match state.store.create_faq(faq.clone()).await {
-        Ok(()) => json_ok(faq),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "faq", &faq.id, "create", None).await;
+            json_ok(faq)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -253,7 +256,10 @@ pub async fn update_faq(
     };
 
     match state.store.update_faq(updated.clone()).await {
-        Ok(()) => json_ok(updated),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "faq", &faq_id, "update", None).await;
+            json_ok(updated)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -279,7 +285,10 @@ pub async fn delete_faq(
     Path(faq_id): Path<String>,
 ) -> impl IntoResponse {
     match state.store.delete_faq(&tenant.tenant_id, &faq_id).await {
-        Ok(()) => json_ok(serde_json::json!({ "deleted": true })),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "faq", &faq_id, "delete", None).await;
+            json_ok(serde_json::json!({ "deleted": true }))
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,

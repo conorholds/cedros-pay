@@ -13,6 +13,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
+use crate::handlers::admin::audit;
 use crate::middleware::TenantContext;
 use crate::storage::{Store, WebhookStatus};
 
@@ -188,6 +189,7 @@ pub async fn retry_webhook<S: Store + 'static>(
 
     match store.retry_webhook(&webhook_id).await {
         Ok(_) => {
+            audit(&*store, &tenant, "webhook", &webhook_id, "retry", None).await;
             let response = serde_json::json!({
                 "status": "queued",
                 "message": "Webhook queued for retry"
@@ -227,7 +229,10 @@ pub async fn delete_webhook<S: Store + 'static>(
     }
 
     match store.delete_webhook(&webhook_id).await {
-        Ok(_) => axum::http::StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => {
+            audit(&*store, &tenant, "webhook", &webhook_id, "delete", None).await;
+            axum::http::StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to delete webhook");
             let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
@@ -305,6 +310,7 @@ pub async fn retry_from_dlq<S: Store + 'static>(
 
     match store.retry_from_dlq(&dlq_id).await {
         Ok(_) => {
+            audit(&*store, &tenant, "webhook_dlq", &dlq_id, "retry", None).await;
             let response = serde_json::json!({
                 "status": "queued",
                 "message": "Webhook requeued from DLQ"
@@ -344,7 +350,10 @@ pub async fn delete_from_dlq<S: Store + 'static>(
     }
 
     match store.delete_from_dlq(&dlq_id).await {
-        Ok(_) => axum::http::StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => {
+            audit(&*store, &tenant, "webhook_dlq", &dlq_id, "delete", None).await;
+            axum::http::StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to delete from DLQ");
             let (status, body) = error_response(ErrorCode::DatabaseError, None, None);

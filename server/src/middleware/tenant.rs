@@ -62,6 +62,9 @@ pub struct TenantContext {
     pub is_default: bool,
     /// Source of tenant ID extraction
     pub source: TenantSource,
+    /// Admin actor identity (set by admin_middleware for audit logging).
+    /// Contains X-Signer pubkey (Ed25519) or JWT sub claim.
+    pub admin_actor: Option<String>,
 }
 
 /// Source of tenant ID extraction per spec (10-middleware.md)
@@ -81,6 +84,7 @@ impl Default for TenantContext {
             tenant_id: "default".to_string(),
             is_default: true,
             source: TenantSource::Default,
+            admin_actor: None,
         }
     }
 }
@@ -217,6 +221,7 @@ pub async fn tenant_middleware(mut request: Request, next: Next) -> Result<Respo
                 tenant_id: id,
                 is_default: false,
                 source,
+                admin_actor: None,
             }
         }
         None => TenantContext::default(),
@@ -253,6 +258,7 @@ pub async fn tenant_middleware_required(
         tenant_id,
         is_default: false,
         source,
+        admin_actor: None,
     };
 
     request.extensions_mut().insert(tenant_context);

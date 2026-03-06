@@ -570,6 +570,8 @@ fn build_dashboard_routes<S: Store + 'static>(
             "/refunds/{id}/process",
             post(handlers::admin::process_refund),
         )
+        // Audit log
+        .route("/audit", get(handlers::admin::list_audit))
         .with_state(admin_dashboard_state)
         .layer(axum::middleware::from_fn_with_state(
             admin_auth_state,

@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{is_valid_order_transition, Fulfillment, Order, OrderHistoryEntry, OrderItem};
@@ -586,9 +586,19 @@ pub async fn update_order_status(
         return json_error(status_code, body);
     }
 
-    order.status = target_status;
+    order.status = target_status.clone();
     order.status_updated_at = Some(now);
     order.updated_at = Some(now);
+
+    audit(
+        &*state.store,
+        &tenant,
+        "order",
+        &order_id,
+        "update_status",
+        Some(serde_json::json!({"status": &target_status})),
+    )
+    .await;
 
     json_ok(UpdateOrderStatusResponse { order })
 }
@@ -748,6 +758,8 @@ pub async fn create_fulfillment(
         );
         return json_error(status_code, body);
     }
+
+    audit(&*state.store, &tenant, "fulfillment", &order_id, "create", None).await;
 
     json_ok(FulfillmentResponse { fulfillment })
 }
@@ -955,6 +967,16 @@ pub async fn update_fulfillment_status(
             }
         }
     }
+
+    audit(
+        &*state.store,
+        &tenant,
+        "fulfillment",
+        &fulfillment_id,
+        "update_status",
+        None,
+    )
+    .await;
 
     json_ok(FulfillmentResponse { fulfillment })
 }

@@ -12,20 +12,21 @@ use sqlx::{QueryBuilder, Row};
 
 use super::connection::PostgresPool;
 use super::parsers::{
-    parse_admin_nonce, parse_cart_quote, parse_chat_message, parse_chat_session, parse_collection,
-    parse_credits_hold, parse_customer, parse_dispute, parse_dlq_webhook, parse_email, parse_faq,
-    parse_fulfillment, parse_gift_card, parse_idempotency_response, parse_inventory_adjustment,
-    parse_inventory_reservation, parse_order, parse_order_history, parse_payment_transaction,
-    parse_refund_quote, parse_return_request, parse_shipping_profile, parse_shipping_rate,
+    parse_admin_audit_entry, parse_admin_nonce, parse_cart_quote, parse_chat_message,
+    parse_chat_session, parse_collection, parse_credits_hold, parse_customer, parse_dispute,
+    parse_dlq_webhook, parse_email, parse_faq, parse_fulfillment, parse_gift_card,
+    parse_idempotency_response, parse_inventory_adjustment, parse_inventory_reservation,
+    parse_order, parse_order_history, parse_payment_transaction, parse_refund_quote,
+    parse_return_request, parse_shipping_profile, parse_shipping_rate,
     parse_stripe_refund_request, parse_subscription, parse_tax_rate, parse_webhook,
 };
 use super::queries;
 use crate::config::SchemaMapping;
 use crate::models::{
-    AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
-    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
-    Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
-    ShippingRate, StripeRefundRequest, Subscription, SubscriptionStatus, TaxRate,
+    AdminAuditEntry, AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer,
+    DisputeRecord, Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment,
+    InventoryReservation, Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest,
+    ShippingProfile, ShippingRate, StripeRefundRequest, Subscription, SubscriptionStatus, TaxRate,
     TenantToken22Mint,
 };
 use crate::storage::{
@@ -35,6 +36,7 @@ use crate::storage::{
 use crate::{constants::DEFAULT_ACCESS_TTL, storage::memory::to_chrono_duration};
 
 mod admin;
+mod admin_audit;
 mod auth;
 mod cart;
 mod catalog;
@@ -584,6 +586,22 @@ impl Store for PostgresStore {
         delta: i32,
     ) -> StorageResult<(i32, i32)> {
         inventory::adjust_inventory_atomic(self, tenant_id, product_id, delta).await
+    }
+
+    // ─── Admin audit trail (R12)
+    async fn record_admin_audit(&self, entry: AdminAuditEntry) -> StorageResult<()> {
+        admin_audit::record_admin_audit(self, entry).await
+    }
+    async fn list_admin_audit(
+        &self,
+        tenant_id: &str,
+        resource_type: Option<&str>,
+        resource_id: Option<&str>,
+        actor: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<AdminAuditEntry>> {
+        admin_audit::list_admin_audit(self, tenant_id, resource_type, resource_id, actor, limit, offset).await
     }
 
     // ─── Catalog (shipping, tax, customers, disputes, gift cards, collections)

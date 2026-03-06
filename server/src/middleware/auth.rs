@@ -23,6 +23,7 @@ pub struct AuthContext {
     pub api_tier: ApiKeyTier,
 }
 
+
 /// Auth middleware state
 #[derive(Clone)]
 pub struct AuthState {
@@ -199,7 +200,7 @@ fn is_tenant_allowed_for_api_key(tenant_id: &str, allowed_tenants: &[String]) ->
 /// Ed25519 auth is tried first if signature headers are present.
 pub async fn admin_middleware<S: Store + 'static>(
     axum::extract::State(state): axum::extract::State<Arc<AdminAuthState<S>>>,
-    request: Request<Body>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Result<Response, axum::http::StatusCode> {
     // Try Ed25519 signature auth first
@@ -230,6 +231,9 @@ pub async fn admin_middleware<S: Store + 'static>(
             }
 
             tracing::debug!(admin = %signer, purpose = expected_purpose, "Admin request authenticated via Ed25519");
+            if let Some(tc) = request.extensions_mut().get_mut::<TenantContext>() {
+                tc.admin_actor = Some(signer);
+            }
             return Ok(next.run(request).await);
         }
         SignatureVerifyResult::Invalid { reason } => {
@@ -258,6 +262,9 @@ pub async fn admin_middleware<S: Store + 'static>(
                         Ok(claims) => {
                             if claims.is_admin() {
                                 tracing::debug!(user_id = %claims.sub, "Admin request authenticated via JWT");
+                                if let Some(tc) = request.extensions_mut().get_mut::<TenantContext>() {
+                                    tc.admin_actor = Some(claims.sub.clone());
+                                }
                                 return Ok(next.run(request).await);
                             }
                             // JWT valid but user is not a system admin

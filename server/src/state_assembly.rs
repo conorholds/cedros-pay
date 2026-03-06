@@ -170,8 +170,12 @@ fn build_pg_dependent_states<S: Store + 'static>(
                 Arc::new(handlers::admin_subscriptions::AdminSubscriptionsState {
                     config_repo: repo.clone(),
                     stripe_client,
+                    store: store.clone(),
                 });
-            let ai_state = Arc::new(handlers::admin_ai::AdminAiState { repo: repo.clone() });
+            let ai_state = Arc::new(handlers::admin_ai::AdminAiState {
+                repo: repo.clone(),
+                store: store.clone(),
+            });
             let ai_assistant_state =
                 Arc::new(handlers::admin_ai_assistant::AdminAiAssistantState {
                     repo: repo.clone(),

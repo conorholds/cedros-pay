@@ -7,6 +7,7 @@ use chrono::Utc;
 use serde::Deserialize;
 
 use crate::errors::{error_response, ErrorCode};
+use crate::handlers::admin::audit;
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::services::token22::Token22Service;
@@ -106,6 +107,17 @@ pub async fn initialize_mint(
         return json_error(status, body).into_response();
     }
 
+    let mint_address_str = mint_result.mint_address.to_string();
+    audit(
+        &*state.store,
+        &tenant,
+        "token22_mint",
+        &mint_address_str,
+        "initialize_mint",
+        None,
+    )
+    .await;
+
     json_ok(serde_json::json!({
         "mintAddress": mint_result.mint_address.to_string(),
         "signature": mint_result.signature,
@@ -201,6 +213,7 @@ pub async fn harvest_fees(
 
     // NOTE: In production, enumerate token accounts with withheld fees.
     // For now, return an info message since we need account enumeration.
+    audit(&*state.store, &tenant, "token22_mint", "all", "harvest_fees", None).await;
     json_ok(serde_json::json!({
         "message": "Fee harvesting requires specifying source accounts with withheld fees",
         "mintAddress": mint_pubkey.to_string(),

@@ -19,8 +19,8 @@ pub struct PostgresConfig {
     pub acquire_timeout: Duration,
     pub idle_timeout: Duration,
     pub max_lifetime: Duration,
-    /// SSL mode for PostgreSQL connections. Defaults to `Prefer`.
-    /// Set to `Require` in production via POSTGRES_SSL_MODE=require.
+    /// SSL mode for PostgreSQL connections. Defaults to `Require`.
+    /// Override via POSTGRES_SSL_MODE=prefer|disable for local development.
     pub ssl_mode: PgSslMode,
     /// PostgreSQL statement_timeout in milliseconds (0 = no limit).
     /// Prevents runaway queries from holding connections indefinitely.
@@ -45,7 +45,7 @@ impl Default for PostgresConfig {
             acquire_timeout: Duration::from_secs(5), // Fail fast for better user experience
             idle_timeout: Duration::from_secs(600),
             max_lifetime: Duration::from_secs(1800),
-            ssl_mode: PgSslMode::Prefer,
+            ssl_mode: PgSslMode::Require,
             statement_timeout_ms: 30_000,           // 30 seconds
             idle_in_transaction_timeout_ms: 60_000, // 60 seconds
         }
@@ -95,9 +95,9 @@ impl PostgresConfig {
                 .to_lowercase()
                 .as_str()
             {
-                "require" => PgSslMode::Require,
+                "prefer" => PgSslMode::Prefer,
                 "disable" => PgSslMode::Disable,
-                _ => PgSslMode::Prefer,
+                _ => PgSslMode::Require,
             },
             statement_timeout_ms: std::env::var("POSTGRES_STATEMENT_TIMEOUT_MS")
                 .ok()

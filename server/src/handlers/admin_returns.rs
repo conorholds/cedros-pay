@@ -12,7 +12,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{is_valid_return_transition, OrderItem, ReturnRequest};
@@ -180,7 +180,7 @@ pub async fn create_return(
     let now = Utc::now();
     let request = ReturnRequest {
         id: req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         order_id: req.order_id,
         status: "requested".to_string(),
         items: req.items,
@@ -192,7 +192,10 @@ pub async fn create_return(
     };
 
     match state.store.create_return_request(request.clone()).await {
-        Ok(()) => json_ok(request),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "return", &request.id, "create", None).await;
+            json_ok(request)
+        }
         Err(e) => {
             let (status_code, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -275,6 +278,8 @@ pub async fn update_return_status(
         updated_at: Some(now),
         ..existing
     };
+
+    audit(&*state.store, &tenant, "return", &id, "update_status", None).await;
 
     json_ok(updated)
 }

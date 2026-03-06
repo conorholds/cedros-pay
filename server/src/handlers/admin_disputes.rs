@@ -12,7 +12,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::DisputeRecord;
@@ -150,7 +150,7 @@ pub async fn create_dispute(
     let now = Utc::now();
     let dispute = DisputeRecord {
         id: req.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         source: req.source.trim().to_lowercase(),
         order_id: req.order_id,
         payment_intent_id: req.payment_intent_id,
@@ -166,7 +166,10 @@ pub async fn create_dispute(
     };
 
     match state.store.create_dispute(dispute.clone()).await {
-        Ok(()) => json_ok(dispute),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "dispute", &dispute.id, "create", None).await;
+            json_ok(dispute)
+        }
         Err(e) => {
             let (status_code, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -201,7 +204,10 @@ pub async fn update_dispute_status(
         .await
     {
         Ok(()) => match state.store.get_dispute(&tenant.tenant_id, &id).await {
-            Ok(Some(dispute)) => json_ok(dispute),
+            Ok(Some(dispute)) => {
+                audit(&*state.store, &tenant, "dispute", &id, "update_status", None).await;
+                json_ok(dispute)
+            }
             Ok(None) => {
                 let (status_code, body) = error_response(
                     ErrorCode::ResourceNotFound,

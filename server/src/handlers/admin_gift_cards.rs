@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::GiftCard;
@@ -181,7 +181,7 @@ pub async fn create_gift_card(
     let now = Utc::now();
     let card = GiftCard {
         code,
-        tenant_id: tenant.tenant_id,
+        tenant_id: tenant.tenant_id.clone(),
         initial_balance: req.initial_balance,
         balance,
         currency,
@@ -193,7 +193,10 @@ pub async fn create_gift_card(
     };
 
     match state.store.create_gift_card(card.clone()).await {
-        Ok(()) => json_ok(card),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "gift_card", &card.code, "create", None).await;
+            json_ok(card)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -262,7 +265,10 @@ pub async fn update_gift_card(
     };
 
     match state.store.update_gift_card(updated.clone()).await {
-        Ok(()) => json_ok(updated),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "gift_card", &code, "update", None).await;
+            json_ok(updated)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -300,7 +306,18 @@ pub async fn adjust_gift_card_balance(
         .await
     {
         Ok(()) => match state.store.get_gift_card(&tenant.tenant_id, &code).await {
-            Ok(Some(card)) => json_ok(card),
+            Ok(Some(card)) => {
+                audit(
+                    &*state.store,
+                    &tenant,
+                    "gift_card",
+                    &code,
+                    "adjust",
+                    Some(serde_json::json!({"amount": req.new_balance})),
+                )
+                .await;
+                json_ok(card)
+            }
             Ok(None) => {
                 let (status, body) = error_response(
                     ErrorCode::ResourceNotFound,

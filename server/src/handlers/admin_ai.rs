@@ -14,8 +14,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::PostgresConfigRepository;
 use crate::errors::{error_response, ErrorCode};
+use crate::handlers::admin::audit;
 use crate::handlers::response::json_error;
 use crate::middleware::TenantContext;
+use crate::storage::Store;
 
 // ============================================================================
 // Types - matching UI team RFC
@@ -214,6 +216,7 @@ pub struct SavePromptResponse {
 /// Shared state for AI settings handlers
 pub struct AdminAiState {
     pub repo: Arc<PostgresConfigRepository>,
+    pub store: Arc<dyn Store>,
 }
 
 const AI_CATEGORY: &str = "ai";
@@ -357,6 +360,8 @@ pub async fn save_api_key(
         .await
     {
         Ok(_) => {
+            let provider_str = request.provider.to_string();
+            audit(&*state.store, &tenant, "ai_config", &provider_str, "save_api_key", None).await;
             let response = SaveApiKeyResponse {
                 provider: request.provider,
                 saved: true,
@@ -399,6 +404,7 @@ pub async fn delete_api_key(
     // Delete the config entry
     match state.repo.delete_config(&tenant.tenant_id, key_name).await {
         Ok(deleted) => {
+            audit(&*state.store, &tenant, "ai_config", &provider_str, "delete_api_key", None).await;
             let response = DeleteApiKeyResponse {
                 provider,
                 deleted,
@@ -486,6 +492,8 @@ pub async fn save_assignment(
         .await
     {
         Ok(_) => {
+            let task_str = request.task.to_string();
+            audit(&*state.store, &tenant, "ai_config", &task_str, "save_assignment", None).await;
             let response = SaveAssignmentResponse {
                 task: request.task,
                 model: request.model,
@@ -528,6 +536,8 @@ pub async fn save_prompt(
         .await
     {
         Ok(_) => {
+            let task_str = request.task.to_string();
+            audit(&*state.store, &tenant, "ai_config", &task_str, "save_prompt", None).await;
             let response = SavePromptResponse {
                 task: request.task,
                 saved: true,

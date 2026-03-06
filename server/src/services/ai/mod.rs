@@ -173,8 +173,8 @@ impl AiService {
     ) -> Result<String, AiError> {
         let model_id = model_to_gemini_id(model);
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            model_id, api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            model_id
         );
 
         let request_body = serde_json::json!({
@@ -189,6 +189,7 @@ impl AiService {
             .http_client
             .post(&url)
             .header("Content-Type", "application/json")
+            .header("x-goog-api-key", api_key)
             .json(&request_body)
             .send()
             .await
@@ -360,8 +361,8 @@ impl AiService {
     ) -> Result<ToolCallingResponse, AiError> {
         let model_id = model_to_gemini_id(model);
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            model_id, api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            model_id
         );
 
         // Extract system instruction from messages
@@ -450,6 +451,7 @@ impl AiService {
             .http_client
             .post(&url)
             .header("Content-Type", "application/json")
+            .header("x-goog-api-key", api_key)
             .json(&request_body)
             .send()
             .await

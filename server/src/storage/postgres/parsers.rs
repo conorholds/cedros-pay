@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 
 use crate::models::{
-    get_asset, BillingPeriod, CartItem, CartQuote, ChatMessage, ChatSession, Collection, Customer,
-    CustomerAddress, DisputeRecord, Faq, Fulfillment, GiftCard, InventoryAdjustment,
-    InventoryReservation, Money, Order, OrderHistoryEntry, OrderItem, OrderShipping, PaymentMethod,
-    PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile, ShippingRate,
-    StripeRefundRequest, Subscription, SubscriptionStatus, TaxRate,
+    get_asset, AdminAuditEntry, BillingPeriod, CartItem, CartQuote, ChatMessage, ChatSession,
+    Collection, Customer, CustomerAddress, DisputeRecord, Faq, Fulfillment, GiftCard,
+    InventoryAdjustment, InventoryReservation, Money, Order, OrderHistoryEntry, OrderItem,
+    OrderShipping, PaymentMethod, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
+    ShippingRate, StripeRefundRequest, Subscription, SubscriptionStatus, TaxRate,
 };
 use crate::storage::{
     AdminNonce, CreditsHold, DlqWebhook, EmailStatus, IdempotencyResponse, PendingEmail,
@@ -268,6 +268,19 @@ pub fn parse_inventory_adjustment(row: PgRow) -> StorageResult<InventoryAdjustme
         quantity_after: row.get("quantity_after"),
         reason: row.get("reason"),
         actor: row.get("actor"),
+        created_at: row.get("created_at"),
+    })
+}
+
+pub fn parse_admin_audit_entry(row: PgRow) -> StorageResult<AdminAuditEntry> {
+    Ok(AdminAuditEntry {
+        id: row.get("id"),
+        tenant_id: parse_tenant_id(&row, "admin_audit")?,
+        resource_type: row.get("resource_type"),
+        resource_id: row.get("resource_id"),
+        action: row.get("action"),
+        actor: row.get("actor"),
+        detail: row.get("detail"),
         created_at: row.get("created_at"),
     })
 }

@@ -9,10 +9,11 @@ use thiserror::Error;
 
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
-    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
-    Order, OrderHistoryEntry, PaymentMethod, PaymentTransaction, RefundQuote, ReturnRequest,
-    ShippingProfile, ShippingRate, Subscription, SubscriptionStatus, TaxRate, TenantToken22Mint,
+    AdminAuditEntry, AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer,
+    DisputeRecord, Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment,
+    InventoryReservation, Order, OrderHistoryEntry, PaymentMethod, PaymentTransaction, RefundQuote,
+    ReturnRequest, ShippingProfile, ShippingRate, Subscription, SubscriptionStatus, TaxRate,
+    TenantToken22Mint,
 };
 
 pub mod cached;
@@ -568,6 +569,20 @@ pub trait Store: Send + Sync {
         product_id: &str,
         delta: i32,
     ) -> StorageResult<(i32, i32)>;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin audit trail (R12)
+    // ─────────────────────────────────────────────────────────────────────────
+    async fn record_admin_audit(&self, entry: AdminAuditEntry) -> StorageResult<()>;
+    async fn list_admin_audit(
+        &self,
+        tenant_id: &str,
+        resource_type: Option<&str>,
+        resource_id: Option<&str>,
+        actor: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<AdminAuditEntry>>;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Shipping profiles + rates

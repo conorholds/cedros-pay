@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{error_response, ErrorCode};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
-use crate::models::{Product, ProductImage, ProductVariant};
+use crate::models::{AdminAuditEntry, Product, ProductImage, ProductVariant};
 use crate::repositories::{CouponRepository, ProductRepository};
 use crate::storage::Store;
 
@@ -41,6 +41,89 @@ pub(crate) use super::cap_limit;
 
 pub(crate) fn default_limit() -> i32 {
     20
+}
+
+// ============================================================================
+// Admin audit helper (R12)
+// ============================================================================
+
+/// Record an admin operation in the audit trail (best-effort, never fails the request).
+///
+/// Call from mutation handlers: `audit(&*state.store, &tenant, "product", &id, "create", None).await;`
+pub(crate) async fn audit(
+    store: &dyn Store,
+    tenant: &TenantContext,
+    resource_type: &str,
+    resource_id: &str,
+    action: &str,
+    detail: Option<serde_json::Value>,
+) {
+    let entry = AdminAuditEntry::new(
+        &tenant.tenant_id,
+        resource_type,
+        resource_id,
+        action,
+        tenant.admin_actor.clone(),
+        detail,
+    );
+    if let Err(e) = store.record_admin_audit(entry).await {
+        tracing::error!(
+            error = %e,
+            resource_type,
+            resource_id,
+            action,
+            "Failed to record admin audit entry"
+        );
+    }
+}
+
+// ============================================================================
+// Admin audit history endpoint (R12)
+// ============================================================================
+
+/// Query parameters for listing admin audit entries.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListAuditQuery {
+    pub resource_type: Option<String>,
+    pub resource_id: Option<String>,
+    pub actor: Option<String>,
+    #[serde(default = "default_limit")]
+    pub limit: i32,
+    #[serde(default)]
+    pub offset: i32,
+}
+
+/// GET /admin/audit — list admin audit log entries.
+///
+/// Query params: `resourceType`, `resourceId`, `actor`, `limit`, `offset`.
+/// Returns `{ entries: [...], total: N }`.
+pub async fn list_audit(
+    State(state): State<Arc<AdminState>>,
+    tenant: TenantContext,
+    Query(q): Query<ListAuditQuery>,
+) -> impl IntoResponse {
+    let limit = q.limit.clamp(1, 100);
+
+    match state
+        .store
+        .list_admin_audit(
+            &tenant.tenant_id,
+            q.resource_type.as_deref(),
+            q.resource_id.as_deref(),
+            q.actor.as_deref(),
+            limit,
+            q.offset.max(0),
+        )
+        .await
+    {
+        Ok(entries) => json_ok(serde_json::json!({ "entries": entries, "total": entries.len() })),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to list admin audit entries");
+            let (status, body) = error_response(ErrorCode::DatabaseError, None, None);
+            json_error(status, body)
+        }
+    }
 }
 
 // ============================================================================

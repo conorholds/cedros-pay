@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::admin_coupons_stripe::{
     stripe_ids_for_create_coupon, stripe_ids_for_update_coupon,
 };
@@ -262,7 +262,10 @@ pub async fn create_coupon(
     };
 
     match state.coupon_repo.create_coupon(coupon.clone()).await {
-        Ok(()) => json_ok(AdminCouponInfo::from(&coupon)).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "coupon", &coupon.code, "create", None).await;
+            json_ok(AdminCouponInfo::from(&coupon)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to create coupon");
             let (status, body) = error_response(
@@ -358,7 +361,10 @@ pub async fn update_coupon(
     };
 
     match state.coupon_repo.update_coupon(coupon.clone()).await {
-        Ok(()) => json_ok(AdminCouponInfo::from(&coupon)).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "coupon", &code, "update", None).await;
+            json_ok(AdminCouponInfo::from(&coupon)).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to update coupon");
             let (status, body) = error_response(
@@ -433,7 +439,10 @@ pub async fn delete_coupon(
         .delete_coupon(&tenant.tenant_id, &code)
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({"deleted": true})).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "coupon", &code, "delete", None).await;
+            json_ok(serde_json::json!({"deleted": true})).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to delete coupon");
             let (status, body) = error_response(

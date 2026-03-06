@@ -18,9 +18,9 @@ use parking_lot::Mutex;
 
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq, Fulfillment,
-    GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation, Order,
-    OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, Subscription,
+    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
+    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
+    Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, Subscription,
     SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 use crate::storage::{
@@ -69,6 +69,7 @@ pub struct InMemoryStore {
     pub(super) returns: Arc<Mutex<HashMap<String, ReturnRequest>>>,
     pub(super) inventory_reservations: Arc<Mutex<HashMap<String, InventoryReservation>>>,
     pub(super) inventory_adjustments: Arc<Mutex<HashMap<String, InventoryAdjustment>>>,
+    pub(super) admin_audit: Arc<Mutex<HashMap<String, AdminAuditEntry>>>,
     pub(super) shipping_profiles: Arc<Mutex<HashMap<String, crate::models::ShippingProfile>>>,
     pub(super) shipping_rates: Arc<Mutex<HashMap<String, crate::models::ShippingRate>>>,
     pub(super) tax_rates: Arc<Mutex<HashMap<String, TaxRate>>>,
@@ -127,6 +128,7 @@ impl InMemoryStore {
             returns: Arc::new(Mutex::new(HashMap::new())),
             inventory_reservations: Arc::new(Mutex::new(HashMap::new())),
             inventory_adjustments: Arc::new(Mutex::new(HashMap::new())),
+            admin_audit: Arc::new(Mutex::new(HashMap::new())),
             shipping_profiles: Arc::new(Mutex::new(HashMap::new())),
             shipping_rates: Arc::new(Mutex::new(HashMap::new())),
             tax_rates: Arc::new(Mutex::new(HashMap::new())),
@@ -595,6 +597,40 @@ impl Store for InMemoryStore {
         delta: i32,
     ) -> StorageResult<(i32, i32)> {
         inventory::adjust_inventory_atomic(self, tenant_id, product_id, delta).await
+    }
+
+    // ─── Admin audit trail (R12) ──────────────────────────────────────────
+    async fn record_admin_audit(&self, entry: AdminAuditEntry) -> StorageResult<()> {
+        let key = tenant_key(&entry.tenant_id, &entry.id);
+        self.admin_audit.lock().insert(key, entry);
+        Ok(())
+    }
+    async fn list_admin_audit(
+        &self,
+        tenant_id: &str,
+        resource_type: Option<&str>,
+        resource_id: Option<&str>,
+        actor: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<AdminAuditEntry>> {
+        let map = self.admin_audit.lock();
+        let mut entries: Vec<_> = map
+            .values()
+            .filter(|e| {
+                e.tenant_id == tenant_id
+                    && resource_type.map_or(true, |rt| e.resource_type == rt)
+                    && resource_id.map_or(true, |ri| e.resource_id == ri)
+                    && actor.map_or(true, |a| e.actor.as_deref() == Some(a))
+            })
+            .cloned()
+            .collect();
+        entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        Ok(entries
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect())
     }
 
     // ─── Shipping & Tax ─────────────────────────────────────────────────────

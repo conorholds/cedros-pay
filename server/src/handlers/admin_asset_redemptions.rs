@@ -11,6 +11,7 @@ use serde::Deserialize;
 
 use crate::errors::validation::validate_resource_id;
 use crate::errors::{error_response, ErrorCode};
+use crate::handlers::admin::audit;
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::repositories::ProductRepository;
@@ -189,7 +190,18 @@ pub async fn update_status(
         )
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({ "updated": true })).into_response(),
+        Ok(()) => {
+            audit(
+                &*state.store,
+                &tenant,
+                "asset_redemption",
+                &id,
+                "update_status",
+                Some(serde_json::json!({ "status": &req.status })),
+            )
+            .await;
+            json_ok(serde_json::json!({ "updated": true })).into_response()
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -295,7 +307,10 @@ pub async fn complete_redemption(
         )
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({ "completed": true, "id": id })).into_response(),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "asset_redemption", &id, "complete", None).await;
+            json_ok(serde_json::json!({ "completed": true, "id": id })).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to complete redemption");
             let (status, body) = error_response(

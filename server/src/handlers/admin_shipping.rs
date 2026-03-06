@@ -11,7 +11,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{error_response, ErrorCode};
-use crate::handlers::admin::AdminState;
+use crate::handlers::admin::{audit, AdminState};
 use crate::handlers::response::{json_error, json_ok};
 use crate::middleware::TenantContext;
 use crate::models::{ShippingProfile, ShippingRate};
@@ -195,7 +195,10 @@ pub async fn create_profile(
     };
 
     match state.store.create_shipping_profile(profile.clone()).await {
-        Ok(()) => json_ok(profile),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_profile", &profile.id, "create", None).await;
+            json_ok(profile)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -262,7 +265,10 @@ pub async fn update_profile(
     };
 
     match state.store.update_shipping_profile(profile.clone()).await {
-        Ok(()) => json_ok(profile),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_profile", &id, "update", None).await;
+            json_ok(profile)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -292,7 +298,10 @@ pub async fn delete_profile(
         .delete_shipping_profile(&tenant.tenant_id, &id)
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({ "success": true })),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_profile", &id, "delete", None).await;
+            json_ok(serde_json::json!({ "success": true }))
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -369,7 +378,10 @@ pub async fn create_rate(
     };
 
     match state.store.create_shipping_rate(rate.clone()).await {
-        Ok(()) => json_ok(rate),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_rate", &rate.id, "create", None).await;
+            json_ok(rate)
+        }
         Err(e) => {
             let (status, body) = error_response(
                 ErrorCode::DatabaseError,
@@ -434,7 +446,10 @@ pub async fn update_rate(
     };
 
     match state.store.update_shipping_rate(rate.clone()).await {
-        Ok(()) => json_ok(rate),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_rate", &rate_id, "update", None).await;
+            json_ok(rate)
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
@@ -464,7 +479,10 @@ pub async fn delete_rate(
         .delete_shipping_rate(&tenant.tenant_id, &rate_id)
         .await
     {
-        Ok(()) => json_ok(serde_json::json!({ "success": true })),
+        Ok(()) => {
+            audit(&*state.store, &tenant, "shipping_rate", &rate_id, "delete", None).await;
+            json_ok(serde_json::json!({ "success": true }))
+        }
         Err(crate::storage::StorageError::NotFound) => {
             let (status, body) = error_response(
                 ErrorCode::ResourceNotFound,
