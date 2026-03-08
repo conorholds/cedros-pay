@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "description": "React frontend library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -172,5 +172,10 @@
     "build-storybook": "storybook build",
     "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build",
     "prepare": "husky"
+  },
+  "overrides": {
+    "elliptic": "npm:@soatok/elliptic-to-noble@9999.0.0",
+    "minimatch": "^10.2.3",
+    "lodash": "^4.17.23"
   }
 }

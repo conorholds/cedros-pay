@@ -1,5 +1,5 @@
 import { jsx as Cc, Fragment as zu } from "react/jsx-runtime";
-import { C as Wu } from "../CedrosContext-BlArEF7k.mjs";
+import { a as Wu } from "../CedrosContext-DQUbL8yP.mjs";
 var $s = {
   reset: [0, 0],
   bold: [1, 22, "\x1B[22m\x1B[1m"],
