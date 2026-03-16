@@ -81,6 +81,7 @@ pub struct CreateSubscriptionRequest {
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
     pub trial_days: Option<i64>,
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

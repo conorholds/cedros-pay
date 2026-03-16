@@ -116,6 +116,7 @@ describe('CedrosProvider initialization errors', () => {
       config.serverUrl,
       config.solanaCluster,
       undefined,
+      undefined,
       undefined
     );
 

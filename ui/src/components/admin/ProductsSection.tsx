@@ -45,7 +45,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     shippingCountriesCsv: '',
     inventoryQuantity: '' as '' | number,
     giftCardConfig: null as null | { faceValueCents: number; currency: string; secondaryMarket: boolean; expiresInDays: number | null },
-    tokenizedAssetConfig: null as null | { assetClassCollectionId: string; backingValueCents: number; backingCurrency: string; tokensPerUnit: number; custodyProofUrl: string | null },
+    tokenizedAssetConfig: null as null | { assetClassCollectionId: string; backingValueCents: number; backingCurrency: string; assetIdentifier: string; tokensPerUnit: number; custodyProofUrl: string | null },
   });
 
   const buildCatalogMetadata = (p: typeof newProduct) => {
@@ -433,7 +433,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
                   ? (p.giftCardConfig ?? { faceValueCents: 0, currency: 'usd', secondaryMarket: false, expiresInDays: null })
                   : null,
                 tokenizedAssetConfig: val === 'tokenized_asset'
-                  ? (p.tokenizedAssetConfig ?? { assetClassCollectionId: '', backingValueCents: 0, backingCurrency: 'usd', tokensPerUnit: 1, custodyProofUrl: null })
+                  ? (p.tokenizedAssetConfig ?? { assetClassCollectionId: '', backingValueCents: 0, backingCurrency: 'usd', assetIdentifier: '', tokensPerUnit: 1, custodyProofUrl: null })
                   : null,
               }))}
               options={[
@@ -603,6 +603,35 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
                   tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, backingValueCents: Number(e.target.value) },
                 }))}
                 min={0}
+              />
+            </div>
+          </div>
+          <div className="cedros-admin__form-row">
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Backing currency</label>
+              <input
+                type="text"
+                className="cedros-admin__input"
+                value={newProduct.tokenizedAssetConfig?.backingCurrency ?? 'usd'}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, backingCurrency: e.target.value },
+                }))}
+                placeholder="usd"
+                maxLength={3}
+              />
+            </div>
+            <div className="cedros-admin__field">
+              <label className="cedros-admin__field-label">Asset identifier</label>
+              <input
+                type="text"
+                className="cedros-admin__input"
+                value={newProduct.tokenizedAssetConfig?.assetIdentifier ?? ''}
+                onChange={(e) => setNewProduct(p => ({
+                  ...p,
+                  tokenizedAssetConfig: { ...p.tokenizedAssetConfig!, assetIdentifier: e.target.value },
+                }))}
+                placeholder="e.g., ISIN, lot number"
               />
             </div>
           </div>

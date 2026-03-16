@@ -37,12 +37,79 @@ export interface RetryConfig {
   shouldRetry?: (error: Error, attempt: number) => boolean;
   /** Optional name for logging */
   name?: string;
+  /** Optional key used to coalesce identical in-flight operations */
+  inFlightKey?: string;
 }
 
 export interface RetryStats {
   attempts: number;
   totalDelay: number;
   lastError: Error | null;
+}
+
+const MAX_RETRY_AFTER_MS = 5 * 60 * 1000;
+const inFlightRetries = new Map<string, Promise<unknown>>();
+
+function parseRetryAfterMs(retryAfterHeader: string | null): number | undefined {
+  if (!retryAfterHeader) {
+    return undefined;
+  }
+
+  const seconds = Number(retryAfterHeader);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+  }
+
+  const retryAt = Date.parse(retryAfterHeader);
+  if (Number.isNaN(retryAt)) {
+    return undefined;
+  }
+
+  return Math.min(Math.max(retryAt - Date.now(), 0), MAX_RETRY_AFTER_MS);
+}
+
+export class RetryableHttpError extends Error {
+  public readonly httpStatus: number;
+  public readonly retryAfterMs?: number;
+
+  constructor(message: string, httpStatus: number, retryAfterMs?: number) {
+    super(message);
+    this.name = 'RetryableHttpError';
+    this.httpStatus = httpStatus;
+    this.retryAfterMs = retryAfterMs;
+
+    Object.setPrototypeOf(this, RetryableHttpError.prototype);
+  }
+
+  static fromResponse(response: Response, message: string): RetryableHttpError {
+    const retryAfterHeader =
+      response.headers && typeof response.headers.get === 'function'
+        ? response.headers.get('Retry-After')
+        : null;
+
+    return new RetryableHttpError(
+      message,
+      response.status,
+      parseRetryAfterMs(retryAfterHeader)
+    );
+  }
+}
+
+function getRetryStatus(error: Error): number | undefined {
+  if (error instanceof PaymentError) {
+    return error.httpStatus;
+  }
+  if (error instanceof RetryableHttpError) {
+    return error.httpStatus;
+  }
+  return undefined;
+}
+
+function getRetryAfterDelay(error: Error): number | undefined {
+  if (error instanceof RetryableHttpError) {
+    return error.retryAfterMs;
+  }
+  return undefined;
 }
 
 /**
@@ -53,8 +120,9 @@ export interface RetryStats {
 function defaultShouldRetry(error: Error, _attempt: number): boolean {
   // Prefer structured status code when available (avoids false positives
   // from substring matching on error messages like "Error at line 500").
-  if (error instanceof PaymentError && error.httpStatus != null) {
-    const s = error.httpStatus;
+  const status = getRetryStatus(error);
+  if (status != null) {
+    const s = status;
     return s === 429 || (s >= 500 && s < 600);
   }
 
@@ -145,52 +213,76 @@ export async function retryWithBackoff<T>(
     jitter = true,
     shouldRetry = defaultShouldRetry,
     name = 'retry',
+    inFlightKey,
   } = config;
 
-  let lastError: Error | null = null;
-  let totalDelay = 0;
+  const execute = async (): Promise<T> => {
+    let lastError: Error | null = null;
+    let totalDelay = 0;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await fn();
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await fn();
 
-      if (attempt > 0) {
-        getLogger().debug(
-          `[Retry:${name}] Succeeded on attempt ${attempt + 1}/${maxRetries + 1} after ${totalDelay}ms`
+        if (attempt > 0) {
+          getLogger().debug(
+            `[Retry:${name}] Succeeded on attempt ${attempt + 1}/${maxRetries + 1} after ${totalDelay}ms`
+          );
+        }
+
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        const isLastAttempt = attempt === maxRetries;
+        const shouldRetryError = shouldRetry(lastError, attempt);
+
+        if (isLastAttempt || !shouldRetryError) {
+          getLogger().warn(
+            `[Retry:${name}] Failed on attempt ${attempt + 1}/${maxRetries + 1}. ${
+              isLastAttempt ? 'No more retries.' : 'Error not retryable.'
+            }`
+          );
+          throw lastError;
+        }
+
+        const retryAfterDelay = getRetryAfterDelay(lastError);
+        const delay = retryAfterDelay ?? calculateDelay(
+          attempt,
+          initialDelayMs,
+          backoffFactor,
+          maxDelayMs,
+          jitter
         );
-      }
+        totalDelay += delay;
 
-      return result;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Check if we should retry
-      const isLastAttempt = attempt === maxRetries;
-      const shouldRetryError = shouldRetry(lastError, attempt);
-
-      if (isLastAttempt || !shouldRetryError) {
         getLogger().warn(
-          `[Retry:${name}] Failed on attempt ${attempt + 1}/${maxRetries + 1}. ${
-            isLastAttempt ? 'No more retries.' : 'Error not retryable.'
-          }`
+          `[Retry:${name}] Attempt ${attempt + 1}/${maxRetries + 1} failed: ${lastError.message}. Retrying in ${delay}ms...`
         );
-        throw lastError;
+
+        await sleep(delay);
       }
-
-      // Calculate delay
-      const delay = calculateDelay(attempt, initialDelayMs, backoffFactor, maxDelayMs, jitter);
-      totalDelay += delay;
-
-      getLogger().warn(
-        `[Retry:${name}] Attempt ${attempt + 1}/${maxRetries + 1} failed: ${lastError.message}. Retrying in ${delay}ms...`
-      );
-
-      await sleep(delay);
     }
+
+    throw lastError || new Error('Retry failed with no error');
+  };
+
+  if (!inFlightKey) {
+    return execute();
   }
 
-  // This should never be reached, but TypeScript needs it
-  throw lastError || new Error('Retry failed with no error');
+  const existing = inFlightRetries.get(inFlightKey);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const pending = execute().finally(() => {
+    if (inFlightRetries.get(inFlightKey) === pending) {
+      inFlightRetries.delete(inFlightKey);
+    }
+  });
+  inFlightRetries.set(inFlightKey, pending);
+  return pending as Promise<T>;
 }
 
 /**
@@ -224,5 +316,19 @@ export const RETRY_PRESETS = {
     initialDelayMs: 5000,
     backoffFactor: 2,
     maxDelayMs: 60000,
+  },
+  /** At most one retry for writes with a real idempotency guarantee */
+  IDEMPOTENT_WRITE: {
+    maxRetries: 1,
+    initialDelayMs: 1000,
+    backoffFactor: 2,
+    maxDelayMs: 10000,
+  },
+  /** Never automatically retry non-idempotent writes */
+  WRITE_ONCE: {
+    maxRetries: 0,
+    initialDelayMs: 1000,
+    backoffFactor: 2,
+    maxDelayMs: 10000,
   },
 } as const;

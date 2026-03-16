@@ -12,7 +12,7 @@ use crate::errors::validation::{validate_coupon_code, validate_resource_id};
 use crate::errors::{error_response, ErrorCode};
 use crate::handlers::paywall::AppState;
 use crate::middleware::tenant::TenantContext;
-use crate::storage::{Store, StorageError};
+use crate::storage::{StorageError, Store};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -181,11 +181,7 @@ pub async fn get_credits_balance<S: Store + 'static>(
         }
     };
 
-    match state
-        .paywall_service
-        .check_credits_balance(&user_id)
-        .await
-    {
+    match state.paywall_service.check_credits_balance(&user_id).await {
         Ok(balance) => (
             StatusCode::OK,
             Json(serde_json::json!(CreditsBalanceResponse {
@@ -376,4 +372,59 @@ pub async fn claim_gift_card<S: Store + 'static>(
         })),
     )
         .into_response()
+}
+
+/// GET /paywall/v1/gift-card/balance/{code}
+///
+/// Public lookup of gift card balance by code.
+/// Returns balance, currency, active status, and expiry.
+/// Does not expose tenant_id, metadata, or other internal fields.
+pub async fn get_gift_card_balance<S: Store + 'static>(
+    State(state): State<Arc<AppState<S>>>,
+    tenant: TenantContext,
+    Path(code): Path<String>,
+) -> impl IntoResponse {
+    let normalized = code.trim().to_uppercase();
+    if normalized.is_empty() || normalized.len() > 100 {
+        let (status, body) = error_response(
+            ErrorCode::InvalidField,
+            Some("invalid gift card code".into()),
+            None,
+        );
+        return (status, Json(body)).into_response();
+    }
+
+    match state.store.get_gift_card(&tenant.tenant_id, &normalized).await {
+        Ok(Some(card)) => {
+            let now = chrono::Utc::now();
+            let expired = card.expires_at.is_some_and(|exp| exp <= now);
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "code": card.code,
+                    "balance": card.balance,
+                    "currency": card.currency,
+                    "active": card.active && !expired,
+                    "expiresAt": card.expires_at,
+                })),
+            )
+                .into_response()
+        }
+        Ok(None) => {
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("gift card not found".into()),
+                None,
+            );
+            (status, Json(body)).into_response()
+        }
+        Err(e) => {
+            let (status, body) = error_response(
+                ErrorCode::InternalError,
+                Some(format!("failed to look up gift card: {e}")),
+                None,
+            );
+            (status, Json(body)).into_response()
+        }
+    }
 }

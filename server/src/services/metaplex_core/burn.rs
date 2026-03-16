@@ -29,8 +29,7 @@ pub async fn burn_asset(
         .await
         .map_err(|e| format!("blockhash fetch failed: {e}"))?;
 
-    let blockhash =
-        Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
+    let blockhash = Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
 
     let tx = Transaction::new_signed_with_payer(
         &[ix],

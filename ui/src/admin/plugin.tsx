@@ -28,12 +28,15 @@ const wrapSection = (
       // which may not include _internal.getAccessToken from the context.
       const loginCtx = useCedrosLogin();
       const token = loginCtx?._internal?.getAccessToken() ?? pluginContext.getAccessToken();
+      const hasVerifiedAdminPermission =
+        pluginContext.hasPermission('cedros-pay:admin') ||
+        pluginContext.hasPermission('admin');
 
       const authManager = useMemo(() => {
         const mgr = new AdminAuthManager(pluginContext.serverUrl);
-        mgr.setCedrosLoginAuth(token ?? null, !!token);
+        mgr.setCedrosLoginAuth(token ?? null, hasVerifiedAdminPermission);
         return mgr;
-      }, [pluginContext.serverUrl, token]);
+      }, [hasVerifiedAdminPermission, pluginContext.serverUrl, token]);
 
       const sectionProps: SectionProps = {
         serverUrl: pluginContext.serverUrl,
@@ -65,6 +68,7 @@ export const cedrosPayPlugin: AdminPlugin = {
     { id: 'subscriptions', label: 'Subscriptions', icon: Icons.subscriptions, group: 'Store', order: 2 },
     { id: 'coupons', label: 'Coupons', icon: Icons.coupons, group: 'Store', order: 3 },
     { id: 'refunds', label: 'Refunds', icon: Icons.refunds, group: 'Store', order: 4 },
+    { id: 'compliance', label: 'Compliance', icon: Icons.shield, group: 'Store', order: 5 },
     // Configuration group
     { id: 'storefront', label: 'Storefront', icon: Icons.storefront, group: 'Configuration', order: 10 },
     { id: 'ai-settings', label: 'Store AI', icon: Icons.ai, group: 'Configuration', order: 11 },
@@ -85,6 +89,7 @@ export const cedrosPayPlugin: AdminPlugin = {
     'transactions': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.TransactionsSection }))),
     'coupons': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.CouponsSection }))),
     'refunds': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.RefundsSection }))),
+    'compliance': wrapSection(() => import('../components/admin/ComplianceSection').then(m => ({ default: m.ComplianceSection }))),
     'storefront': wrapSection(() => import('../components/admin/StorefrontSection').then(m => ({ default: m.StorefrontSection }))),
     'ai-settings': wrapSection(() => import('../components/admin/AISettingsSection').then(m => ({ default: m.AISettingsSection }))),
     'faqs': wrapSection(() => import('../components/admin/FAQSection').then(m => ({ default: m.FAQSection }))),
@@ -116,13 +121,12 @@ export const cedrosPayPlugin: AdminPlugin = {
   },
 
   checkPermission(permission: string, hostContext: HostContext): boolean {
-    // cedros-pay uses simpler permission model
-    // If org context exists, check org.permissions
+    // Only treat explicitly granted org permissions as UI authorization hints.
+    // The server remains authoritative for all admin actions.
     if (hostContext.org?.permissions) {
       return hostContext.org.permissions.includes(permission);
     }
-    // Otherwise, assume admin access if authenticated
-    return !!(hostContext.cedrosLogin?.user || hostContext.cedrosPay?.jwtToken || hostContext.cedrosPay?.walletAddress);
+    return false;
   },
 
   cssNamespace: 'cedros-dashboard',

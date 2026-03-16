@@ -1,5 +1,6 @@
 pub mod admin_audit;
 pub mod asset_redemption;
+pub mod compliance;
 pub mod cart;
 pub mod chat;
 pub mod collection;
@@ -54,6 +55,8 @@ pub use product::{
     ProductVariationConfig, SubscriptionConfig, VariantPrice, VariationType, VariationValue,
 };
 // TokenizedAssetConfig is re-exported from tokenization module above
+pub use admin_audit::AdminAuditEntry;
+pub use asset_redemption::{AssetRedemption, AssetRedemptionStatus};
 pub use refund::RefundQuote;
 pub use returns::{is_valid_return_transition, ReturnRequest};
 pub use shipping::{ShippingProfile, ShippingRate};
@@ -69,6 +72,4 @@ pub use tenant_token22_mint::TenantToken22Mint;
 pub use tokenization::{
     AssetClass, RedemptionConfig, RedemptionField, TokenizationConfig, TokenizedAssetConfig,
 };
-pub use admin_audit::AdminAuditEntry;
-pub use asset_redemption::{AssetRedemption, AssetRedemptionStatus};
 pub use webhook::{PaymentEvent, RefundEvent};

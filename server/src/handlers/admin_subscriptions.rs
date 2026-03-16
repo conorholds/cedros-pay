@@ -153,8 +153,15 @@ pub async fn update_settings(
                 "Updated subscription settings"
             );
 
-            audit(&*state.store, &tenant, "subscription_settings", "settings", "update", None)
-                .await;
+            audit(
+                &*state.store,
+                &tenant,
+                "subscription_settings",
+                "settings",
+                "update",
+                None,
+            )
+            .await;
 
             Json(UpdateSettingsResponse {
                 success: true,

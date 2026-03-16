@@ -80,7 +80,11 @@ pub async fn get_storefront_config(
             json_ok_cached(
                 StorefrontResponse {
                     config: JsonValue::Object(config),
-                    payment_methods: PaymentMethodsResponse { stripe, x402, credits },
+                    payment_methods: PaymentMethodsResponse {
+                        stripe,
+                        x402,
+                        credits,
+                    },
                 },
                 PRODUCTS_CACHE_MAX_AGE,
             )

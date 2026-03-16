@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import type { Order } from '../../types';
 import { cn } from '../../utils/cn';
 import { formatMoney } from '../../utils/money';
@@ -7,6 +8,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { Separator } from '../ui/separator';
 import { RedemptionForm } from '../checkout/RedemptionForm';
+import { TokenDisplay } from '../catalog/TokenDisplay';
 
 function statusColor(status: Order['status']): 'default' | 'secondary' | 'outline' {
   switch (status) {
@@ -49,6 +51,46 @@ export function OrderDetails({
   });
   const statusLabel = order.status.charAt(0).toUpperCase() + order.status.slice(1);
   const tokenizedItems = order.items.filter((it) => it.tokenizedAsset && it.productId);
+
+  // Fetch on-chain token info (mint/burn signatures) for tokenized items
+  const [tokenInfo, setTokenInfo] = useState<
+    Record<string, { mintSignature?: string; burnSignature?: string; status?: string }>
+  >({});
+
+  const fetchTokenInfo = useCallback(async () => {
+    if (!serverUrl || !tokenizedItems.length) return;
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    const results: typeof tokenInfo = {};
+    await Promise.all(
+      tokenizedItems.map(async (it) => {
+        try {
+          const res = await fetch(
+            `${serverUrl}/paywall/v1/asset-redemption/${encodeURIComponent(it.productId!)}/status`,
+            { headers }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const redemption = data.redemptions?.[0];
+            if (redemption) {
+              results[it.productId!] = {
+                mintSignature: redemption.tokenMintSignature ?? undefined,
+                burnSignature: redemption.tokenBurnSignature ?? undefined,
+                status: redemption.status ?? undefined,
+              };
+            }
+          }
+        } catch {
+          // non-critical — token info is supplementary
+        }
+      })
+    );
+    setTokenInfo(results);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverUrl, authToken, tokenizedItems.map((it) => it.productId).join(',')]);
+
+  useEffect(() => { fetchTokenInfo(); }, [fetchTokenInfo]);
 
   return (
     <Card
@@ -120,12 +162,26 @@ export function OrderDetails({
               <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                 Asset redemption
               </div>
-              {tokenizedItems.map((it) => (
-                <div key={it.productId} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
-                  <div className="mb-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">{it.title}</div>
-                  <RedemptionForm serverUrl={serverUrl} productId={it.productId!} authToken={authToken} />
-                </div>
-              ))}
+              {tokenizedItems.map((it) => {
+                const info = tokenInfo[it.productId!];
+                return (
+                  <div key={it.productId} className="space-y-3">
+                    <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400">{it.title}</div>
+                    {info?.mintSignature && (
+                      <TokenDisplay
+                        mintSignature={info.mintSignature}
+                        burnSignature={info.burnSignature}
+                        assetClass={it.assetClass}
+                        backingValueCents={it.backingValueCents}
+                        backingCurrency={it.backingCurrency}
+                      />
+                    )}
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                      <RedemptionForm serverUrl={serverUrl} productId={it.productId!} authToken={authToken} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : null}

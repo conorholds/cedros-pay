@@ -106,6 +106,9 @@ pub const RATE_LIMIT_MAX_BACKOFF: Duration = Duration::from_secs(2);
 /// Maximum request body size (2 MiB) - protects against DoS via large payloads
 pub const MAX_REQUEST_BODY_SIZE: usize = 2 * 1024 * 1024;
 
+/// Maximum image upload size (10 MiB)
+pub const MAX_IMAGE_UPLOAD_SIZE: usize = 10 * 1024 * 1024;
+
 /// Maximum number of items in a cart
 pub const MAX_CART_ITEMS: usize = 100;
 

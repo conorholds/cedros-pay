@@ -41,6 +41,8 @@ function useCheckoutState(): CheckoutContextValue {
     []
   );
 
+  const hasRegulatoryNotice = cart.items.some((it) => !!it.metadata?.regulatoryNotice);
+
   const schema = React.useMemo(
     () => {
       const req = getCartCheckoutRequirements(cart.items, {
@@ -55,9 +57,11 @@ function useCheckoutState(): CheckoutContextValue {
         requirePhone: req.phone === 'required',
         requireShippingAddress: req.shippingAddress,
         requireBillingAddress: req.billingAddress,
+        requireRegulatoryConsent: hasRegulatoryNotice,
       });
     },
-    [cart.items, config.checkout.allowShipping, config.checkout.mode, config.checkout.requireEmail]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cart.items, config.checkout.allowShipping, config.checkout.mode, config.checkout.requireEmail, hasRegulatoryNotice]
   );
 
   const [values, setValues] = React.useState<CheckoutFormValues>(() => ({
@@ -71,6 +75,7 @@ function useCheckoutState(): CheckoutContextValue {
     discountCode: '',
     tipAmount: 0,
     shippingMethodId: '',
+    regulatoryConsent: undefined,
   }));
 
   React.useEffect(() => {
@@ -173,6 +178,12 @@ function useCheckoutState(): CheckoutContextValue {
            : {}),
          ...(valid.values.recipientEmail
            ? { recipient_email: valid.values.recipientEmail }
+           : {}),
+         ...(valid.values.giftMessage
+           ? { gift_message: valid.values.giftMessage }
+           : {}),
+         ...(valid.values.regulatoryConsent
+           ? { regulatory_consent: 'true' }
            : {}),
        };
 

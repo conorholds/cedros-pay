@@ -24,4 +24,28 @@ describe('cedrosPayPlugin registration', () => {
     expect(sectionIds).toContain('ai-settings');
     expect(componentIds).toContain('ai-settings');
   });
+
+  it('does not infer admin permission from mere authentication state', () => {
+    expect(
+      cedrosPayPlugin.checkPermission('admin', {
+        cedrosLogin: {
+          user: { id: 'user-1' },
+        },
+        cedrosPay: {
+          jwtToken: 'token',
+          walletAddress: 'wallet-1',
+        },
+      } as never)
+    ).toBe(false);
+  });
+
+  it('respects explicit org permissions when present', () => {
+    expect(
+      cedrosPayPlugin.checkPermission('admin', {
+        org: {
+          permissions: ['admin', 'cedros-pay:admin'],
+        },
+      } as never)
+    ).toBe(true);
+  });
 });

@@ -16,7 +16,7 @@ export interface SettingsSectionProps {
   authManager?: IAdminAuthManager;
 }
 
-type SettingsTab = 'logging' | 'metrics' | 'security';
+type SettingsTab = 'logging' | 'metrics' | 'security' | 'storage';
 
 const TABS: { id: SettingsTab; label: string; category: string; description: string }[] = [
   {
@@ -37,6 +37,12 @@ const TABS: { id: SettingsTab; label: string; category: string; description: str
     category: 'security',
     description: 'Configure CORS, rate limiting, and other security settings.',
   },
+  {
+    id: 'storage',
+    label: 'Storage',
+    category: 'storage',
+    description: 'Configure S3-compatible storage for product images.',
+  },
 ];
 
 export function SettingsSection({ serverUrl, apiKey, authManager }: SettingsSectionProps) {
@@ -50,7 +56,7 @@ export function SettingsSection({ serverUrl, apiKey, authManager }: SettingsSect
       <div className="cedros-admin__page-header">
         <h2 className="cedros-admin__page-title">Store Server</h2>
         <p className="cedros-admin__page-description">
-          Configure logging, metrics, and security settings.
+          Configure logging, metrics, security, and storage settings.
         </p>
       </div>
 

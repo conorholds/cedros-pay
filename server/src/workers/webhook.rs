@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use futures_util::StreamExt;
@@ -15,7 +15,6 @@ use crate::config::{CallbacksConfig, RetryConfig};
 use crate::middleware::circuit_breaker::{
     new_circuit_breaker, CircuitBreakerConfig, SharedCircuitBreaker,
 };
-use crate::storage::StorageError;
 use crate::storage::Store;
 
 /// Webhook delivery worker with graceful shutdown support per spec (20-webhooks.md)
@@ -32,6 +31,7 @@ pub struct WebhookWorker<S: Store> {
     retention_days: i32,
     /// Cleanup interval (number of poll cycles between cleanups)
     cleanup_interval_cycles: u32,
+    next_backlog_metric_at: Mutex<Instant>,
     retry: RetryConfig,
     dlq_enabled: bool,
 }
@@ -71,6 +71,8 @@ impl WebhookWorkerHandle {
 const DEFAULT_RETENTION_DAYS: i32 = 7;
 /// Default cleanup interval: every 720 poll cycles (~1 hour at 5s poll interval)
 const DEFAULT_CLEANUP_CYCLES: u32 = 720;
+/// Refresh the expensive backlog count metric at most once every 30 seconds.
+const BACKLOG_COUNT_INTERVAL: Duration = Duration::from_secs(30);
 /// Maximum circuit breakers tracked to avoid unbounded growth
 const MAX_CIRCUIT_BREAKERS: usize = 1000;
 
@@ -121,6 +123,7 @@ impl<S: Store + 'static> WebhookWorker<S> {
             circuit_breakers: Mutex::new(IndexMap::new()),
             retention_days: DEFAULT_RETENTION_DAYS,
             cleanup_interval_cycles: DEFAULT_CLEANUP_CYCLES,
+            next_backlog_metric_at: Mutex::new(Instant::now()),
             retry: callbacks.retry.clone(),
             dlq_enabled: callbacks.dlq_enabled,
         })
@@ -154,6 +157,7 @@ impl<S: Store + 'static> WebhookWorker<S> {
             circuit_breakers: Mutex::new(IndexMap::new()),
             retention_days: DEFAULT_RETENTION_DAYS,
             cleanup_interval_cycles: DEFAULT_CLEANUP_CYCLES,
+            next_backlog_metric_at: Mutex::new(Instant::now()),
             retry: callbacks.retry.clone(),
             dlq_enabled: callbacks.dlq_enabled,
         };
@@ -270,13 +274,14 @@ impl<S: Store + 'static> WebhookWorker<S> {
         // Per spec (21-observability.md): Record webhook queue metrics
         crate::observability::record_webhook_queue_size("dequeued", webhooks.len() as i64);
 
-        // OPS-06: Record true backlog size (pending + retryable) for queue depth metric
-        match self.store.count_pending_webhooks().await {
-            Ok(backlog) => {
-                crate::observability::record_webhook_queue_size("backlog", backlog);
-            }
-            Err(e) => {
-                debug!(error = %e, "Failed to count pending webhooks for backlog metric");
+        if self.should_refresh_backlog_metric() {
+            match self.store.count_pending_webhooks().await {
+                Ok(backlog) => {
+                    crate::observability::record_webhook_queue_size("backlog", backlog);
+                }
+                Err(e) => {
+                    debug!(error = %e, "Failed to count pending webhooks for backlog metric");
+                }
             }
         }
 
@@ -291,29 +296,6 @@ impl<S: Store + 'static> WebhookWorker<S> {
         let worker = self;
         futures_util::stream::iter(webhooks)
             .for_each_concurrent(max_concurrency, |webhook| async move {
-                // WK-001: Mark as Processing before delivery to prevent duplicate dequeue
-                // PostgreSQL already does this atomically in dequeue_webhooks, but non-Postgres
-                // backends don't. This is harmless for Postgres and necessary for others.
-                if let Err(e) = worker.store.mark_webhook_processing(&webhook.id).await {
-                    if should_skip_mark_processing_error(&e) {
-                        debug!(
-                            webhook_id = %webhook.id,
-                            error = %e,
-                            "Webhook already processed or deleted, skipping"
-                        );
-                        return;
-                    }
-
-                    // Treat transient storage errors as non-fatal for this attempt.
-                    // The webhook has already been dequeued; continuing allows best-effort delivery
-                    // and the subsequent mark_success/mark_retry calls will surface persistence issues.
-                    warn!(
-                        webhook_id = %webhook.id,
-                        error = %e,
-                        "Failed to mark webhook processing; continuing with delivery"
-                    );
-                }
-
                 let result = match Self::payload_bytes(&webhook) {
                     Ok(payload_bytes) => {
                         worker
@@ -549,6 +531,17 @@ impl<S: Store + 'static> WebhookWorker<S> {
     fn retry_delay(&self, attempt: i32) -> Duration {
         compute_retry_delay(&self.retry, attempt)
     }
+
+    fn should_refresh_backlog_metric(&self) -> bool {
+        let now = Instant::now();
+        let mut next_refresh = self.next_backlog_metric_at.lock();
+        if now >= *next_refresh {
+            *next_refresh = now + BACKLOG_COUNT_INTERVAL;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn compute_retry_delay(retry: &RetryConfig, attempt: i32) -> Duration {
@@ -581,10 +574,6 @@ fn compute_retry_delay(retry: &RetryConfig, attempt: i32) -> Duration {
 
     // Final guard: clamp to reasonable range and ensure finite
     Duration::from_secs_f64(delay.clamp(0.0, 86400.0 * 7.0)) // Max 7 days
-}
-
-fn should_skip_mark_processing_error(err: &StorageError) -> bool {
-    matches!(err, StorageError::NotFound | StorageError::Conflict)
 }
 
 /// Spawn webhook worker as a tokio task (no shutdown handle)
@@ -770,11 +759,11 @@ mod tests {
     }
 
     #[test]
-    fn test_should_skip_mark_processing_error() {
-        assert!(should_skip_mark_processing_error(&StorageError::NotFound));
-        assert!(should_skip_mark_processing_error(&StorageError::Conflict));
-        assert!(!should_skip_mark_processing_error(&StorageError::Database(
-            "db".into()
-        )));
+    fn test_should_refresh_backlog_metric_is_throttled() {
+        let store = Arc::new(InMemoryStore::new());
+        let worker = WebhookWorker::new(store).unwrap();
+
+        assert!(worker.should_refresh_backlog_metric());
+        assert!(!worker.should_refresh_backlog_metric());
     }
 }

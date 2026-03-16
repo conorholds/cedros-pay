@@ -187,7 +187,15 @@ pub async fn create_collection(
 
     match state.store.create_collection(collection.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "collection", &collection.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "collection",
+                &collection.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(collection)
         }
         Err(e) => {

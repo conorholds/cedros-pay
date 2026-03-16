@@ -156,6 +156,8 @@ export { CheckoutReceipt } from './components/checkout/CheckoutReceipt';
 export type { CheckoutReceiptProps } from './components/checkout/CheckoutReceipt';
 export { CheckoutSuccessPage } from './components/checkout/CheckoutSuccessPage';
 export type { CheckoutSuccessPageProps } from './components/checkout/CheckoutSuccessPage';
+export { SendAsGiftSection } from './components/checkout/SendAsGiftSection';
+export type { SendAsGiftSectionProps } from './components/checkout/SendAsGiftSection';
 export { CheckoutCancelPage } from './components/checkout/CheckoutCancelPage';
 export type { CheckoutCancelPageProps } from './components/checkout/CheckoutCancelPage';
 export { InventoryVerificationDialog } from './components/checkout/InventoryVerificationDialog';
@@ -165,13 +167,21 @@ export type { InventoryVerificationDialogProps } from './components/checkout/Inv
 export { OrderList } from './components/orders/OrderList';
 export { OrderCard } from './components/orders/OrderCard';
 export { OrderDetails } from './components/orders/OrderDetails';
+export { MyRedemptionsPage } from './components/orders/MyRedemptionsPage';
+export type { MyRedemptionsPageProps } from './components/orders/MyRedemptionsPage';
+export { MyTokensPage } from './components/orders/MyTokensPage';
+export type { MyTokensPageProps } from './components/orders/MyTokensPage';
 
 // Gift card components
 export { GiftCardRedemptionPage } from './components/gift-cards/GiftCardRedemptionPage';
 export type { GiftCardRedemptionPageProps } from './components/gift-cards/GiftCardRedemptionPage';
+export { GiftCardBalanceChecker } from './components/gift-cards/GiftCardBalanceChecker';
+export type { GiftCardBalanceCheckerProps } from './components/gift-cards/GiftCardBalanceChecker';
 
 // Asset tokenization components
 export { AssetBadge } from './components/catalog/AssetBadge';
+export { TokenDisplay } from './components/catalog/TokenDisplay';
+export type { TokenDisplayProps } from './components/catalog/TokenDisplay';
 export { RedemptionForm } from './components/checkout/RedemptionForm';
 export type { RedemptionFormProps } from './components/checkout/RedemptionForm';
 

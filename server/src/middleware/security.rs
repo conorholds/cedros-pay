@@ -2,8 +2,8 @@ use axum::{
     body::Body,
     http::{header, HeaderValue, Request, Response},
 };
-use std::sync::LazyLock;
 use rand::Rng;
+use std::sync::LazyLock;
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
@@ -11,14 +11,17 @@ use crate::x402::utils::hex_encode;
 
 // Pre-parsed security header values - these are static and known-valid at compile time
 // Using Lazy to avoid repeated parsing and eliminate runtime .unwrap() calls
-static HEADER_NOSNIFF: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("nosniff"));
+static HEADER_NOSNIFF: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("nosniff"));
 static HEADER_DENY: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("DENY"));
-static HEADER_CSP: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("default-src 'none'"));
+static HEADER_CSP: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("default-src 'none'"));
 static HEADER_REFERRER_POLICY: LazyLock<HeaderValue> =
     LazyLock::new(|| HeaderValue::from_static("strict-origin-when-cross-origin"));
 static HEADER_HSTS: LazyLock<HeaderValue> =
     LazyLock::new(|| HeaderValue::from_static("max-age=31536000; includeSubDomains"));
-static HEADER_CACHE_CONTROL: LazyLock<HeaderValue> = LazyLock::new(|| HeaderValue::from_static("no-store"));
+static HEADER_CACHE_CONTROL: LazyLock<HeaderValue> =
+    LazyLock::new(|| HeaderValue::from_static("no-store"));
 static HEADER_PERMISSIONS_POLICY: LazyLock<HeaderValue> =
     LazyLock::new(|| HeaderValue::from_static("camera=(), microphone=(), geolocation=()"));
 

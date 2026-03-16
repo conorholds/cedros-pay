@@ -39,6 +39,10 @@ pub(crate) struct RouterStates<S: Store> {
     pub token22_service: Option<Arc<crate::services::token22::Token22Service>>,
     /// Asset fulfillment service — threaded for admin-side token burn on completion.
     pub asset_fulfillment: Option<Arc<crate::services::AssetFulfillmentService>>,
+    /// Image upload/delete state — requires PostgreSQL for storage config.
+    pub admin_images_state: Option<Arc<handlers::admin_images::ImageUploadState>>,
+    /// Dynamic sanctions list service — for admin compliance policy routes.
+    pub sanctions_list_service: Option<Arc<crate::services::SanctionsListService>>,
 }
 
 pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Router {
@@ -51,14 +55,15 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
 
     let idempotency_state = Arc::new(middleware::IdempotencyState::new(states.store.clone()));
 
-    let paywall_routes = build_paywall_routes(states.app_state.clone(), idempotency_state);
+    let paywall_routes = build_paywall_routes(states.app_state.clone(), idempotency_state.clone());
     let gift_card_claim_routes = build_gift_card_claim_routes(states.app_state.clone());
     let stripe_redirects = build_stripe_redirect_routes(states.app_state.clone());
     let stripe_webhook = build_stripe_webhook_route(states.app_state.clone());
     let products_routes = build_product_routes(states.products_state.clone());
     let collections_routes = build_collections_routes(states.collections_state.clone());
     let faqs_routes = build_faqs_routes(states.faqs_state.clone());
-    let subscription_routes = build_subscription_routes(states.subscription_state.clone());
+    let subscription_routes =
+        build_subscription_routes(states.subscription_state.clone(), idempotency_state.clone());
     let discovery_routes = build_discovery_routes(states.discovery_state.clone());
     let ai_discovery_routes = build_ai_discovery_routes();
     let metrics_routes = build_metrics_routes(states.metrics_state.clone());
@@ -134,6 +139,10 @@ fn build_paywall_routes<S: Store + 'static>(
             post(handlers::credits_holds::create_credits_hold::<S>),
         )
         .route(
+            "/credits/hold/{holdId}/release",
+            post(handlers::credits_holds::release_credits_hold::<S>),
+        )
+        .route(
             "/cart/{cartId}/credits/authorize",
             post(handlers::credits::authorize_cart_credits::<S>),
         )
@@ -171,6 +180,10 @@ fn build_paywall_routes<S: Store + 'static>(
             get(handlers::refunds::get_refund::<S>),
         )
         .route("/shop", get(handlers::paywall::shop_config::<S>))
+        .route(
+            "/compliance-check",
+            post(handlers::compliance_check::check::<S>),
+        )
         .route("/nonce", post(handlers::refunds::create_nonce::<S>))
         .layer(axum::middleware::from_fn_with_state(
             app_state.clone(),
@@ -247,9 +260,11 @@ fn build_faqs_routes(state: Arc<handlers::faqs::FaqsState>) -> Router {
 
 fn build_subscription_routes<S: Store + 'static>(
     state: Arc<handlers::subscriptions::SubscriptionAppState<S>>,
+    idempotency_state: Arc<middleware::IdempotencyState<S>>,
 ) -> Router {
     Router::new()
         .route("/status", get(handlers::subscriptions::status::<S>))
+        .route("/details", get(handlers::subscriptions::details::<S>))
         .route(
             "/stripe-session",
             post(handlers::subscriptions::stripe_session::<S>),
@@ -265,11 +280,19 @@ fn build_subscription_routes<S: Store + 'static>(
         )
         .route("/cancel", post(handlers::subscriptions::cancel::<S>))
         .route("/portal", post(handlers::subscriptions::portal::<S>))
+        .route(
+            "/change/preview",
+            post(handlers::subscriptions::preview_change::<S>),
+        )
         .route("/change", post(handlers::subscriptions::change::<S>))
         .route(
             "/reactivate",
             post(handlers::subscriptions::reactivate::<S>),
         )
+        .layer(axum::middleware::from_fn_with_state(
+            idempotency_state,
+            middleware::idempotency::idempotency_middleware::<S>,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::guest_checkout::subscription_guest_checkout_middleware::<S>,
@@ -392,6 +415,10 @@ fn build_gift_card_claim_routes<S: Store + 'static>(
         .route(
             "/gift-card/claim/{token}",
             post(handlers::credits::claim_gift_card::<S>),
+        )
+        .route(
+            "/gift-card/balance/{code}",
+            get(handlers::credits::get_gift_card_balance::<S>),
         )
         .with_state(app_state)
 }

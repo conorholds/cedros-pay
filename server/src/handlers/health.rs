@@ -3,9 +3,9 @@ use std::time::Instant;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use chrono::Utc;
-use std::sync::LazyLock;
 use parking_lot::RwLock;
 use serde::Serialize;
+use std::sync::LazyLock;
 
 use crate::workers::health_checker::HealthChecker;
 

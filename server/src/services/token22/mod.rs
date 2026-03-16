@@ -17,7 +17,10 @@ mod mint;
 mod operations;
 
 pub use mint::{create_mint_with_transfer_fee, MintCreationResult};
-pub use operations::{burn_tokens, get_associated_token_address_2022, harvest_fees, mint_tokens};
+pub use operations::{
+    burn_tokens, freeze_account, get_associated_token_address_2022, harvest_fees, mint_tokens,
+    thaw_account,
+};
 
 /// Well-known Token-22 program ID.
 pub const TOKEN_2022_PROGRAM_ID: Pubkey =

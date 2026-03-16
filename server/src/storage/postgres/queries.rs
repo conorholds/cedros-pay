@@ -90,6 +90,12 @@ pub mod refund {
         LIMIT $2
     "#;
 
+    pub const COUNT_PENDING: &str = r#"
+        SELECT COUNT(*)
+        FROM refund_quotes
+        WHERE tenant_id = $1 AND processed_at IS NULL AND expires_at > NOW()
+    "#;
+
     /// Per spec (08-storage.md): Update must filter by tenant_id for isolation
     pub const MARK_PROCESSED: &str = r#"
         UPDATE refund_quotes
@@ -415,6 +421,22 @@ pub mod inventory_reservations {
           AND status = 'active'
           AND expires_at > $4
           AND (cart_id IS NULL OR cart_id != $5)
+    "#;
+
+    pub const SUM_ACTIVE_BY_PRODUCTS_EXCLUDING_CART: &str = r#"
+        SELECT
+            requested.product_id,
+            requested.variant_id,
+            COALESCE(SUM(r.quantity), 0) AS reserved_quantity
+        FROM UNNEST($2::text[], $3::text[]) AS requested(product_id, variant_id)
+        LEFT JOIN inventory_reservations r
+          ON r.tenant_id = $1
+         AND r.product_id = requested.product_id
+         AND r.variant_id IS NOT DISTINCT FROM requested.variant_id
+         AND r.status = 'active'
+         AND r.expires_at > $4
+         AND (r.cart_id IS NULL OR r.cart_id != $5)
+        GROUP BY requested.product_id, requested.variant_id
     "#;
 
     pub const RELEASE_BY_CART: &str = r#"

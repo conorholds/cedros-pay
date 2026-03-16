@@ -89,6 +89,14 @@ impl CouponRow {
     }
 }
 
+fn payment_method_name(payment_method: &PaymentMethod) -> &'static str {
+    match payment_method {
+        PaymentMethod::Stripe => "stripe",
+        PaymentMethod::X402 => "x402",
+        PaymentMethod::Credits => "credits",
+    }
+}
+
 /// PostgreSQL coupon repository
 pub struct PostgresCouponRepository {
     pool: PgPool,
@@ -176,6 +184,52 @@ impl CouponRepository for PostgresCouponRepository {
         Ok(rows.into_iter().map(|r| r.into_coupon()).collect())
     }
 
+    async fn get_resource_auto_apply_coupons(
+        &self,
+        tenant_id: &str,
+        resource_id: &str,
+        payment_method: Option<&PaymentMethod>,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        let payment_method = payment_method.map(payment_method_name);
+        let query = format!(
+            r#"
+            SELECT {cols}
+            FROM {table}
+            WHERE tenant_id = $1
+              AND active = true
+              AND auto_apply = true
+              AND (starts_at IS NULL OR starts_at <= NOW())
+              AND (expires_at IS NULL OR expires_at > NOW())
+              AND (usage_limit IS NULL OR usage_count < usage_limit)
+              AND (
+                LOWER(scope) = 'all'
+                OR (LOWER(scope) = 'specific' AND $2 = ANY(product_ids))
+              )
+              AND (
+                $3::text IS NULL
+                OR payment_method IS NULL
+                OR payment_method = ''
+                OR LOWER(payment_method) = 'any'
+                OR LOWER(payment_method) = LOWER($3)
+              )
+            ORDER BY created_at ASC
+            LIMIT 1000
+            "#,
+            cols = COUPON_SELECT_COLUMNS,
+            table = self.table_name
+        );
+
+        let rows: Vec<CouponRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .bind(resource_id)
+            .bind(payment_method)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| CouponRepositoryError::Storage(e.to_string()))?;
+
+        Ok(rows.into_iter().map(|row| row.into_coupon()).collect())
+    }
+
     async fn list_coupons_paginated(
         &self,
         tenant_id: &str,
@@ -230,11 +284,7 @@ impl CouponRepository for PostgresCouponRepository {
         product_id: &str,
         payment_method: &PaymentMethod,
     ) -> Result<Vec<Coupon>, CouponRepositoryError> {
-        let pm = match payment_method {
-            PaymentMethod::Stripe => "stripe",
-            PaymentMethod::X402 => "x402",
-            PaymentMethod::Credits => "credits",
-        };
+        let pm = payment_method_name(payment_method);
 
         let query = format!(
             r#"
@@ -269,16 +319,76 @@ impl CouponRepository for PostgresCouponRepository {
         Ok(rows.into_iter().map(|r| r.into_coupon()).collect())
     }
 
+    async fn get_catalog_auto_apply_coupons_for_cart(
+        &self,
+        tenant_id: &str,
+        product_ids: &[String],
+        category_ids: &[String],
+        payment_method: &PaymentMethod,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        let pm = payment_method_name(payment_method);
+        let query = format!(
+            r#"
+            SELECT {cols}
+            FROM {table}
+            WHERE active = true
+              AND tenant_id = $1
+              AND auto_apply = true
+              AND LOWER(COALESCE(NULLIF(applies_at, ''), 'catalog')) = 'catalog'
+              AND (payment_method IS NULL OR payment_method = '' OR LOWER(payment_method) = 'any' OR LOWER(payment_method) = LOWER($2))
+              AND (starts_at IS NULL OR starts_at <= NOW())
+              AND (expires_at IS NULL OR expires_at > NOW())
+              AND (usage_limit IS NULL OR usage_count < usage_limit)
+              AND (
+                    (
+                        LOWER(scope) = 'all'
+                        AND (
+                            category_ids IS NULL
+                            OR category_ids = '[]'::jsonb
+                            OR EXISTS (
+                                SELECT 1
+                                FROM jsonb_array_elements_text(category_ids) AS category_id
+                                WHERE category_id = ANY($4)
+                            )
+                        )
+                    )
+                    OR (
+                        LOWER(scope) = 'specific'
+                        AND (
+                            (product_ids IS NOT NULL AND product_ids && $3)
+                            OR EXISTS (
+                                SELECT 1
+                                FROM jsonb_array_elements_text(COALESCE(category_ids, '[]'::jsonb)) AS category_id
+                                WHERE category_id = ANY($4)
+                            )
+                        )
+                    )
+                )
+            ORDER BY created_at ASC
+            LIMIT 1000
+            "#,
+            cols = COUPON_SELECT_COLUMNS,
+            table = self.table_name
+        );
+
+        let rows: Vec<CouponRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .bind(pm)
+            .bind(product_ids)
+            .bind(category_ids)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| CouponRepositoryError::Storage(e.to_string()))?;
+
+        Ok(rows.into_iter().map(|row| row.into_coupon()).collect())
+    }
+
     async fn get_all_auto_apply_coupons_for_payment(
         &self,
         tenant_id: &str,
         payment_method: &PaymentMethod,
     ) -> Result<HashMap<String, Vec<Coupon>>, CouponRepositoryError> {
-        let pm = match payment_method {
-            PaymentMethod::Stripe => "stripe",
-            PaymentMethod::X402 => "x402",
-            PaymentMethod::Credits => "credits",
-        };
+        let pm = payment_method_name(payment_method);
 
         let query = format!(
             r#"
@@ -323,11 +433,7 @@ impl CouponRepository for PostgresCouponRepository {
         tenant_id: &str,
         payment_method: &PaymentMethod,
     ) -> Result<Vec<Coupon>, CouponRepositoryError> {
-        let pm = match payment_method {
-            PaymentMethod::Stripe => "stripe",
-            PaymentMethod::X402 => "x402",
-            PaymentMethod::Credits => "credits",
-        };
+        let pm = payment_method_name(payment_method);
 
         let query = format!(
             r#"

@@ -137,6 +137,12 @@ export type OrderLineItem = {
   productId?: string;
   /** Whether this item is a tokenized asset (eligible for redemption). */
   tokenizedAsset?: boolean;
+  /** Denormalized asset class (e.g., "securities", "commodities"). */
+  assetClass?: string;
+  /** Backing value in cents. */
+  backingValueCents?: number;
+  /** Backing currency (e.g., "usd"). */
+  backingCurrency?: string;
 };
 
 /** Order status values matching backend */

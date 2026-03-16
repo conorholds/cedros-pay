@@ -15,5 +15,8 @@ pub use factory::{
 };
 pub use memory::{InMemoryCouponRepository, InMemoryProductRepository};
 pub use postgres::{PostgresCouponRepository, PostgresProductRepository};
-pub use products::{ProductRepository, ProductRepositoryError};
+pub use products::{
+    AiCatalogProduct, DiscoveryProduct, ProductRepository, ProductRepositoryError,
+    ProductsTxtProduct,
+};
 pub use transactional_ops::TransactionalOps;

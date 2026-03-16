@@ -270,11 +270,6 @@ impl<S: Store + 'static> EmailWorker<S> {
         debug!(count = emails.len(), "Processing email batch");
 
         for email in emails {
-            if let Err(e) = self.store.mark_email_processing(&email.id).await {
-                warn!(email_id = %email.id, error = %e, "Failed to mark email processing");
-                continue;
-            }
-
             let result = self.send_email(&email, mailer).await;
 
             match result {

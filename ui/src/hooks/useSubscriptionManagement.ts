@@ -178,12 +178,9 @@ export function useSubscriptionManagement() {
 
       try {
         const request: ChangeSubscriptionRequest = {
-          currentResource: subscription.resource,
+          subscriptionId: subscription.id,
           newResource: options.newResource,
-          userId,
-          newInterval: options.newInterval,
           prorationBehavior: options.prorationBehavior,
-          immediate: options.immediate,
         };
         const response = await subscriptionChangeManager.changeSubscription(request);
 
@@ -196,8 +193,9 @@ export function useSubscriptionManagement() {
               ? {
                   ...prev.subscription,
                   resource: response.newResource,
-                  interval: response.newInterval,
+                  interval: prev.subscription.interval,
                   status: response.status,
+                  currentPeriodEnd: response.currentPeriodEnd,
                 }
               : null,
             changePreview: null,
@@ -236,15 +234,14 @@ export function useSubscriptionManagement() {
 
       try {
         const request: CancelSubscriptionRequest = {
-          resource: subscription.resource,
-          userId,
-          immediate,
+          subscriptionId: subscription.id,
+          atPeriodEnd: !immediate,
         };
         const response = await subscriptionChangeManager.cancel(request);
 
         if (response.success) {
           // Update local subscription state
-          const newStatus: SubscriptionStatus = immediate ? 'canceled' : subscription.status;
+          const newStatus: SubscriptionStatus = response.atPeriodEnd ? subscription.status : 'canceled';
           setState((prev) => ({
             ...prev,
             status: 'success',
@@ -252,7 +249,7 @@ export function useSubscriptionManagement() {
               ? {
                   ...prev.subscription,
                   status: newStatus,
-                  cancelAtPeriodEnd: !immediate,
+                  cancelAtPeriodEnd: response.atPeriodEnd,
                 }
               : null,
           }));
@@ -279,11 +276,22 @@ export function useSubscriptionManagement() {
    */
   const openBillingPortal = useCallback(
     async (userId: string, returnUrl?: string): Promise<BillingPortalResponse | null> => {
+      const customerId = stateRef.current.subscription?.customerId
+        ?? (userId.startsWith('cus_') ? userId : null);
+      if (!customerId) {
+        setState((prev) => ({
+          ...prev,
+          status: 'error',
+          error: 'No Stripe customer ID available for billing portal',
+        }));
+        return null;
+      }
+
       setState((prev) => ({ ...prev, status: 'loading', error: null }));
 
       try {
         const response = await subscriptionChangeManager.getBillingPortalUrl({
-          userId,
+          customerId,
           returnUrl,
         });
 

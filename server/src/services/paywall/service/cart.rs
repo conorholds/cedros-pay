@@ -11,6 +11,7 @@ impl PaywallService {
         tenant_id: &str,
         cart_id: &str,
         proof: crate::models::PaymentProof,
+        country_code: Option<&str>,
     ) -> ServiceResult<AuthorizationResult> {
         // Check if x402 payments are enabled
         if !self.config.x402.enabled {
@@ -68,6 +69,103 @@ impl PaywallService {
                 code: ErrorCode::QuoteExpired,
                 message: "cart quote expired".into(),
             });
+        }
+
+        // Jurisdiction enforcement: block OFAC-sanctioned countries globally,
+        // and enforce per-collection allowed_jurisdictions for tokenized products.
+        if let Some(cc) = country_code {
+            if crate::services::sanctions::is_blocked_jurisdiction(cc) {
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::InvalidField,
+                    message: "purchases are not available in your jurisdiction".into(),
+                });
+            }
+            // Check per-collection allowed_jurisdictions for tokenized cart items
+            for item in &cart.items {
+                if let Ok(product) = self.products.get_product(tenant_id, &item.resource_id).await {
+                    if let Some(ref tac) = product.tokenized_asset_config {
+                        if let Ok(Some(coll)) = self
+                            .store
+                            .get_collection(tenant_id, &tac.asset_class_collection_id)
+                            .await
+                        {
+                            if let Some(ref tc) = coll.tokenization_config {
+                                if !tc.allowed_jurisdictions.is_empty()
+                                    && !crate::services::sanctions::is_allowed_for_asset(
+                                        cc,
+                                        &tc.allowed_jurisdictions,
+                                    )
+                                {
+                                    return Err(ServiceError::Coded {
+                                        code: ErrorCode::InvalidField,
+                                        message: format!(
+                                            "tokenized asset not available in jurisdiction {}",
+                                            cc
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // No country code: for tokenized assets with allowed_jurisdictions, fail closed
+            for item in &cart.items {
+                if let Ok(product) = self.products.get_product(tenant_id, &item.resource_id).await {
+                    if let Some(ref tac) = product.tokenized_asset_config {
+                        if let Ok(Some(coll)) = self
+                            .store
+                            .get_collection(tenant_id, &tac.asset_class_collection_id)
+                            .await
+                        {
+                            if let Some(ref tc) = coll.tokenization_config {
+                                if !tc.allowed_jurisdictions.is_empty() {
+                                    return Err(ServiceError::Coded {
+                                        code: ErrorCode::InvalidField,
+                                        message: "jurisdiction verification required for tokenized asset purchases".into(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Compliance gate: sanctions, KYC, accredited investor.
+        // Merges requirements from all products in the cart — if *any* item
+        // requires KYC, the whole cart is gated.
+        if let Some(ref checker) = self.compliance_checker {
+            let mut reqs_list: Vec<crate::models::compliance::ComplianceRequirements> = Vec::new();
+            for item in &cart.items {
+                if let Ok(product) = self.products.get_product(tenant_id, &item.resource_id).await {
+                    reqs_list.push(
+                        product.compliance_requirements.clone()
+                            .unwrap_or_default(),
+                    );
+                }
+            }
+            let refs: Vec<&crate::models::compliance::ComplianceRequirements> =
+                reqs_list.iter().collect();
+            let merged = crate::services::compliance_checker::ComplianceChecker::merge_requirements(&refs);
+
+            let buyer_user_id = self.resolve_user_id_from_wallet(&proof.payer).await;
+            if let crate::services::compliance_checker::ComplianceResult::Blocked { reasons } =
+                checker.check_compliance(tenant_id, &proof.payer, buyer_user_id.as_deref(), &merged).await
+            {
+                warn!(
+                    tenant_id = %tenant_id,
+                    cart_id = %cart_id,
+                    wallet = %proof.payer,
+                    ?reasons,
+                    "Cart purchase blocked by compliance check"
+                );
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::InvalidField,
+                    message: format!("purchase blocked: {}", reasons.join("; ")),
+                });
+            }
         }
 
         // EARLY DUPLICATE CHECK (C-001): This is an optimization only, NOT a security boundary.
@@ -767,35 +865,6 @@ impl PaywallService {
             });
         }
 
-        // Capture the hold via cedros-login
-        // This atomically deducts the credits from the user's balance
-        client.capture_hold(hold_id).await.map_err(|e| {
-            use crate::services::cedros_login::CedrosLoginError;
-            match e {
-                CedrosLoginError::HoldNotFound(_) => ServiceError::Coded {
-                    code: ErrorCode::SessionNotFound,
-                    message: "credits hold not found or expired".into(),
-                },
-                CedrosLoginError::HoldAlreadyProcessed(_) => ServiceError::Coded {
-                    code: ErrorCode::InvalidPaymentProof,
-                    message: "credits hold already captured or released".into(),
-                },
-                CedrosLoginError::InsufficientCredits { required, available } => {
-                    ServiceError::Coded {
-                        code: ErrorCode::InsufficientCredits,
-                        message: format!(
-                            "insufficient credits: required {}, available {}",
-                            required, available
-                        ),
-                    }
-                }
-                _ => ServiceError::Coded {
-                    code: ErrorCode::VerificationFailed,
-                    message: format!("credits capture failed: {}", e),
-                },
-            }
-        })?;
-
         let user_id = if let Some(u) = user_id_override {
             Some(u.to_string())
         } else if let Some(w) = wallet {
@@ -821,64 +890,104 @@ impl PaywallService {
             },
         };
 
-        // Record payment with retry
-        let mut last_error = None;
-        let mut payment_recorded_new = false;
-        for attempt in 0..3 {
-            match self.store.try_record_payment(payment.clone()).await {
-                Ok(true) => {
-                    if attempt > 0 {
-                        tracing::info!(
-                            attempt = attempt + 1,
-                            cart_id = %cart_id,
-                            "Cart credits payment recording succeeded after retry"
-                        );
-                    }
-                    last_error = None;
-                    payment_recorded_new = true;
-                    break;
-                }
-                Ok(false) => {
-                    // Already recorded by concurrent request - idempotent success
+        self.prepare_credits_capture_recovery_marker(
+            tenant_id,
+            hold_id,
+            &resource_id,
+            &payment.wallet,
+            payment.user_id.clone(),
+            cart.total.clone(),
+        )
+        .await?;
+
+        // Capture the hold via cedros-login. A durable recovery marker already exists.
+        match client.capture_hold(hold_id).await {
+            Ok(()) => {}
+            Err(crate::services::cedros_login::CedrosLoginError::HoldAlreadyProcessed(_)) => {
+                if let Some((payment_recorded_new, existing_payment)) = self
+                    .recover_captured_credits_payment(tenant_id, hold_id, payment.clone())
+                    .await?
+                {
                     debug!(
                         hold_id = %hold_id,
                         cart_id = %cart_id,
-                        "Cart credits payment already recorded by concurrent request"
+                        "Recovered cart credits payment after prior successful capture"
                     );
-                    last_error = None;
-                    payment_recorded_new = false;
-                    break;
-                }
-                Err(e) => {
-                    last_error = Some(e);
-                    if attempt < 2 {
-                        let delay_ms = 100 * (1 << attempt);
-                        tracing::warn!(
-                            attempt = attempt + 1,
-                            delay_ms = delay_ms,
-                            cart_id = %cart_id,
-                            "Cart credits payment recording failed, retrying"
-                        );
-                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                    if payment_recorded_new {
+                        self.apply_gift_card_redemption_atomic(tenant_id, &cart).await;
                     }
+                    let paid_by = wallet.unwrap_or(user_id_override.unwrap_or("credits"));
+                    match self.store.mark_cart_paid(tenant_id, cart_id, paid_by).await {
+                        Ok(()) => {}
+                        Err(crate::storage::StorageError::NotFound) => {
+                            warn!(cart_id = %cart_id, "Cart disappeared or already paid during credits capture");
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                error = %e,
+                                hold_id = %hold_id,
+                                cart_id = %cart_id,
+                                "CRITICAL: Failed to persist cart paid marker after recovered credits capture"
+                            );
+                            return Err(ServiceError::Coded {
+                                code: ErrorCode::DatabaseError,
+                                message: "failed to persist cart paid marker".into(),
+                            });
+                        }
+                    }
+                    if let Err(e) = self.store.delete_credits_hold(tenant_id, hold_id).await {
+                        tracing::warn!(error = %e, hold_id = %hold_id, "Failed to delete credits hold binding");
+                    }
+                    return Ok(AuthorizationResult {
+                        granted: true,
+                        method: Some("credits-cart".into()),
+                        wallet: (!existing_payment.wallet.is_empty())
+                            .then_some(existing_payment.wallet),
+                        quote: None,
+                        settlement: None,
+                        subscription: None,
+                    });
                 }
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::InvalidPaymentProof,
+                    message: "credits hold already captured or released".into(),
+                });
+            }
+            Err(crate::services::cedros_login::CedrosLoginError::HoldNotFound(_)) => {
+                self.clear_credits_capture_recovery_marker(tenant_id, hold_id)
+                    .await;
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::SessionNotFound,
+                    message: "credits hold not found or expired".into(),
+                });
+            }
+            Err(crate::services::cedros_login::CedrosLoginError::InsufficientCredits {
+                required,
+                available,
+            }) => {
+                self.clear_credits_capture_recovery_marker(tenant_id, hold_id)
+                    .await;
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::InsufficientCredits,
+                    message: format!(
+                        "insufficient credits: required {}, available {}",
+                        required, available
+                    ),
+                });
+            }
+            Err(e) => {
+                self.clear_credits_capture_recovery_marker(tenant_id, hold_id)
+                    .await;
+                return Err(ServiceError::Coded {
+                    code: ErrorCode::VerificationFailed,
+                    message: format!("credits capture failed: {}", e),
+                });
             }
         }
-        if let Some(e) = last_error {
-            // CRITICAL: Hold was captured but recording failed
-            // The credits are already deducted - requires manual reconciliation
-            tracing::error!(
-                error = %e,
-                hold_id = %hold_id,
-                cart_id = %cart_id,
-                amount = %cart.total.atomic,
-                "CRITICAL: Cart credits payment recording failed after capture - requires manual reconciliation"
-            );
-            return Err(ServiceError::Coded {
-                code: ErrorCode::DatabaseError,
-                message: "payment recording failed".into(),
-            });
-        }
+
+        let (payment_recorded_new, recorded_payment) = self
+            .finalize_credits_capture_payment(tenant_id, hold_id, payment)
+            .await?;
 
         if payment_recorded_new {
             self.apply_gift_card_redemption_atomic(tenant_id, &cart).await;
@@ -1032,7 +1141,7 @@ impl PaywallService {
         Ok(AuthorizationResult {
             granted: true,
             method: Some("credits-cart".into()),
-            wallet: wallet.map(String::from),
+            wallet: (!recorded_payment.wallet.is_empty()).then_some(recorded_payment.wallet),
             quote: None,
             settlement: None,
             subscription: None,

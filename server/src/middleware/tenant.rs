@@ -20,8 +20,8 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use std::sync::LazyLock;
 use serde::Deserialize;
+use std::sync::LazyLock;
 
 use super::real_ip::TrustedProxy;
 

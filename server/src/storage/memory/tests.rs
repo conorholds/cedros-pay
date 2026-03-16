@@ -70,6 +70,41 @@ async fn test_webhook_retry_requeues_pending() {
 }
 
 #[tokio::test]
+async fn test_dequeue_emails_claims_processing_state_once() {
+    let store = InMemoryStore::new();
+    let now = Utc::now();
+    store
+        .enqueue_email(PendingEmail {
+            id: "email-1".to_string(),
+            tenant_id: "default".to_string(),
+            to_email: "user@example.com".to_string(),
+            from_email: "noreply@example.com".to_string(),
+            from_name: "Cedros".to_string(),
+            subject: "Hello".to_string(),
+            body_text: "Body".to_string(),
+            body_html: None,
+            status: EmailStatus::Pending,
+            attempts: 0,
+            max_attempts: 3,
+            last_error: None,
+            last_attempt_at: None,
+            next_attempt_at: Some(now - ChronoDuration::seconds(1)),
+            created_at: now,
+            completed_at: None,
+        })
+        .await
+        .unwrap();
+
+    let first = store.dequeue_emails(1).await.unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].status, EmailStatus::Pending);
+    assert!(first[0].last_attempt_at.is_some());
+
+    let second = store.dequeue_emails(1).await.unwrap();
+    assert!(second.is_empty());
+}
+
+#[tokio::test]
 async fn test_enqueue_webhook_is_idempotent_on_duplicate_id() {
     let store = InMemoryStore::new();
     let now = Utc::now();

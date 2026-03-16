@@ -48,6 +48,116 @@ fn build_service(cart_ttl: Duration, refund_ttl: Duration) -> (PaywallService, A
     (service, store)
 }
 
+fn build_credits_service(base_url: String) -> (PaywallService, Arc<InMemoryStore>) {
+    let mut config = Config::default();
+    config.cedros_login.enabled = true;
+    config.cedros_login.credits_enabled = true;
+    config.cedros_login.base_url = base_url.clone();
+    config.cedros_login.api_key = "secret".to_string();
+
+    let store = Arc::new(InMemoryStore::new());
+    let cedros_login = crate::services::CedrosLoginClient::new(
+        base_url,
+        "secret".to_string(),
+        Duration::from_secs(5),
+        None,
+        None,
+    )
+    .expect("cedros login");
+
+    let service = PaywallService::new(
+        config,
+        store.clone(),
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        Arc::new(InMemoryProductRepository::new(Vec::new())),
+        Arc::new(InMemoryCouponRepository::new(Vec::new())),
+    )
+    .with_cedros_login(Arc::new(cedros_login));
+
+    (service, store)
+}
+
+fn build_credits_service_with_products(
+    base_url: String,
+    products: Vec<Product>,
+) -> (PaywallService, Arc<InMemoryStore>) {
+    let mut config = Config::default();
+    config.cedros_login.enabled = true;
+    config.cedros_login.credits_enabled = true;
+    config.cedros_login.base_url = base_url.clone();
+    config.cedros_login.api_key = "secret".to_string();
+
+    let store = Arc::new(InMemoryStore::new());
+    let cedros_login = crate::services::CedrosLoginClient::new(
+        base_url,
+        "secret".to_string(),
+        Duration::from_secs(5),
+        None,
+        None,
+    )
+    .expect("cedros login");
+
+    let service = PaywallService::new(
+        config,
+        store.clone(),
+        Arc::new(NoopVerifier),
+        Arc::new(NoopNotifier),
+        Arc::new(InMemoryProductRepository::new(products)),
+        Arc::new(InMemoryCouponRepository::new(Vec::new())),
+    )
+    .with_cedros_login(Arc::new(cedros_login));
+
+    (service, store)
+}
+
+async fn seed_credits_hold(
+    store: &Arc<InMemoryStore>,
+    hold_id: &str,
+    user_id: &str,
+    resource_id: &str,
+) {
+    store
+        .store_credits_hold(crate::storage::CreditsHold {
+            hold_id: hold_id.to_string(),
+            tenant_id: "tenant-1".to_string(),
+            user_id: user_id.to_string(),
+            resource_id: resource_id.to_string(),
+            amount: 1234,
+            amount_asset: "USDC".to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::minutes(5),
+        })
+        .await
+        .unwrap();
+}
+
+async fn seed_cart_quote(
+    store: &Arc<InMemoryStore>,
+    cart_id: &str,
+    resource_id: &str,
+    amount: i64,
+) {
+    let asset = get_asset("USDC").expect("asset should be registered");
+    store
+        .store_cart_quote(CartQuote {
+            id: cart_id.to_string(),
+            tenant_id: "tenant-1".to_string(),
+            items: vec![CartItem {
+                resource_id: resource_id.to_string(),
+                quantity: 1,
+                price: Money::new(asset.clone(), amount),
+                ..CartItem::default()
+            }],
+            total: Money::new(asset, amount),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::minutes(5),
+            ..CartQuote::default()
+        })
+        .await
+        .unwrap();
+}
+
 #[derive(Default, Clone)]
 struct TestPaymentCallback {
     payments: Arc<Mutex<u32>>,
@@ -55,7 +165,10 @@ struct TestPaymentCallback {
 
 #[async_trait::async_trait]
 impl crate::PaymentCallback for TestPaymentCallback {
-    async fn on_payment_success(&self, _event: &PaymentEvent) -> Result<(), crate::PaymentCallbackError> {
+    async fn on_payment_success(
+        &self,
+        _event: &PaymentEvent,
+    ) -> Result<(), crate::PaymentCallbackError> {
         *self.payments.lock() += 1;
         Ok(())
     }
@@ -74,7 +187,10 @@ impl SlowPaymentCallback {
 
 #[async_trait::async_trait]
 impl crate::PaymentCallback for SlowPaymentCallback {
-    async fn on_payment_success(&self, _event: &PaymentEvent) -> Result<(), crate::PaymentCallbackError> {
+    async fn on_payment_success(
+        &self,
+        _event: &PaymentEvent,
+    ) -> Result<(), crate::PaymentCallbackError> {
         tokio::time::sleep(self.delay).await;
         Ok(())
     }
@@ -113,6 +229,15 @@ impl CouponRepository for StaleLimitCouponRepo {
 
     async fn list_coupons(&self, _tenant_id: &str) -> Result<Vec<Coupon>, CouponRepositoryError> {
         Ok(vec![self.stale_coupon.clone()])
+    }
+
+    async fn get_resource_auto_apply_coupons(
+        &self,
+        _tenant_id: &str,
+        _resource_id: &str,
+        _payment_method: Option<&crate::models::PaymentMethod>,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Ok(vec![self.fresh_coupon.clone()])
     }
 
     async fn get_auto_apply_coupons_for_payment(
@@ -183,6 +308,17 @@ impl CouponRepository for ListFailCouponRepo {
     }
 
     async fn list_coupons(&self, _tenant_id: &str) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        Err(CouponRepositoryError::Storage(
+            "transient coupon list failure".to_string(),
+        ))
+    }
+
+    async fn get_resource_auto_apply_coupons(
+        &self,
+        _tenant_id: &str,
+        _resource_id: &str,
+        _payment_method: Option<&crate::models::PaymentMethod>,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
         Err(CouponRepositoryError::Storage(
             "transient coupon list failure".to_string(),
         ))
@@ -587,8 +723,7 @@ async fn test_resolve_user_id_from_wallet_uses_cache() {
         .route(
             "/users/by-wallet/{wallet}",
             get(
-                |Path(wallet): Path<String>,
-                 State(hits): State<Arc<Mutex<u32>>>| async move {
+                |Path(wallet): Path<String>, State(hits): State<Arc<Mutex<u32>>>| async move {
                     *hits.lock() += 1;
                     (
                         StatusCode::OK,
@@ -773,6 +908,7 @@ async fn test_authorize_credits_idempotent_returns_wallet_when_present() {
                 coupon_code: None,
                 wallet: None,
                 credits_hold_id: Some("hold-1"),
+                country_code: None,
             },
         )
         .await
@@ -976,12 +1112,10 @@ async fn test_create_cart_credits_hold_idempotency_key_includes_user_id() {
     );
 }
 
-
-
 #[tokio::test]
 async fn test_authorize_credits_for_user_records_user_id() {
-    use axum::{routing::post, Router};
     use axum::http::StatusCode;
+    use axum::{routing::post, Router};
     use tokio::net::TcpListener;
 
     let app = Router::new().route(
@@ -1049,14 +1183,7 @@ async fn test_authorize_credits_for_user_records_user_id() {
         .unwrap();
 
     let result = service
-        .authorize_credits_for_user(
-            "tenant-1",
-            "product-1",
-            "hold-1",
-            None,
-            None,
-            "user-1",
-        )
+        .authorize_credits_for_user("tenant-1", "product-1", "hold-1", None, None, "user-1")
         .await
         .unwrap();
 
@@ -1069,10 +1196,7 @@ async fn test_authorize_credits_for_user_records_user_id() {
         .expect("payment recorded");
     assert_eq!(payment.user_id.as_deref(), Some("user-1"));
 
-    let hold = store
-        .get_credits_hold("tenant-1", "hold-1")
-        .await
-        .unwrap();
+    let hold = store.get_credits_hold("tenant-1", "hold-1").await.unwrap();
     assert!(hold.is_none());
 }
 
@@ -1168,6 +1292,209 @@ async fn test_authorize_credits_hold_already_processed_returns_idempotent_succes
 }
 
 #[tokio::test]
+async fn test_authorize_credits_recovers_after_processed_capture_with_recovery_marker() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/capture/{hold_id}",
+        post(|| async { StatusCode::CONFLICT }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let asset = get_asset("USDC").expect("asset");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset.clone(), 1234)),
+        active: true,
+        ..Product::default()
+    };
+    let (service, store) =
+        build_credits_service_with_products(format!("http://{}", addr), vec![product]);
+
+    seed_credits_hold(&store, "hold-1", "user-1", "product-1").await;
+    store
+        .record_payment(PaymentTransaction {
+            signature: "credits-recovery:hold-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            resource_id: "product-1".to_string(),
+            wallet: "".to_string(),
+            user_id: Some("user-1".to_string()),
+            amount: Money::new(asset, 1234),
+            created_at: Utc::now(),
+            metadata: HashMap::from([
+                ("hold_id".to_string(), "hold-1".to_string()),
+                ("capture_pending_record".to_string(), "true".to_string()),
+            ]),
+        })
+        .await
+        .unwrap();
+
+    let result = service
+        .authorize_credits_for_user("tenant-1", "product-1", "hold-1", None, None, "user-1")
+        .await
+        .unwrap();
+
+    assert!(result.granted);
+    let payment = store
+        .get_payment("tenant-1", "credits:hold-1")
+        .await
+        .unwrap()
+        .expect("recovered payment recorded");
+    assert_eq!(payment.resource_id, "product-1");
+    assert_eq!(payment.user_id.as_deref(), Some("user-1"));
+    assert!(store
+        .get_payment("tenant-1", "credits-recovery:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(store
+        .get_credits_hold("tenant-1", "hold-1")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn test_authorize_credits_clears_recovery_marker_on_capture_failure() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/capture/{hold_id}",
+        post(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let asset = get_asset("USDC").expect("asset");
+    let product = Product {
+        id: "product-1".to_string(),
+        tenant_id: "tenant-1".to_string(),
+        crypto_price: Some(Money::new(asset, 1234)),
+        active: true,
+        ..Product::default()
+    };
+    let (service, store) =
+        build_credits_service_with_products(format!("http://{}", addr), vec![product]);
+
+    seed_credits_hold(&store, "hold-1", "user-1", "product-1").await;
+
+    let err = service
+        .authorize_credits_for_user("tenant-1", "product-1", "hold-1", None, None, "user-1")
+        .await
+        .expect_err("capture failure should bubble up");
+
+    assert_eq!(err.code(), ErrorCode::VerificationFailed);
+    assert!(store
+        .get_payment("tenant-1", "credits-recovery:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(store
+        .get_payment("tenant-1", "credits:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn test_release_credits_hold_for_user_releases_and_deletes_binding() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/release/{hold_id}",
+        post(|| async { StatusCode::OK }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (service, store) = build_credits_service(format!("http://{}", addr));
+    seed_credits_hold(&store, "hold-1", "user-1", "product-1").await;
+
+    service
+        .release_credits_hold_for_user("tenant-1", "hold-1", "user-1")
+        .await
+        .unwrap();
+
+    let hold = store.get_credits_hold("tenant-1", "hold-1").await.unwrap();
+    assert!(hold.is_none());
+}
+
+#[tokio::test]
+async fn test_release_credits_hold_for_user_rejects_wrong_user() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/release/{hold_id}",
+        post(|| async { StatusCode::OK }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (service, store) = build_credits_service(format!("http://{}", addr));
+    seed_credits_hold(&store, "hold-1", "user-1", "product-1").await;
+
+    let err = service
+        .release_credits_hold_for_user("tenant-1", "hold-1", "user-2")
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.code(), ErrorCode::InvalidPaymentProof);
+
+    let hold = store.get_credits_hold("tenant-1", "hold-1").await.unwrap();
+    assert!(hold.is_some());
+}
+
+#[tokio::test]
+async fn test_release_credits_hold_for_user_cleans_up_already_processed_hold() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/release/{hold_id}",
+        post(|| async { StatusCode::CONFLICT }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (service, store) = build_credits_service(format!("http://{}", addr));
+    seed_credits_hold(&store, "hold-1", "user-1", "product-1").await;
+
+    service
+        .release_credits_hold_for_user("tenant-1", "hold-1", "user-1")
+        .await
+        .unwrap();
+
+    let hold = store.get_credits_hold("tenant-1", "hold-1").await.unwrap();
+    assert!(hold.is_none());
+}
+
+#[tokio::test]
 async fn test_authorize_credits_rejects_hold_amount_mismatch() {
     use axum::http::StatusCode;
     use axum::{routing::post, Router};
@@ -1249,6 +1576,124 @@ async fn test_authorize_credits_rejects_hold_amount_mismatch() {
 }
 
 #[tokio::test]
+async fn test_authorize_cart_credits_recovers_after_processed_capture_with_recovery_marker() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/capture/{hold_id}",
+        post(|| async { StatusCode::CONFLICT }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (service, store) = build_credits_service(format!("http://{}", addr));
+    let asset = get_asset("USDC").expect("asset");
+
+    seed_cart_quote(&store, "cart-1", "product-1", 1234).await;
+    seed_credits_hold(&store, "hold-1", "user-1", "cart:cart-1").await;
+    store
+        .record_payment(PaymentTransaction {
+            signature: "credits-recovery:hold-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            resource_id: "cart:cart-1".to_string(),
+            wallet: "".to_string(),
+            user_id: Some("user-1".to_string()),
+            amount: Money::new(asset, 1234),
+            created_at: Utc::now(),
+            metadata: HashMap::from([
+                ("hold_id".to_string(), "hold-1".to_string()),
+                ("capture_pending_record".to_string(), "true".to_string()),
+            ]),
+        })
+        .await
+        .unwrap();
+
+    let result = service
+        .authorize_cart_credits_for_user("tenant-1", "cart-1", "hold-1", None, "user-1")
+        .await
+        .unwrap();
+
+    assert!(result.granted);
+    let payment = store
+        .get_payment("tenant-1", "credits:hold-1")
+        .await
+        .unwrap()
+        .expect("recovered cart payment recorded");
+    assert_eq!(payment.resource_id, "cart:cart-1");
+    assert_eq!(payment.user_id.as_deref(), Some("user-1"));
+    assert!(store
+        .get_payment("tenant-1", "credits-recovery:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+    let cart = store
+        .get_cart_quote("tenant-1", "cart-1")
+        .await
+        .unwrap()
+        .expect("cart retained");
+    assert_eq!(cart.wallet_paid_by.as_deref(), Some("user-1"));
+    assert!(store
+        .get_credits_hold("tenant-1", "hold-1")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn test_authorize_cart_credits_clears_recovery_marker_on_capture_failure() {
+    use axum::http::StatusCode;
+    use axum::{routing::post, Router};
+    use tokio::net::TcpListener;
+
+    let app = Router::new().route(
+        "/credits/capture/{hold_id}",
+        post(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let (service, store) = build_credits_service(format!("http://{}", addr));
+    seed_cart_quote(&store, "cart-1", "product-1", 1234).await;
+    seed_credits_hold(&store, "hold-1", "user-1", "cart:cart-1").await;
+
+    let err = service
+        .authorize_cart_credits_for_user("tenant-1", "cart-1", "hold-1", None, "user-1")
+        .await
+        .expect_err("capture failure should bubble up");
+
+    assert_eq!(err.code(), ErrorCode::VerificationFailed);
+    assert!(store
+        .get_payment("tenant-1", "credits-recovery:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+    assert!(store
+        .get_payment("tenant-1", "credits:hold-1")
+        .await
+        .unwrap()
+        .is_none());
+    let cart = store
+        .get_cart_quote("tenant-1", "cart-1")
+        .await
+        .unwrap()
+        .expect("cart retained");
+    assert!(cart.wallet_paid_by.is_none());
+    assert!(store
+        .get_credits_hold("tenant-1", "hold-1")
+        .await
+        .unwrap()
+        .is_some());
+}
+
+#[tokio::test]
 async fn test_stripe_authorize_binds_session_to_resource() {
     let (service, store) = build_service(Duration::from_secs(60), Duration::from_secs(60));
 
@@ -1276,6 +1721,7 @@ async fn test_stripe_authorize_binds_session_to_resource() {
                 coupon_code: None,
                 wallet: None,
                 credits_hold_id: None,
+                country_code: None,
             },
         )
         .await
@@ -1293,6 +1739,7 @@ async fn test_stripe_authorize_binds_session_to_resource() {
                 coupon_code: None,
                 wallet: None,
                 credits_hold_id: None,
+                country_code: None,
             },
         )
         .await
@@ -1309,7 +1756,8 @@ async fn test_authorize_x402_rejects_replay_on_other_resource() {
     let (service, store) = build_service(Duration::from_secs(60), Duration::from_secs(60));
 
     let asset = get_asset("USDC").expect("asset should be registered");
-    let signature = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
+    let signature =
+        "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
     let payment = PaymentTransaction {
         signature: signature.to_string(),
         tenant_id: "tenant-1".to_string(),
@@ -1345,6 +1793,7 @@ async fn test_authorize_x402_rejects_replay_on_other_resource() {
                 coupon_code: None,
                 wallet: None,
                 credits_hold_id: None,
+                country_code: None,
             },
         )
         .await
@@ -1394,8 +1843,8 @@ async fn test_verify_payment_replay_resource_mismatch_fails() {
     match result {
         Ok(_) => panic!("expected resource mismatch error"),
         Err(err) => match err {
-        ServiceError::Coded { code, .. } => assert_eq!(code, ErrorCode::InvalidSignature),
-        other => panic!("unexpected error type: {other:?}"),
+            ServiceError::Coded { code, .. } => assert_eq!(code, ErrorCode::InvalidSignature),
+            other => panic!("unexpected error type: {other:?}"),
         },
     }
 }
@@ -1432,12 +1881,9 @@ async fn test_verify_payment_rejects_invalid_resource_type() {
 #[tokio::test]
 async fn test_cart_payment_records_cart_resource() {
     let asset = get_asset("USDC").expect("asset should be registered");
-    let mint = asset
-        .metadata
-        .solana_mint
-        .clone()
-        .expect("USDC mint");
-    let signature = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
+    let mint = asset.metadata.solana_mint.clone().expect("USDC mint");
+    let signature =
+        "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
 
     let mut config = Config::default();
     config.x402.payment_address = "11111111111111111111111111111111".to_string();
@@ -1493,7 +1939,7 @@ async fn test_cart_payment_records_cart_resource() {
     };
 
     let result = service
-        .authorize_cart("tenant-1", &quote.id, proof)
+        .authorize_cart("tenant-1", &quote.id, proof, None)
         .await
         .unwrap();
     assert!(result.granted);
@@ -1509,12 +1955,9 @@ async fn test_cart_payment_records_cart_resource() {
 #[tokio::test]
 async fn test_payment_callback_called_on_x402_authorize() {
     let asset = get_asset("USDC").expect("asset should be registered");
-    let mint = asset
-        .metadata
-        .solana_mint
-        .clone()
-        .expect("USDC mint");
-    let signature = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
+    let mint = asset.metadata.solana_mint.clone().expect("USDC mint");
+    let signature =
+        "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
 
     let mut config = Config::default();
     config.x402.payment_address = "11111111111111111111111111111111".to_string();
@@ -1574,6 +2017,7 @@ async fn test_payment_callback_called_on_x402_authorize() {
                 coupon_code: None,
                 wallet: None,
                 credits_hold_id: None,
+                country_code: None,
             },
         )
         .await
@@ -1586,12 +2030,9 @@ async fn test_payment_callback_called_on_x402_authorize() {
 #[tokio::test]
 async fn test_authorize_cart_rejects_already_paid_cart() {
     let asset = get_asset("USDC").expect("asset should be registered");
-    let mint = asset
-        .metadata
-        .solana_mint
-        .clone()
-        .expect("USDC mint");
-    let signature = "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
+    let mint = asset.metadata.solana_mint.clone().expect("USDC mint");
+    let signature =
+        "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW";
 
     let mut config = Config::default();
     config.x402.payment_address = "11111111111111111111111111111111".to_string();
@@ -1650,7 +2091,7 @@ async fn test_authorize_cart_rejects_already_paid_cart() {
         metadata: HashMap::new(),
     };
 
-    let result = service.authorize_cart("tenant-1", &quote.id, proof).await;
+    let result = service.authorize_cart("tenant-1", &quote.id, proof, None).await;
     match result {
         Ok(_) => panic!("expected cart already paid error"),
         Err(err) => match err {

@@ -3,6 +3,8 @@ pub mod cleanup;
 pub mod email;
 pub mod health_checker;
 pub mod lifecycle;
+pub mod sanctions_refresh;
+pub mod sanctions_sweep;
 pub mod subscription;
 pub mod webhook;
 
@@ -17,6 +19,8 @@ pub use lifecycle::{
     GracefulShutdown, WorkerLifecycle, WorkerLifecycleBuilder, WorkerLifecycleHandle,
     WorkerRegistration,
 };
+pub use sanctions_refresh::{SanctionsRefreshWorker, SanctionsRefreshWorkerHandle};
+pub use sanctions_sweep::{SanctionsSweepWorker, SanctionsSweepWorkerHandle};
 pub use subscription::{SubscriptionWorker, SubscriptionWorkerHandle};
 #[allow(deprecated)]
 pub use webhook::{spawn_webhook_worker, WebhookWorker, WebhookWorkerHandle};

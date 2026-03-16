@@ -229,7 +229,13 @@ impl StripeClient {
             form.push((format!("subscription_data[metadata][{}]", k), v.clone()));
         }
 
-        let response = self.stripe_post("checkout/sessions", &form).await?;
+        let response = self
+            .stripe_post_with_idempotency(
+                "checkout/sessions",
+                &form,
+                req.idempotency_key.as_deref(),
+            )
+            .await?;
         let session: StripeCheckoutSession =
             serde_json::from_value(response).map_err(|e| ServiceError::Coded {
                 code: ErrorCode::StripeError,

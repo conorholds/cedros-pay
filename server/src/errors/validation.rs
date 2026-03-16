@@ -5,8 +5,8 @@
 //! - Excessively long inputs that could cause DoS
 //! - Malformed data that could cause unexpected behavior
 
-use std::sync::LazyLock;
 use regex::Regex;
+use std::sync::LazyLock;
 
 /// Maximum length for resource identifiers
 const MAX_RESOURCE_ID_LENGTH: usize = 256;

@@ -45,6 +45,38 @@ pub struct CartCreditsHoldCreateResponse {
     pub expires_at: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreditsHoldReleaseResponse {
+    pub hold_id: String,
+    pub status: String,
+}
+
+async fn extract_authorized_user_id<S: Store + 'static>(
+    state: &Arc<AppState<S>>,
+    headers: &axum::http::HeaderMap,
+) -> Result<String, axum::response::Response> {
+    let auth = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    match state
+        .paywall_service
+        .extract_user_id_from_auth_header(auth)
+        .await
+    {
+        Some(id) => Ok(id),
+        None => {
+            let (status, body) = error_response(
+                ErrorCode::Unauthorized,
+                Some("missing or invalid authorization".into()),
+                None,
+            );
+            Err((status, Json(body)).into_response())
+        }
+    }
+}
+
 /// POST /paywall/v1/credits/hold
 pub async fn create_credits_hold<S: Store + 'static>(
     State(state): State<Arc<AppState<S>>>,
@@ -72,24 +104,9 @@ pub async fn create_credits_hold<S: Store + 'static>(
         }
     }
 
-    let auth = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
-    let user_id = match state
-        .paywall_service
-        .extract_user_id_from_auth_header(auth)
-        .await
-    {
-        Some(id) => id,
-        None => {
-            let (status, body) = error_response(
-                ErrorCode::Unauthorized,
-                Some("missing or invalid authorization".into()),
-                None,
-            );
-            return (status, Json(body)).into_response();
-        }
+    let user_id = match extract_authorized_user_id(&state, &headers).await {
+        Ok(user_id) => user_id,
+        Err(response) => return response,
     };
 
     let result = state
@@ -129,24 +146,9 @@ pub async fn create_cart_credits_hold<S: Store + 'static>(
     Path(cart_id): Path<String>,
     Json(_req): Json<CartCreditsHoldCreateRequest>,
 ) -> impl IntoResponse {
-    let auth = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
-    let user_id = match state
-        .paywall_service
-        .extract_user_id_from_auth_header(auth)
-        .await
-    {
-        Some(id) => id,
-        None => {
-            let (status, body) = error_response(
-                ErrorCode::Unauthorized,
-                Some("missing or invalid authorization".into()),
-                None,
-            );
-            return (status, Json(body)).into_response();
-        }
+    let user_id = match extract_authorized_user_id(&state, &headers).await {
+        Ok(user_id) => user_id,
+        Err(response) => return response,
     };
 
     let result = state
@@ -163,6 +165,39 @@ pub async fn create_cart_credits_hold<S: Store + 'static>(
                 amount: hold.amount,
                 currency: hold.amount_asset,
                 expires_at: hold.expires_at.to_rfc3339(),
+            }),
+        )
+            .into_response(),
+        Err(e) => {
+            let (status, body) = error_response(e.code(), Some(e.safe_message()), None);
+            (status, Json(body)).into_response()
+        }
+    }
+}
+
+/// POST /paywall/v1/credits/hold/:holdId/release
+pub async fn release_credits_hold<S: Store + 'static>(
+    State(state): State<Arc<AppState<S>>>,
+    tenant: TenantContext,
+    headers: axum::http::HeaderMap,
+    Path(hold_id): Path<String>,
+) -> impl IntoResponse {
+    let user_id = match extract_authorized_user_id(&state, &headers).await {
+        Ok(user_id) => user_id,
+        Err(response) => return response,
+    };
+
+    let result = state
+        .paywall_service
+        .release_credits_hold_for_user(&tenant.tenant_id, &hold_id, &user_id)
+        .await;
+
+    match result {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(CreditsHoldReleaseResponse {
+                hold_id,
+                status: "released".to_string(),
             }),
         )
             .into_response(),
@@ -254,6 +289,42 @@ mod tests {
             axum::http::HeaderMap::new(),
             Path("cart-1".to_string()),
             Json(CartCreditsHoldCreateRequest {}),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_release_credits_hold_requires_authorization() {
+        let cfg = Config::default();
+        let store = Arc::new(InMemoryStore::new());
+
+        let paywall_service = Arc::new(crate::services::PaywallService::new(
+            cfg,
+            store.clone(),
+            Arc::new(NoopVerifier),
+            Arc::new(NoopNotifier),
+            Arc::new(InMemoryProductRepository::new(Vec::new())),
+            Arc::new(InMemoryCouponRepository::new(Vec::new())),
+        ));
+
+        let state = Arc::new(crate::handlers::paywall::AppState {
+            store: store.clone(),
+            paywall_service,
+            product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
+            stripe_client: None,
+            stripe_webhook_processor: None,
+            admin_public_keys: Vec::new(),
+            blockhash_cache: None,
+        });
+
+        let response = release_credits_hold::<InMemoryStore>(
+            State(state),
+            TenantContext::default(),
+            axum::http::HeaderMap::new(),
+            Path("hold-1".to_string()),
         )
         .await
         .into_response();

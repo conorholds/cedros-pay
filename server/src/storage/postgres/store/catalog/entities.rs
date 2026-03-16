@@ -495,7 +495,26 @@ pub(in super::super) async fn list_gift_card_redemptions(
     limit: i32,
     offset: i32,
 ) -> StorageResult<Vec<GiftCardRedemption>> {
-    let rows = sqlx::query_as::<_, (String, String, String, String, String, String, i64, String, i64, bool, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, bool, Option<String>)>(
+    let rows = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            i64,
+            String,
+            i64,
+            bool,
+            Option<String>,
+            chrono::DateTime<chrono::Utc>,
+            Option<String>,
+            bool,
+            Option<String>,
+        ),
+    >(
         r#"SELECT id, tenant_id, order_id, product_id, buyer_user_id, recipient_user_id,
             face_value_cents, currency, credits_issued, token_minted, token_mint_signature,
             created_at, redemption_token, claimed, recipient_email
@@ -518,7 +537,26 @@ pub(in super::super) async fn get_gift_card_redemption_by_token(
     store: &PostgresStore,
     token: &str,
 ) -> StorageResult<Option<GiftCardRedemption>> {
-    let row = sqlx::query_as::<_, (String, String, String, String, String, String, i64, String, i64, bool, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, bool, Option<String>)>(
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            i64,
+            String,
+            i64,
+            bool,
+            Option<String>,
+            chrono::DateTime<chrono::Utc>,
+            Option<String>,
+            bool,
+            Option<String>,
+        ),
+    >(
         r#"SELECT id, tenant_id, order_id, product_id, buyer_user_id, recipient_user_id,
             face_value_cents, currency, credits_issued, token_minted, token_mint_signature,
             created_at, redemption_token, claimed, recipient_email
@@ -714,7 +752,12 @@ pub(in super::super) async fn record_asset_redemption(
     .bind(&r.product_id)
     .bind(&r.collection_id)
     .bind(&r.user_id)
-    .bind(serde_json::to_value(&r.status).unwrap_or_default().as_str().unwrap_or("pending_info"))
+    .bind(
+        serde_json::to_value(&r.status)
+            .unwrap_or_default()
+            .as_str()
+            .unwrap_or("pending_info"),
+    )
     .bind(&r.form_data)
     .bind(&r.admin_notes)
     .bind(&r.token_mint_signature)

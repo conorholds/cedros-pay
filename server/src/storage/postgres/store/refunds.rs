@@ -209,6 +209,18 @@ pub(super) async fn list_pending_refunds(
     rows.into_iter().map(parse_refund_quote).collect()
 }
 
+pub(super) async fn count_pending_refunds(
+    store: &PostgresStore,
+    tenant_id: &str,
+) -> StorageResult<i64> {
+    let query = store.refund_query(queries::refund::COUNT_PENDING);
+    sqlx::query_scalar(&query)
+        .bind(tenant_id)
+        .fetch_one(store.pool.inner())
+        .await
+        .map_err(|e| StorageError::internal("count pending refunds", e))
+}
+
 pub(super) async fn list_credits_refund_requests(
     store: &PostgresStore,
     tenant_id: &str,

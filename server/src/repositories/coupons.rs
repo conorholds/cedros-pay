@@ -27,12 +27,114 @@ pub trait CouponRepository: Send + Sync {
         code: &str,
     ) -> Result<Coupon, CouponRepositoryError>;
     async fn list_coupons(&self, tenant_id: &str) -> Result<Vec<Coupon>, CouponRepositoryError>;
+
+    async fn get_resource_auto_apply_coupons(
+        &self,
+        tenant_id: &str,
+        resource_id: &str,
+        payment_method: Option<&PaymentMethod>,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        let all = self.list_coupons(tenant_id).await?;
+        let now = chrono::Utc::now();
+        Ok(all
+            .into_iter()
+            .filter(|coupon| {
+                coupon.auto_apply
+                    && coupon.active
+                    && coupon.starts_at.map(|s| s <= now).unwrap_or(true)
+                    && coupon.expires_at.map(|e| e > now).unwrap_or(true)
+                    && coupon
+                        .usage_limit
+                        .map(|limit| coupon.usage_count < limit)
+                        .unwrap_or(true)
+                    && (!coupon.scope.eq_ignore_ascii_case("specific")
+                        || coupon.product_ids.iter().any(|id| id == resource_id))
+                    && payment_method.is_none_or(|method| {
+                        let method = match method {
+                            PaymentMethod::Stripe => "stripe",
+                            PaymentMethod::X402 => "x402",
+                            PaymentMethod::Credits => "credits",
+                        };
+                        coupon.payment_method.is_empty()
+                            || coupon.payment_method == "any"
+                            || coupon.payment_method.eq_ignore_ascii_case(method)
+                    })
+            })
+            .collect())
+    }
+
     async fn get_auto_apply_coupons_for_payment(
         &self,
         tenant_id: &str,
         product_id: &str,
         payment_method: &PaymentMethod,
     ) -> Result<Vec<Coupon>, CouponRepositoryError>;
+
+    async fn get_catalog_auto_apply_coupons_for_cart(
+        &self,
+        tenant_id: &str,
+        product_ids: &[String],
+        category_ids: &[String],
+        payment_method: &PaymentMethod,
+    ) -> Result<Vec<Coupon>, CouponRepositoryError> {
+        let all = self.list_coupons(tenant_id).await?;
+        let now = chrono::Utc::now();
+        let method = match payment_method {
+            PaymentMethod::Stripe => "stripe",
+            PaymentMethod::X402 => "x402",
+            PaymentMethod::Credits => "credits",
+        };
+        Ok(all
+            .into_iter()
+            .filter(|coupon| {
+                let applies_at = if coupon.applies_at.is_empty() {
+                    "catalog"
+                } else {
+                    coupon.applies_at.as_str()
+                };
+                if !coupon.auto_apply
+                    || !coupon.active
+                    || !applies_at.eq_ignore_ascii_case("catalog")
+                    || coupon.first_purchase_only
+                    || coupon.starts_at.map(|s| now < s).unwrap_or(false)
+                    || coupon.expires_at.map(|e| now > e).unwrap_or(false)
+                    || coupon
+                        .usage_limit
+                        .map(|limit| coupon.usage_count >= limit)
+                        .unwrap_or(false)
+                {
+                    return false;
+                }
+
+                if !coupon.payment_method.is_empty()
+                    && coupon.payment_method != "any"
+                    && !coupon.payment_method.eq_ignore_ascii_case(method)
+                {
+                    return false;
+                }
+
+                if coupon.scope.eq_ignore_ascii_case("all") {
+                    coupon.category_ids.is_empty()
+                        || coupon
+                            .category_ids
+                            .iter()
+                            .any(|category_id| category_ids.iter().any(|id| id == category_id))
+                } else if coupon.scope.eq_ignore_ascii_case("specific") {
+                    coupon
+                        .product_ids
+                        .iter()
+                        .any(|product_id| product_ids.iter().any(|id| id == product_id))
+                        || coupon
+                            .category_ids
+                            .iter()
+                            .any(|category_id| category_ids.iter().any(|id| id == category_id))
+                } else {
+                    false
+                }
+            })
+            .collect())
+    }
+
     async fn get_all_auto_apply_coupons_for_payment(
         &self,
         tenant_id: &str,

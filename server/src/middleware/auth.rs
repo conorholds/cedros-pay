@@ -23,7 +23,6 @@ pub struct AuthContext {
     pub api_tier: ApiKeyTier,
 }
 
-
 /// Auth middleware state
 #[derive(Clone)]
 pub struct AuthState {
@@ -262,7 +261,9 @@ pub async fn admin_middleware<S: Store + 'static>(
                         Ok(claims) => {
                             if claims.is_admin() {
                                 tracing::debug!(user_id = %claims.sub, "Admin request authenticated via JWT");
-                                if let Some(tc) = request.extensions_mut().get_mut::<TenantContext>() {
+                                if let Some(tc) =
+                                    request.extensions_mut().get_mut::<TenantContext>()
+                                {
                                     tc.admin_actor = Some(claims.sub.clone());
                                 }
                                 return Ok(next.run(request).await);
@@ -312,24 +313,16 @@ fn get_tenant_id_for_admin(request: &Request<Body>) -> Result<&str, StatusCode> 
         })
 }
 
-/// Determine the expected nonce purpose for an admin request.
+/// Determine the expected nonce purpose for an admin route.
 ///
 /// MAINTENANCE: When adding new admin endpoints, add a matching entry here.
 /// Returns `None` (fail-closed) for unrecognized routes, which causes auth rejection.
 /// Uses starts_with/ends_with matching — ordering matters for routes with shared prefixes.
 /// Test coverage: known routes, unknown routes (fail-closed), suffix collision rejection.
-///
-/// NOTE: Admin routes are nested via `Router::nest("/admin", ...)`, which causes
-/// axum to strip the `/admin` prefix from `request.uri().path()`. We use
-/// `OriginalUri` (set automatically by axum's nest) to get the full path.
-fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static str> {
-    let path = request
-        .extensions()
-        .get::<OriginalUri>()
-        .map(|u| u.0.path())
-        .unwrap_or_else(|| request.uri().path());
-    let method = request.method();
-
+pub(crate) fn admin_nonce_purpose_for_path_and_method(
+    method: &axum::http::Method,
+    path: &str,
+) -> Option<&'static str> {
     // Purposes are documented in docs/specs/04-http-endpoints-refunds.md
     if method == axum::http::Method::GET && path == "/admin/webhooks" {
         return Some("webhook_list");
@@ -701,6 +694,22 @@ fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static s
     }
 
     None
+}
+
+/// Determine the expected nonce purpose for an admin request.
+///
+/// NOTE: Admin routes are nested via `Router::nest("/admin", ...)`, which causes
+/// axum to strip the `/admin` prefix from `request.uri().path()`. We use
+/// `OriginalUri` (set automatically by axum's nest) to get the full path.
+fn admin_nonce_purpose_for_request<B>(request: &Request<B>) -> Option<&'static str> {
+    let path = request
+        .extensions()
+        .get::<OriginalUri>()
+        .map(|u| u.0.path())
+        .unwrap_or_else(|| request.uri().path());
+    let method = request.method();
+
+    admin_nonce_purpose_for_path_and_method(method, path)
 }
 
 async fn validate_and_consume_admin_nonce<S: Store>(
@@ -1122,6 +1131,26 @@ mod tests {
         assert_eq!(
             super::admin_nonce_purpose_for_request(&req),
             Some("config_delete")
+        );
+
+        let req = Request::builder()
+            .method(axum::http::Method::GET)
+            .uri("/admin/config/history")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_path_and_method(req.method(), req.uri().path()),
+            Some("config_history")
+        );
+
+        let req = Request::builder()
+            .method(axum::http::Method::POST)
+            .uri("/admin/ai/related-products")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::admin_nonce_purpose_for_path_and_method(req.method(), req.uri().path()),
+            Some("admin_ai_related_products")
         );
     }
 

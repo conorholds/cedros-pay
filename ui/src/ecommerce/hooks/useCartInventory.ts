@@ -30,6 +30,8 @@ export type CartItemInventory = {
 
 export type CartInventoryMap = Map<string, CartItemInventory>;
 
+const FALLBACK_PRODUCT_LOOKUP_CONCURRENCY = 2;
+
 function makeKey(productId: string, variantId?: string): string {
   return `${productId}::${variantId ?? ''}`;
 }
@@ -111,6 +113,65 @@ function computeInventoryInfo(
   return base;
 }
 
+function mapsEqual(left: CartInventoryMap, right: CartInventoryMap): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+
+  for (const [key, leftValue] of left) {
+    const rightValue = right.get(key);
+    if (!rightValue) {
+      return false;
+    }
+
+    if (
+      leftValue.productId !== rightValue.productId ||
+      leftValue.variantId !== rightValue.variantId ||
+      leftValue.availableQty !== rightValue.availableQty ||
+      leftValue.status !== rightValue.status ||
+      leftValue.isOutOfStock !== rightValue.isOutOfStock ||
+      leftValue.exceedsAvailable !== rightValue.exceedsAvailable ||
+      leftValue.isLowStock !== rightValue.isLowStock ||
+      leftValue.message !== rightValue.message
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function loadProductsWithFallback(
+  productIds: string[],
+  getProductBySlug: (slug: string) => Promise<Product | null>
+): Promise<Map<string, Product>> {
+  const productMap = new Map<string, Product>();
+
+  for (let start = 0; start < productIds.length; start += FALLBACK_PRODUCT_LOOKUP_CONCURRENCY) {
+    const chunk = productIds.slice(start, start + FALLBACK_PRODUCT_LOOKUP_CONCURRENCY);
+    const products = await Promise.all(
+      chunk.map(async (id) => {
+        try {
+          return await getProductBySlug(id);
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    for (const product of products) {
+      if (product) {
+        productMap.set(product.id, product);
+        if (product.slug && product.slug !== product.id) {
+          productMap.set(product.slug, product);
+        }
+      }
+    }
+  }
+
+  return productMap;
+}
+
 export interface UseCartInventoryOptions {
   /** Cart items to check inventory for */
   items: CartItem[];
@@ -144,10 +205,12 @@ export function useCartInventory({
   const [inventory, setInventory] = React.useState<CartInventoryMap>(new Map());
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const inFlightRef = React.useRef<Promise<void> | null>(null);
 
   // Use a ref for items so fetchInventory doesn't re-create on qty-only changes
   const itemsRef = React.useRef(items);
   itemsRef.current = items;
+  const productIdsRef = React.useRef<string[]>([]);
 
   // Extract unique product IDs from cart - only changes when products are added/removed
   const productIdSet = React.useMemo(() => {
@@ -168,61 +231,49 @@ export function useCartInventory({
     () => Array.from(productIdSet),
     [productIdSet]
   );
+  productIdsRef.current = productIds;
 
   const fetchInventory = React.useCallback(async () => {
-    if (skip || productIds.length === 0) {
-      setInventory(new Map());
+    if (skip || productIdsRef.current.length === 0) {
+      setError(null);
+      setIsLoading(false);
+      setInventory((current) => (current.size === 0 ? current : new Map()));
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      let productMap = new Map<string, Product>();
-      if (config.adapter.getProductsByIds) {
-        productMap = await config.adapter.getProductsByIds(productIds);
-      } else {
-        // Fetch products in parallel
-        const products = await Promise.all(
-          productIds.map(async (id) => {
-            try {
-              // Try by slug first (most common), then by ID
-              const product = await config.adapter.getProductBySlug(id);
-              return product;
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        // Build product map
-        productMap = new Map<string, Product>();
-        for (const product of products) {
-          if (product) {
-            productMap.set(product.id, product);
-            // Also map by slug for lookup flexibility
-            if (product.slug && product.slug !== product.id) {
-              productMap.set(product.slug, product);
-            }
-          }
-        }
-      }
-
-      // Compute inventory info for each cart item (use ref for latest items)
-      const newInventory: CartInventoryMap = new Map();
-      for (const item of itemsRef.current) {
-        const key = makeKey(item.productId, item.variantId);
-        const product = productMap.get(item.productId) ?? null;
-        newInventory.set(key, computeInventoryInfo(item, product));
-      }
-
-      setInventory(newInventory);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to check inventory');
-    } finally {
-      setIsLoading(false);
+    if (inFlightRef.current) {
+      return inFlightRef.current;
     }
+
+    const run = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const requestedProductIds = productIdsRef.current;
+        const productMap = config.adapter.getProductsByIds
+          ? await config.adapter.getProductsByIds(requestedProductIds)
+          : await loadProductsWithFallback(requestedProductIds, config.adapter.getProductBySlug);
+
+        const newInventory: CartInventoryMap = new Map();
+        for (const item of itemsRef.current) {
+          const key = makeKey(item.productId, item.variantId);
+          const product = productMap.get(item.productId) ?? null;
+          newInventory.set(key, computeInventoryInfo(item, product));
+        }
+
+        setInventory((current) => (mapsEqual(current, newInventory) ? current : newInventory));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to check inventory');
+      } finally {
+        setIsLoading(false);
+        inFlightRef.current = null;
+      }
+    };
+
+    const pending = run();
+    inFlightRef.current = pending;
+    return pending;
     // productIdsKey changes only when the set of product IDs changes (not on qty changes)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.adapter, productIdsKey, skip]);
@@ -236,8 +287,26 @@ export function useCartInventory({
   React.useEffect(() => {
     if (skip || refreshInterval <= 0 || productIds.length === 0) return;
 
-    const handle = setInterval(fetchInventory, refreshInterval);
-    return () => clearInterval(handle);
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      timeoutId = setTimeout(async () => {
+        await fetchInventory();
+        if (!cancelled) {
+          scheduleNext();
+        }
+      }, refreshInterval);
+    };
+
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [fetchInventory, productIds.length, refreshInterval, skip]);
 
   const getItemInventory = React.useCallback(

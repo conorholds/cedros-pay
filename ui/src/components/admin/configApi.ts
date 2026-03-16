@@ -579,6 +579,37 @@ export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
       require_custody_proof: { type: 'toggle', description: 'Require a custody proof URL before an asset class can be activated.' },
     },
   },
+  storage: {
+    label: 'Image Storage',
+    description: 'S3-compatible storage for product images',
+    secrets: ['access_key_id', 'secret_access_key'],
+    icon: '🗄️',
+    fields: {
+      provider: {
+        type: 'dropdown',
+        options: ['digitalocean', 'aws', 'other'],
+        description: 'Storage provider (DigitalOcean Spaces, AWS S3, or other S3-compatible).',
+      },
+      endpoint_url: {
+        description: 'S3-compatible endpoint URL (e.g., https://nyc3.digitaloceanspaces.com for DO Spaces).',
+      },
+      bucket_name: {
+        description: 'Storage bucket name.',
+      },
+      region: {
+        description: 'Bucket region (e.g., us-east-1, nyc3). Defaults to us-east-1.',
+      },
+      access_key_id: {
+        description: 'Access key ID for S3-compatible API authentication.',
+      },
+      secret_access_key: {
+        description: 'Secret access key for S3-compatible API authentication.',
+      },
+      cdn_url: {
+        description: 'CDN URL prefix for serving images (e.g., https://cdn.example.com). If empty, images are served from the S3 endpoint directly.',
+      },
+    },
+  },
   shop: {
     label: 'Storefront',
     description: 'Product pages & display settings',

@@ -3,8 +3,8 @@
 //! Per spec (23-repositories.md): Table names must be validated against SQL injection
 //! using the pattern ^[a-zA-Z_][a-zA-Z0-9_]*$
 
-use std::sync::LazyLock;
 use regex::Regex;
+use std::sync::LazyLock;
 
 /// Regex pattern for valid SQL identifiers
 /// Must start with a letter or underscore, followed by letters, digits, or underscores

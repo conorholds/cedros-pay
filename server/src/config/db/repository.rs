@@ -91,6 +91,8 @@ pub const KNOWN_CATEGORIES: &[&str] = &[
     "messaging",
     "ai",
     "gift_cards",
+    "storage",
+    "compliance",
 ];
 
 /// Default config keys for each known category.
@@ -201,6 +203,16 @@ pub fn default_keys_for_category(category: &str) -> &'static [&'static str] {
             "liquidity_usdc_amount",
             "liquidity_deployed_at",
         ],
+        "storage" => &[
+            "provider",
+            "endpoint_url",
+            "bucket_name",
+            "region",
+            "access_key_id",
+            "secret_access_key",
+            "cdn_url",
+        ],
+        "compliance" => &["sanctions_sweep", "sanctions_api"],
         _ => &[],
     }
 }
@@ -216,6 +228,9 @@ pub fn secret_fields_for_category(category: &str) -> HashSet<&'static str> {
         "api_keys" => ["keys"].into_iter().collect(),
         "server" => ["admin_metrics_api_key"].into_iter().collect(),
         "ai" => ["gemini_api_key", "openai_api_key"].into_iter().collect(),
+        "storage" => ["access_key_id", "secret_access_key"]
+            .into_iter()
+            .collect(),
         _ => HashSet::new(),
     }
 }

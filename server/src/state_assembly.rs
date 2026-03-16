@@ -87,6 +87,7 @@ impl<S: Store + 'static> BuiltServices<S> {
             admin_ai_assistant_state,
             chat_state,
             storefront_state,
+            admin_images_state,
         ) = build_pg_dependent_states(
             self.storage_pg_pool,
             stripe_client_for_admin.clone(),
@@ -107,12 +108,11 @@ impl<S: Store + 'static> BuiltServices<S> {
 
         let faqs_state = Arc::new(handlers::faqs::FaqsState::new(app_state.store.clone()));
 
-        let asset_redemption_state =
-            Arc::new(handlers::asset_redemptions::AssetRedemptionState {
-                store: app_state.store.clone(),
-                products: self.product_repo.clone(),
-                cedros_login: self.cedros_login_client.clone(),
-            });
+        let asset_redemption_state = Arc::new(handlers::asset_redemptions::AssetRedemptionState {
+            store: app_state.store.clone(),
+            products: self.product_repo.clone(),
+            cedros_login: self.cedros_login_client.clone(),
+        });
 
         let route_prefix = self.config.server.route_prefix.clone();
 
@@ -139,6 +139,8 @@ impl<S: Store + 'static> BuiltServices<S> {
             asset_redemption_state,
             token22_service: self.token22_service,
             asset_fulfillment: self.asset_fulfillment,
+            admin_images_state,
+            sanctions_list_service: self.sanctions_list_service,
         }
     }
 }
@@ -150,6 +152,7 @@ type PgDependentStates = (
     Option<Arc<handlers::admin_ai_assistant::AdminAiAssistantState>>,
     Option<Arc<handlers::chat::ChatState>>,
     Option<Arc<handlers::storefront::StorefrontState>>,
+    Option<Arc<handlers::admin_images::ImageUploadState>>,
 );
 
 /// Build states that require a PostgreSQL pool (config, AI, chat, etc.).
@@ -186,8 +189,11 @@ fn build_pg_dependent_states<S: Store + 'static>(
                     cache: handlers::admin_ai_assistant::AiResponseCache::default(),
                 });
             let ai_service = Arc::new(services::AiService::new());
-            let storefront_state = Arc::new(handlers::storefront::StorefrontState {
-                repo: repo.clone(),
+            let storefront_state =
+                Arc::new(handlers::storefront::StorefrontState { repo: repo.clone() });
+            let image_service = Arc::new(services::ImageStorageService::new(repo.clone()));
+            let images_state = Arc::new(handlers::admin_images::ImageUploadState {
+                image_service,
             });
             let chat_state = Arc::new(handlers::chat::ChatState::new(
                 store,
@@ -203,8 +209,9 @@ fn build_pg_dependent_states<S: Store + 'static>(
                 Some(ai_assistant_state),
                 Some(chat_state),
                 Some(storefront_state),
+                Some(images_state),
             )
         }
-        None => (None, None, None, None, None, None),
+        None => (None, None, None, None, None, None, None),
     }
 }

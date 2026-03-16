@@ -13,7 +13,11 @@ import { generateUUID } from '../utils/uuid';
 import type { NormalizedCartItem } from '../utils/cartHelpers';
 import { createRateLimiter, RATE_LIMITER_PRESETS } from '../utils/rateLimiter';
 import { createCircuitBreaker, CircuitBreakerOpenError } from '../utils/circuitBreaker';
-import { retryWithBackoff, RETRY_PRESETS } from '../utils/exponentialBackoff';
+import {
+  retryWithBackoff,
+  RETRY_PRESETS,
+  RetryableHttpError,
+} from '../utils/exponentialBackoff';
 
 /**
  * Options for creating a credits hold
@@ -275,6 +279,7 @@ export class CreditsManager implements ICreditsManager {
     }
 
     const holdIdempotencyKey = generateUUID();
+    const requestBody = JSON.stringify({ resource, couponCode });
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -289,17 +294,21 @@ export class CreditsManager implements ICreditsManager {
                 'Authorization': `Bearer ${authToken}`,
                 'Idempotency-Key': holdIdempotencyKey,
               },
-              body: JSON.stringify({ resource, couponCode }),
+              body: requestBody,
             });
 
             if (!response.ok) {
               const errorMessage = await parseErrorResponse(response, 'Failed to create credits hold');
-              throw new Error(errorMessage);
+              throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
             return await response.json();
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'credits-create-hold' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'credits-create-hold',
+            inFlightKey: `credits:create-hold:${authToken}:${requestBody}`,
+          }
         );
       });
     } catch (error) {
@@ -341,12 +350,16 @@ export class CreditsManager implements ICreditsManager {
 
             if (!response.ok) {
               const errorMessage = await parseErrorResponse(response, 'Failed to create cart credits hold');
-              throw new Error(errorMessage);
+              throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
             return await response.json();
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'credits-create-cart-hold' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'credits-create-cart-hold',
+            inFlightKey: `credits:create-cart-hold:${authToken}:${cartId}`,
+          }
         );
       });
     } catch (error) {
@@ -369,6 +382,12 @@ export class CreditsManager implements ICreditsManager {
     }
 
     const authIdempotencyKey = generateUUID();
+    const requestBody = JSON.stringify({
+      resource,
+      holdId,
+      couponCode,
+      ...metadata && { metadata },
+    });
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -384,21 +403,15 @@ export class CreditsManager implements ICreditsManager {
                 'Authorization': `Bearer ${authToken}`,
                 'Idempotency-Key': authIdempotencyKey,
               },
-              body: JSON.stringify({
-                resource,
-                holdId,
-                couponCode,
-                ...metadata && { metadata },
-              }),
+              body: requestBody,
             });
 
             if (!response.ok) {
               const data = await response.json().catch(() => ({}));
-              return {
-                success: false,
-                error: data.error?.message || 'Credits authorization failed',
-                errorCode: data.error?.code || 'authorization_failed',
-              };
+              throw RetryableHttpError.fromResponse(
+                response,
+                data.error?.message || 'Credits authorization failed'
+              );
             }
 
             const data = await response.json();
@@ -407,7 +420,11 @@ export class CreditsManager implements ICreditsManager {
               transactionId: data.transactionId,
             };
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'credits-authorize' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'credits-authorize',
+            inFlightKey: `credits:authorize:${authToken}:${requestBody}`,
+          }
         );
       });
     } catch (error) {
@@ -438,6 +455,10 @@ export class CreditsManager implements ICreditsManager {
     }
 
     const cartAuthIdempotencyKey = generateUUID();
+    const requestBody = JSON.stringify({
+      holdId,
+      ...metadata && { metadata },
+    });
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -453,10 +474,7 @@ export class CreditsManager implements ICreditsManager {
                 'Authorization': `Bearer ${authToken}`,
                 'Idempotency-Key': cartAuthIdempotencyKey,
               },
-              body: JSON.stringify({
-                holdId,
-                ...metadata && { metadata },
-              }),
+              body: requestBody,
             });
 
             if (!response.ok) {
@@ -468,11 +486,10 @@ export class CreditsManager implements ICreditsManager {
                 });
                 return {};
               });
-              return {
-                success: false,
-                error: data.error?.message || 'Cart credits authorization failed',
-                errorCode: data.error?.code || 'authorization_failed',
-              };
+              throw RetryableHttpError.fromResponse(
+                response,
+                data.error?.message || 'Cart credits authorization failed'
+              );
             }
 
             const data = await response.json();
@@ -481,7 +498,11 @@ export class CreditsManager implements ICreditsManager {
               transactionId: data.transactionId,
             };
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'credits-cart-authorize' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'credits-cart-authorize',
+            inFlightKey: `credits:cart-authorize:${authToken}:${cartId}:${requestBody}`,
+          }
         );
       });
     } catch (error) {

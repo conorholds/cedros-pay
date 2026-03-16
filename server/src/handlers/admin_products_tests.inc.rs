@@ -44,6 +44,7 @@ fn base_create_product_request() -> CreateProductRequest {
         metadata: HashMap::new(),
         gift_card_config: None,
         tokenized_asset_config: None,
+        compliance_requirements: None,
     }
 }
 

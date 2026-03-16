@@ -24,11 +24,12 @@ describe('SubscriptionChangeManager', () => {
     it('successfully changes subscription plan', async () => {
       const mockResponse = {
         success: true,
+        subscriptionId: 'sub_123',
+        previousResource: 'plan-pro',
         status: 'active',
         newResource: 'plan-enterprise',
-        newInterval: 'monthly',
-        prorationAmount: 500,
-        effectiveDate: '2025-01-15T00:00:00Z',
+        currentPeriodEnd: '2025-02-01T00:00:00Z',
+        prorationBehavior: 'create_prorations',
       };
 
       vi.mocked(fetchWithTimeout).mockResolvedValueOnce({
@@ -37,10 +38,9 @@ describe('SubscriptionChangeManager', () => {
       } as Response);
 
       const result = await manager.changeSubscription({
-        currentResource: 'plan-pro',
+        subscriptionId: 'sub_123',
         newResource: 'plan-enterprise',
-        userId: 'user@example.com',
-        immediate: true,
+        prorationBehavior: 'create_prorations',
       });
 
       expect(result).toEqual(mockResponse);
@@ -51,6 +51,11 @@ describe('SubscriptionChangeManager', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Idempotency-Key': expect.any(String),
+          }),
+          body: JSON.stringify({
+            subscriptionId: 'sub_123',
+            newResource: 'plan-enterprise',
+            prorationBehavior: 'create_prorations',
           }),
         })
       );
@@ -65,9 +70,8 @@ describe('SubscriptionChangeManager', () => {
 
       await expect(
         manager.changeSubscription({
-          currentResource: 'plan-pro',
+          subscriptionId: 'sub_123',
           newResource: 'invalid-plan',
-          userId: 'user@example.com',
         })
       ).rejects.toThrow();
     });
@@ -147,8 +151,7 @@ describe('SubscriptionChangeManager', () => {
     it('cancels subscription at period end', async () => {
       const mockResponse = {
         success: true,
-        status: 'active',
-        endsAt: '2025-02-01T00:00:00Z',
+        atPeriodEnd: true,
       };
 
       vi.mocked(fetchWithTimeout).mockResolvedValueOnce({
@@ -157,19 +160,27 @@ describe('SubscriptionChangeManager', () => {
       } as Response);
 
       const result = await manager.cancel({
-        resource: 'plan-pro',
-        userId: 'user@example.com',
-        immediate: false,
+        subscriptionId: 'sub_123',
+        atPeriodEnd: true,
       });
 
       expect(result).toEqual(mockResponse);
+      expect(fetchWithTimeout).toHaveBeenCalledWith(
+        'https://api.example.com/paywall/v1/subscription/cancel',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            subscriptionId: 'sub_123',
+            atPeriodEnd: true,
+          }),
+        })
+      );
     });
 
     it('cancels subscription immediately', async () => {
       const mockResponse = {
         success: true,
-        status: 'canceled',
-        endsAt: '2025-01-15T00:00:00Z',
+        atPeriodEnd: false,
       };
 
       vi.mocked(fetchWithTimeout).mockResolvedValueOnce({
@@ -178,12 +189,11 @@ describe('SubscriptionChangeManager', () => {
       } as Response);
 
       const result = await manager.cancel({
-        resource: 'plan-pro',
-        userId: 'user@example.com',
-        immediate: true,
+        subscriptionId: 'sub_123',
+        atPeriodEnd: false,
       });
 
-      expect(result.status).toBe('canceled');
+      expect(result.atPeriodEnd).toBe(false);
     });
   });
 
@@ -199,11 +209,21 @@ describe('SubscriptionChangeManager', () => {
       } as Response);
 
       const result = await manager.getBillingPortalUrl({
-        userId: 'user@example.com',
+        customerId: 'cus_123',
         returnUrl: 'https://example.com/settings',
       });
 
       expect(result.url).toContain('billing.stripe.com');
+      expect(fetchWithTimeout).toHaveBeenCalledWith(
+        'https://api.example.com/paywall/v1/subscription/portal',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            customerId: 'cus_123',
+            returnUrl: 'https://example.com/settings',
+          }),
+        })
+      );
     });
   });
 });

@@ -25,7 +25,11 @@ struct TestProductRepo {
 
 #[async_trait]
 impl ProductRepository for TestProductRepo {
-    async fn get_product(&self, tenant_id: &str, id: &str) -> Result<Product, ProductRepositoryError> {
+    async fn get_product(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> Result<Product, ProductRepositoryError> {
         self.products
             .iter()
             .find(|p| p.tenant_id == tenant_id && p.id == id)
@@ -118,7 +122,11 @@ impl ProductRepository for TestProductRepo {
         Ok(None)
     }
 
-    async fn delete_product(&self, _tenant_id: &str, _id: &str) -> Result<(), ProductRepositoryError> {
+    async fn delete_product(
+        &self,
+        _tenant_id: &str,
+        _id: &str,
+    ) -> Result<(), ProductRepositoryError> {
         Ok(())
     }
 
@@ -131,7 +139,11 @@ struct EmptyCouponRepo;
 
 #[async_trait]
 impl CouponRepository for EmptyCouponRepo {
-    async fn get_coupon(&self, _tenant_id: &str, _code: &str) -> Result<Coupon, CouponRepositoryError> {
+    async fn get_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<Coupon, CouponRepositoryError> {
         Err(CouponRepositoryError::NotFound)
     }
 
@@ -164,11 +176,19 @@ impl CouponRepository for EmptyCouponRepo {
         Ok(())
     }
 
-    async fn increment_usage(&self, _tenant_id: &str, _code: &str) -> Result<(), CouponRepositoryError> {
+    async fn increment_usage(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
         Ok(())
     }
 
-    async fn delete_coupon(&self, _tenant_id: &str, _code: &str) -> Result<(), CouponRepositoryError> {
+    async fn delete_coupon(
+        &self,
+        _tenant_id: &str,
+        _code: &str,
+    ) -> Result<(), CouponRepositoryError> {
         Ok(())
     }
 
@@ -177,9 +197,7 @@ impl CouponRepository for EmptyCouponRepo {
     }
 }
 
-fn build_state_with_store(
-    products: Vec<Product>,
-) -> (Arc<ProductsAppState>, Arc<InMemoryStore>) {
+fn build_state_with_store(products: Vec<Product>) -> (Arc<ProductsAppState>, Arc<InMemoryStore>) {
     let store = Arc::new(InMemoryStore::new());
     let state = Arc::new(ProductsAppState {
         store: store.clone(),
@@ -288,7 +306,9 @@ async fn test_list_products_pagination_offset_out_of_range() {
 
 #[tokio::test]
 async fn test_list_products_default_limit_applied() {
-    let products = (0..101).map(|i| product(&format!("p{i}"))).collect::<Vec<_>>();
+    let products = (0..101)
+        .map(|i| product(&format!("p{i}")))
+        .collect::<Vec<_>>();
     let state = build_state(products);
 
     let response = list_products(
@@ -443,6 +463,107 @@ async fn test_list_products_collection_pagination_skips_inactive() {
 }
 
 #[tokio::test]
+async fn test_list_products_collection_pagination_preserves_order_with_offset() {
+    use crate::models::Collection;
+    use chrono::Utc;
+
+    let p1 = product("p1");
+    let p2 = product("p2");
+    let p3 = product("p3");
+
+    let (state, store) = build_state_with_store(vec![p1.clone(), p2.clone(), p3.clone()]);
+    let now = Utc::now();
+    store
+        .create_collection(Collection {
+            id: "col-3".to_string(),
+            tenant_id: "default".to_string(),
+            name: "Ordered".to_string(),
+            description: None,
+            product_ids: vec![
+                p3.id.clone(),
+                "missing".to_string(),
+                p1.id.clone(),
+                p2.id.clone(),
+            ],
+            active: true,
+            tokenization_config: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .await
+        .unwrap();
+
+    let response = list_products(
+        State(state),
+        TenantContext::default(),
+        Query(ListProductsQuery {
+            limit: 1,
+            offset: Some(1),
+            collection_id: Some("col-3".to_string()),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let products = json["products"].as_array().unwrap();
+    assert_eq!(products.len(), 1);
+    assert_eq!(products[0]["id"], "p1");
+}
+
+#[tokio::test]
+async fn test_list_products_collection_deep_offset_returns_empty_after_filtering() {
+    use crate::models::Collection;
+    use chrono::Utc;
+
+    let p1 = product("p1");
+    let mut p2 = product("p2");
+    p2.active = false;
+
+    let (state, store) = build_state_with_store(vec![p1.clone(), p2.clone()]);
+    let now = Utc::now();
+    store
+        .create_collection(Collection {
+            id: "col-4".to_string(),
+            tenant_id: "default".to_string(),
+            name: "Sparse".to_string(),
+            description: None,
+            product_ids: vec![
+                "missing-a".to_string(),
+                p2.id.clone(),
+                "missing-b".to_string(),
+                p1.id.clone(),
+            ],
+            active: true,
+            tokenization_config: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .await
+        .unwrap();
+
+    let response = list_products(
+        State(state),
+        TenantContext::default(),
+        Query(ListProductsQuery {
+            limit: 5,
+            offset: Some(1),
+            collection_id: Some("col-4".to_string()),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let products = json["products"].as_array().unwrap();
+    assert!(products.is_empty());
+}
+
+#[tokio::test]
 async fn test_list_products_collection_not_found() {
     let state = build_state(vec![product("p1")]);
 
@@ -463,4 +584,47 @@ async fn test_list_products_collection_not_found() {
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let products = json["products"].as_array().unwrap();
     assert!(products.is_empty());
+}
+
+#[tokio::test]
+async fn test_products_txt_renders_catalog_from_lightweight_listing() {
+    let mut p = product("p1");
+    p.title = Some("Starter".to_string());
+    p.slug = Some("starter".to_string());
+    p.short_description = Some("Quick summary".to_string());
+    p.tags = vec!["featured".to_string(), "digital".to_string()];
+    p.category_ids = vec!["cat-a".to_string()];
+    p.featured = true;
+    p.inventory_status = Some("low".to_string());
+    p.inventory_quantity = Some(3);
+    p.fulfillment = Some(crate::models::FulfillmentInfo {
+        r#type: "digital_download".to_string(),
+        notes: None,
+    });
+    let asset = crate::models::get_asset("USDC").expect("asset");
+    p.fiat_price = Some(crate::models::Money::new(asset.clone(), 25_000_000));
+    p.crypto_price = Some(crate::models::Money::new(asset, 1_000_000));
+    p.subscription = Some(crate::models::SubscriptionConfig {
+        billing_period: "monthly".to_string(),
+        billing_interval: 1,
+        trial_days: 14,
+        stripe_price_id: None,
+        allow_x402: true,
+        grace_period_hours: 0,
+    });
+
+    let response = products_txt(State(build_state(vec![p])), TenantContext::default())
+        .await
+        .into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(text.contains("## Starter"));
+    assert!(text.contains("- Slug: starter"));
+    assert!(text.contains("- Summary: Quick summary"));
+    assert!(text.contains("- Price: 25.00 USDC"));
+    assert!(text.contains("- Crypto Price: 1.000000 USDC"));
+    assert!(text.contains("- Subscription: 1 monthly"));
+    assert!(text.contains("- Trial: 14 days"));
 }

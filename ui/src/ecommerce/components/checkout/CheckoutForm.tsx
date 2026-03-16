@@ -6,6 +6,7 @@ import { cn } from '../../utils/cn';
 import { getCartCheckoutRequirements } from '../../utils/cartCheckoutRequirements';
 import { useShippingMethods } from '../../hooks/useShippingMethods';
 import { AddressForm } from './AddressForm';
+import { SendAsGiftSection } from './SendAsGiftSection';
 import { ShippingMethodSelector } from './ShippingMethodSelector';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -37,6 +38,15 @@ export function CheckoutForm({ className }: { className?: string }) {
 
   const showContact = req.email !== 'none' || req.name !== 'none' || req.phone !== 'none';
   const hasGiftCard = cart.items.some((item) => item.metadata?.product_type === 'gift_card');
+
+  // Collect unique regulatory notices from tokenized assets in cart
+  const regulatoryNotices = React.useMemo(() => {
+    const notices = new Set<string>();
+    for (const item of cart.items) {
+      if (item.metadata?.regulatoryNotice) notices.add(item.metadata.regulatoryNotice);
+    }
+    return Array.from(notices);
+  }, [cart.items]);
 
   const defaultAddress = {
     line1: '',
@@ -138,27 +148,33 @@ export function CheckoutForm({ className }: { className?: string }) {
         </section>
       )}
 
-      {hasGiftCard ? (
-        <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="text-sm font-semibold text-neutral-950 dark:text-neutral-50">Gift card recipient</div>
-            <div className="text-xs text-neutral-500 dark:text-neutral-400">Optional</div>
+      <SendAsGiftSection
+        defaultOpen={hasGiftCard}
+        label={hasGiftCard ? 'Send gift card to someone' : 'Send as a gift'}
+      />
+
+      {regulatoryNotices.length > 0 ? (
+        <section className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/30">
+          <div className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            Regulatory notice
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="checkout-recipient-email">Recipient email</Label>
-            <Input
-              id="checkout-recipient-email"
-              type="email"
-              value={checkout.values.recipientEmail ?? ''}
-              onChange={(e) => checkout.setField('recipientEmail', e.target.value)}
-              placeholder="recipient@example.com"
-              aria-invalid={Boolean(checkout.fieldErrors.recipientEmail)}
-            />
-            <FieldError message={checkout.fieldErrors.recipientEmail} />
-            <div className="text-xs text-neutral-500 dark:text-neutral-400">
-              Leave blank to credit your own account. If provided, the gift card value will be credited to the recipient&apos;s account.
+          {regulatoryNotices.map((notice, i) => (
+            <div key={i} className="text-xs text-amber-800/90 dark:text-amber-200/80">
+              {notice}
             </div>
-          </div>
+          ))}
+          <label className="flex items-start gap-2 pt-1">
+            <input
+              type="checkbox"
+              checked={checkout.values.regulatoryConsent === true}
+              onChange={(e) => checkout.setField('regulatoryConsent', e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-amber-300 accent-amber-700"
+            />
+            <span className="text-xs font-medium text-amber-900 dark:text-amber-200">
+              I acknowledge and accept the regulatory terms above
+            </span>
+          </label>
+          <FieldError message={checkout.fieldErrors.regulatoryConsent} />
         </section>
       ) : null}
 

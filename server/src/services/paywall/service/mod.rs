@@ -25,8 +25,9 @@ use crate::models::{
 };
 use crate::observability::record_payment;
 use crate::repositories::{CouponRepository, ProductRepository};
-use crate::services::cedros_login::CedrosLoginClient;
 use crate::services::asset_fulfillment::AssetFulfillmentService;
+use crate::services::cedros_login::CedrosLoginClient;
+use crate::services::compliance_checker::ComplianceChecker;
 use crate::services::gift_card_fulfillment::GiftCardFulfillmentService;
 use crate::services::messaging::MessagingService;
 use crate::services::{ServiceError, ServiceResult, SubscriptionChecker};
@@ -78,6 +79,9 @@ pub struct PaywallService {
 
     /// Optional asset fulfillment service
     asset_fulfillment: Option<Arc<AssetFulfillmentService>>,
+
+    /// Optional compliance checker for sanctions/KYC/accredited investor gates
+    pub(crate) compliance_checker: Option<Arc<ComplianceChecker>>,
 }
 
 impl PaywallService {
@@ -114,6 +118,7 @@ impl PaywallService {
             messaging: None,
             gift_card_fulfillment: None,
             asset_fulfillment: None,
+            compliance_checker: None,
         }
     }
 
@@ -161,6 +166,12 @@ impl PaywallService {
     /// Set asset fulfillment service
     pub fn with_asset_fulfillment(mut self, service: Arc<AssetFulfillmentService>) -> Self {
         self.asset_fulfillment = Some(service);
+        self
+    }
+
+    /// Set compliance checker for sanctions/KYC/accredited investor gates
+    pub fn with_compliance_checker(mut self, checker: Arc<ComplianceChecker>) -> Self {
+        self.compliance_checker = Some(checker);
         self
     }
 
@@ -255,8 +266,10 @@ impl PaywallService {
     pub(crate) async fn check_credits_balance(
         &self,
         user_id: &str,
-    ) -> Result<crate::services::cedros_login::CreditsBalance, crate::services::cedros_login::CedrosLoginError>
-    {
+    ) -> Result<
+        crate::services::cedros_login::CreditsBalance,
+        crate::services::cedros_login::CedrosLoginError,
+    > {
         let client = self
             .cedros_login
             .as_ref()
@@ -271,8 +284,10 @@ impl PaywallService {
         amount: i64,
         currency: &str,
         reference_id: &str,
-    ) -> Result<crate::services::cedros_login::CreditsBalance, crate::services::cedros_login::CedrosLoginError>
-    {
+    ) -> Result<
+        crate::services::cedros_login::CreditsBalance,
+        crate::services::cedros_login::CedrosLoginError,
+    > {
         let client = self
             .cedros_login
             .as_ref()

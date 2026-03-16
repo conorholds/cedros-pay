@@ -62,6 +62,9 @@ const LazyToken22Section = lazy(() =>
 const LazyOrdersSection = lazy(() =>
   import('./OrdersSection').then((module) => ({ default: module.OrdersSection }))
 );
+const LazyComplianceSection = lazy(() =>
+  import('./ComplianceSection').then((module) => ({ default: module.ComplianceSection }))
+);
 
 /** Available dashboard sections */
 export type DashboardSection =
@@ -77,6 +80,7 @@ export type DashboardSection =
   | 'payment-settings'
   | 'messaging'
   | 'token22'
+  | 'compliance'
   | 'settings';
 
 /** Theme mode for the dashboard */
@@ -139,6 +143,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'subscriptions', label: 'Subscriptions', icon: Icons.calendarRepeat },
       { id: 'coupons', label: 'Coupons', icon: Icons.coupons },
       { id: 'refunds', label: 'Refunds', icon: Icons.refunds },
+      { id: 'compliance', label: 'Compliance', icon: Icons.shield },
     ],
   },
   {
@@ -436,6 +441,16 @@ export function CedrosPayAdminDashboard({
               <LazyMessagingSection
                 serverUrl={serverUrl}
                 apiKey={apiKey}
+                authManager={authManager}
+              />
+            </Suspense>
+          )}
+          {activeSection === 'compliance' && (
+            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
+              <LazyComplianceSection
+                serverUrl={serverUrl}
+                apiKey={apiKey}
+                pageSize={pageSize}
                 authManager={authManager}
               />
             </Suspense>

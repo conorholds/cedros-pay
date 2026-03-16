@@ -167,7 +167,15 @@ pub async fn create_dispute(
 
     match state.store.create_dispute(dispute.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "dispute", &dispute.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "dispute",
+                &dispute.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(dispute)
         }
         Err(e) => {
@@ -205,7 +213,15 @@ pub async fn update_dispute_status(
     {
         Ok(()) => match state.store.get_dispute(&tenant.tenant_id, &id).await {
             Ok(Some(dispute)) => {
-                audit(&*state.store, &tenant, "dispute", &id, "update_status", None).await;
+                audit(
+                    &*state.store,
+                    &tenant,
+                    "dispute",
+                    &id,
+                    "update_status",
+                    None,
+                )
+                .await;
                 json_ok(dispute)
             }
             Ok(None) => {

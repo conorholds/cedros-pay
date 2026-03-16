@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::models::compliance::ComplianceRequirements;
 use crate::models::money::Money;
 use crate::models::tokenization::TokenizedAssetConfig;
 
@@ -228,6 +229,10 @@ pub struct Product {
     pub gift_card_config: Option<GiftCardConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokenized_asset_config: Option<TokenizedAssetConfig>,
+    /// Per-product compliance requirements (sanctions, KYC, accredited investor).
+    /// When `None`, defaults apply: sanctions check only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compliance_requirements: Option<ComplianceRequirements>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]

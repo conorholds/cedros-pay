@@ -263,7 +263,15 @@ pub async fn create_coupon(
 
     match state.coupon_repo.create_coupon(coupon.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "coupon", &coupon.code, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "coupon",
+                &coupon.code,
+                "create",
+                None,
+            )
+            .await;
             json_ok(AdminCouponInfo::from(&coupon)).into_response()
         }
         Err(e) => {

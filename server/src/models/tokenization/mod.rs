@@ -59,6 +59,9 @@ pub struct TokenizationConfig {
     /// Regulatory notice shown to buyers before purchase.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regulatory_notice: Option<String>,
+    /// Per-collection compliance gate requirements (KYC, accredited, sanctions).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compliance_requirements: Option<crate::models::compliance::ComplianceRequirements>,
 }
 
 /// Admin-defined redemption form for an asset class.
@@ -122,6 +125,9 @@ pub struct TokenizedAssetConfig {
     /// Metaplex Core asset address (set after minting for non-fungible assets).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nft_mint_address: Option<String>,
+    /// Regulatory notice (denormalized from collection for API consumers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regulatory_notice: Option<String>,
 }
 
 fn default_token_decimals() -> i16 {

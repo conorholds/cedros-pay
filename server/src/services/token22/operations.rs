@@ -21,8 +21,7 @@ pub fn get_associated_token_address_2022(owner: &Pubkey, mint: &Pubkey) -> Pubke
         TOKEN_2022_PROGRAM_ID.as_ref(),
         mint.as_ref(),
     ];
-    let (address, _bump) =
-        Pubkey::find_program_address(seeds, &spl_associated_token_account::id());
+    let (address, _bump) = Pubkey::find_program_address(seeds, &spl_associated_token_account::id());
     address
 }
 
@@ -186,6 +185,124 @@ pub async fn burn_tokens(
     Ok(sig.to_string())
 }
 
+/// Build FreezeAccount instruction for Token-22.
+///
+/// Instruction data: discriminator 10 (FreezeAccount).
+/// Accounts: token_account (writable), mint (read-only), authority (signer).
+fn build_freeze_account_ix(
+    token_account: &Pubkey,
+    mint: &Pubkey,
+    authority: &Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: TOKEN_2022_PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(*token_account, false),
+            AccountMeta::new_readonly(*mint, false),
+            AccountMeta::new_readonly(*authority, true),
+        ],
+        data: vec![10u8], // FreezeAccount
+    }
+}
+
+/// Build ThawAccount instruction for Token-22.
+///
+/// Instruction data: discriminator 11 (ThawAccount).
+/// Accounts: token_account (writable), mint (read-only), authority (signer).
+fn build_thaw_account_ix(
+    token_account: &Pubkey,
+    mint: &Pubkey,
+    authority: &Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: TOKEN_2022_PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(*token_account, false),
+            AccountMeta::new_readonly(*mint, false),
+            AccountMeta::new_readonly(*authority, true),
+        ],
+        data: vec![11u8], // ThawAccount
+    }
+}
+
+/// Freeze a token account, preventing all transfers.
+///
+/// Requires the service authority to be the mint's freeze authority.
+/// Returns the confirming transaction signature.
+pub async fn freeze_account(
+    service: &Token22Service,
+    mint: &Pubkey,
+    owner: &Pubkey,
+) -> Result<String, String> {
+    let authority = service.authority_pubkey();
+    let ata = get_associated_token_address_2022(owner, mint);
+
+    let ix = build_freeze_account_ix(&ata, mint, &authority);
+
+    let bh_response = service
+        .blockhash_cache
+        .get_blockhash()
+        .await
+        .map_err(|e| format!("blockhash fetch failed: {e}"))?;
+
+    let blockhash = Hash::from_str(&bh_response.blockhash)
+        .map_err(|e| format!("invalid blockhash from cache: {e}"))?;
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority),
+        &[&*service.authority],
+        blockhash,
+    );
+
+    let sig = service
+        .rpc
+        .send_and_confirm_transaction(&tx)
+        .await
+        .map_err(|e| format!("freeze account tx failed: {e}"))?;
+
+    Ok(sig.to_string())
+}
+
+/// Thaw a frozen token account, re-enabling transfers.
+///
+/// Requires the service authority to be the mint's freeze authority.
+/// Returns the confirming transaction signature.
+pub async fn thaw_account(
+    service: &Token22Service,
+    mint: &Pubkey,
+    owner: &Pubkey,
+) -> Result<String, String> {
+    let authority = service.authority_pubkey();
+    let ata = get_associated_token_address_2022(owner, mint);
+
+    let ix = build_thaw_account_ix(&ata, mint, &authority);
+
+    let bh_response = service
+        .blockhash_cache
+        .get_blockhash()
+        .await
+        .map_err(|e| format!("blockhash fetch failed: {e}"))?;
+
+    let blockhash = Hash::from_str(&bh_response.blockhash)
+        .map_err(|e| format!("invalid blockhash from cache: {e}"))?;
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority),
+        &[&*service.authority],
+        blockhash,
+    );
+
+    let sig = service
+        .rpc
+        .send_and_confirm_transaction(&tx)
+        .await
+        .map_err(|e| format!("thaw account tx failed: {e}"))?;
+
+    Ok(sig.to_string())
+}
+
 /// Build WithdrawWithheldTokensFromAccounts instruction.
 ///
 /// Token-22 TransferFeeExtension layout:
@@ -302,7 +419,10 @@ mod tests {
         let treasury = Pubkey::new_unique();
 
         let result = rt.block_on(harvest_fees(&service, &mint, &treasury, &[]));
-        assert_eq!(result, Err("no source accounts to harvest from".to_string()));
+        assert_eq!(
+            result,
+            Err("no source accounts to harvest from".to_string())
+        );
     }
 
     #[test]

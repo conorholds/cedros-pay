@@ -6,6 +6,7 @@ pub struct AuthorizeWithWalletRequest<'a> {
     pub coupon_code: Option<&'a str>,
     pub wallet: Option<&'a str>,
     pub credits_hold_id: Option<&'a str>,
+    pub country_code: Option<&'a str>,
 }
 
 impl PaywallService {
@@ -31,6 +32,7 @@ impl PaywallService {
                 coupon_code,
                 wallet: None,
                 credits_hold_id: None,
+                country_code: None,
             },
         )
         .await
@@ -59,6 +61,7 @@ impl PaywallService {
             coupon_code,
             wallet,
             credits_hold_id,
+            country_code,
         } = req;
 
         // Route Detection: Check resource ID prefix
@@ -83,7 +86,7 @@ impl PaywallService {
                         code: e,
                         message: "invalid payment proof".into(),
                     })?;
-                return self.authorize_cart(tenant_id, cart_id, proof).await;
+                return self.authorize_cart(tenant_id, cart_id, proof, country_code).await;
             }
             // No payment header - return unauthorized
             return Ok(AuthorizationResult {

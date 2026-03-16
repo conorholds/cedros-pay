@@ -9,11 +9,12 @@ use std::time::Duration;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
+use crate::models::compliance::{ComplianceAction, TokenHolder};
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
-    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
-    Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
+    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq,
+    Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation, Order,
+    OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, ShippingProfile,
     ShippingRate, Subscription, SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 use crate::storage::{
@@ -290,6 +291,10 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         limit: i32,
     ) -> StorageResult<Vec<RefundQuote>> {
         self.inner.list_pending_refunds(tenant_id, limit).await
+    }
+
+    async fn count_pending_refunds(&self, tenant_id: &str) -> StorageResult<i64> {
+        self.inner.count_pending_refunds(tenant_id).await
     }
 
     async fn list_credits_refund_requests(
@@ -581,6 +586,23 @@ impl<S: Store + 'static> Store for CachedStore<S> {
                 tenant_id,
                 product_id,
                 variant_id,
+                exclude_cart_id,
+                now,
+            )
+            .await
+    }
+
+    async fn get_active_inventory_reservation_quantities_excluding_cart(
+        &self,
+        tenant_id: &str,
+        items: &[(String, Option<String>)],
+        exclude_cart_id: &str,
+        now: DateTime<Utc>,
+    ) -> StorageResult<std::collections::HashMap<(String, Option<String>), i64>> {
+        self.inner
+            .get_active_inventory_reservation_quantities_excluding_cart(
+                tenant_id,
+                items,
                 exclude_cart_id,
                 now,
             )
@@ -1797,6 +1819,78 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         offset: i32,
     ) -> StorageResult<(Vec<Faq>, i64)> {
         self.inner.list_public_faqs(tenant_id, limit, offset).await
+    }
+
+    // ─── Compliance (pass-through, no caching) ────────────────────────────
+    async fn record_token_holder(&self, holder: TokenHolder) -> StorageResult<()> {
+        self.inner.record_token_holder(holder).await
+    }
+    async fn list_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        wallet: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        self.inner
+            .list_token_holders(tenant_id, status, wallet, collection_id, limit, offset)
+            .await
+    }
+    async fn list_unfrozen_token_holders(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        self.inner
+            .list_unfrozen_token_holders(tenant_id, limit, offset)
+            .await
+    }
+    async fn count_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+    ) -> StorageResult<i64> {
+        self.inner.count_token_holders(tenant_id, status).await
+    }
+    async fn update_token_holder_status(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+        status: &str,
+        frozen_at: Option<DateTime<Utc>>,
+        freeze_tx: Option<&str>,
+        thaw_tx: Option<&str>,
+    ) -> StorageResult<()> {
+        self.inner
+            .update_token_holder_status(tenant_id, holder_id, status, frozen_at, freeze_tx, thaw_tx)
+            .await
+    }
+    async fn get_token_holder(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+    ) -> StorageResult<Option<TokenHolder>> {
+        self.inner.get_token_holder(tenant_id, holder_id).await
+    }
+    async fn record_compliance_action(&self, action: ComplianceAction) -> StorageResult<()> {
+        self.inner.record_compliance_action(action).await
+    }
+    async fn list_compliance_actions(
+        &self,
+        tenant_id: &str,
+        action_type: Option<&str>,
+        wallet: Option<&str>,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<ComplianceAction>> {
+        self.inner
+            .list_compliance_actions(tenant_id, action_type, wallet, from, to, limit, offset)
+            .await
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

@@ -93,7 +93,8 @@ function getCacheKey(
   serverUrl: string,
   solanaCluster: SolanaCluster,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  complianceCheck?: boolean
 ): string {
   return JSON.stringify({
     stripePublicKey,
@@ -101,6 +102,7 @@ function getCacheKey(
     solanaCluster,
     solanaEndpoint: solanaEndpoint || '',
     dangerouslyAllowUnknownMint: dangerouslyAllowUnknownMint || false,
+    complianceCheck: complianceCheck || false,
   });
 }
 
@@ -117,7 +119,8 @@ export async function getOrCreateManagers(
   serverUrl: string,
   solanaCluster: SolanaCluster,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  complianceCheck?: boolean
 ): Promise<{
   stripeManager: IStripeManager;
   x402Manager: IX402Manager;
@@ -132,7 +135,8 @@ export async function getOrCreateManagers(
     serverUrl,
     solanaCluster,
     solanaEndpoint,
-    dangerouslyAllowUnknownMint
+    dangerouslyAllowUnknownMint,
+    complianceCheck
   );
 
   // Check cache
@@ -166,7 +170,7 @@ export async function getOrCreateManagers(
   );
   const creationPromise = (async (): Promise<CachedManagers> => {
     const routeDiscovery = new RouteDiscoveryManager(serverUrl);
-    const stripeManager = new StripeManager(stripePublicKey, routeDiscovery);
+    const stripeManager = new StripeManager(stripePublicKey, routeDiscovery, complianceCheck ?? false);
     const x402Manager = new X402Manager(routeDiscovery);
     const WalletManagerCls = await getWalletManagerClass();
     const walletManager = new WalletManagerCls(
@@ -217,14 +221,16 @@ export function releaseManagers(
   serverUrl: string,
   solanaCluster: SolanaCluster,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  complianceCheck?: boolean
 ): void {
   const cacheKey = getCacheKey(
     stripePublicKey,
     serverUrl,
     solanaCluster,
     solanaEndpoint,
-    dangerouslyAllowUnknownMint
+    dangerouslyAllowUnknownMint,
+    complianceCheck
   );
 
   const cached = managerCache.get(cacheKey);

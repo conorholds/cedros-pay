@@ -85,13 +85,7 @@ impl PaywallService {
                 metadata: HashMap::new(),
             })
             .collect();
-        self.generate_cart_quote_with_metadata(
-            tenant_id,
-            items,
-            HashMap::new(),
-            coupon_code,
-            None,
-        )
+        self.generate_cart_quote_with_metadata(tenant_id, items, HashMap::new(), coupon_code, None)
             .await
     }
 
@@ -141,65 +135,36 @@ impl PaywallService {
             .map(|p| (p.id.clone(), p))
             .collect();
 
-        // Pre-load all coupons once to avoid N+1 queries in the item loop
-        let all_coupons = match self.coupons.list_coupons(tenant_id).await {
+        let category_ids: Vec<String> = products_map
+            .values()
+            .flat_map(|product| product.category_ids.iter().cloned())
+            .collect();
+        let catalog_auto_apply_coupons = match self
+            .coupons
+            .get_catalog_auto_apply_coupons_for_cart(
+                tenant_id,
+                &resource_ids,
+                &category_ids,
+                &crate::models::PaymentMethod::X402,
+            )
+            .await
+        {
             Ok(coupons) => coupons,
             Err(e) => {
-                // Log error but continue without coupons - degraded but functional
                 tracing::error!(
                     error = %e,
-                    "Failed to load coupons for cart quote - discounts will be unavailable"
+                    "Failed to load catalog coupons for cart quote - discounts will be unavailable"
                 );
                 vec![]
             }
         };
 
-        // PERF-002: Pre-index catalog coupons by product_id and category_id for O(1) lookup.
-        // Split into: site-wide (scope="all"), product-specific, and category-specific.
-        let coupon_now = Utc::now();
+        // Pre-index relevant catalog coupons by product_id and category_id for O(1) lookup.
         let mut catalog_all_scope: Vec<&Coupon> = Vec::new();
         let mut catalog_by_product: HashMap<&str, Vec<&Coupon>> = HashMap::new();
         let mut catalog_by_category: HashMap<&str, Vec<&Coupon>> = HashMap::new();
 
-        for coupon in &all_coupons {
-            // Filter for catalog-level auto-apply coupons with static checks
-            let applies_at = if coupon.applies_at.is_empty() {
-                "catalog"
-            } else {
-                &coupon.applies_at
-            };
-            if !coupon.auto_apply || !applies_at.eq_ignore_ascii_case("catalog") || !coupon.active {
-                continue;
-            }
-            // Date range check
-            if let Some(s) = coupon.starts_at {
-                if coupon_now < s {
-                    continue;
-                }
-            }
-            if let Some(e) = coupon.expires_at {
-                if coupon_now > e {
-                    continue;
-                }
-            }
-            // Usage limit check
-            if let Some(l) = coupon.usage_limit {
-                if coupon.usage_count >= l {
-                    continue;
-                }
-            }
-            // Payment method check (cart quotes only support x402/crypto payments)
-            if !coupon.payment_method.is_empty()
-                && coupon.payment_method != "any"
-                && !coupon.payment_method.eq_ignore_ascii_case("x402")
-            {
-                continue;
-            }
-            // Skip first_purchase_only coupons from auto-apply (can't verify customer at quote time)
-            if coupon.first_purchase_only {
-                continue;
-            }
-
+        for coupon in &catalog_auto_apply_coupons {
             if coupon.scope.eq_ignore_ascii_case("all") {
                 // All-scope coupons with category_ids only apply to matching categories
                 if coupon.category_ids.is_empty() {
@@ -229,6 +194,21 @@ impl PaywallService {
                 }
             }
         }
+
+        let checkout_auto_apply_coupons = match self
+            .coupons
+            .get_checkout_auto_apply_coupons(tenant_id, &crate::models::PaymentMethod::X402)
+            .await
+        {
+            Ok(coupons) => coupons,
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    "Failed to load checkout coupons for cart quote - checkout discounts will be unavailable"
+                );
+                vec![]
+            }
+        };
 
         let mut reservations = Vec::new();
         // Track reservations by (product_id, variant_id) tuple for proper variant-level tracking
@@ -433,7 +413,12 @@ impl PaywallService {
         });
         let cart_subtotal = Money::new(asset.clone(), total_atomic);
         let checkout_coupons = self
-            .filter_checkout_coupons(tenant_id, &all_coupons, coupon_code, total_atomic)
+            .filter_checkout_coupons(
+                tenant_id,
+                &checkout_auto_apply_coupons,
+                coupon_code,
+                total_atomic,
+            )
             .await;
         for c in &checkout_coupons {
             if checkout_coupon_codes.insert(c.code.clone()) {
@@ -500,15 +485,16 @@ impl PaywallService {
             if applied_amount >= final_total.atomic {
                 return Err(ServiceError::Coded {
                     code: ErrorCode::InvalidOperation,
-                    message: "gift card covers full cart amount; zero-amount carts are not supported".into(),
+                    message:
+                        "gift card covers full cart amount; zero-amount carts are not supported"
+                            .into(),
                 });
             }
 
             let new_total_atomic = final_total.atomic - applied_amount;
             final_total = Money::new(final_total.asset.clone(), new_total_atomic);
             let remaining = (card.balance - applied_amount).max(0);
-            gift_card_applied =
-                Some((normalized_code, applied_amount, card.currency, remaining));
+            gift_card_applied = Some((normalized_code, applied_amount, card.currency, remaining));
         }
 
         let created_at = Utc::now();
@@ -643,11 +629,11 @@ impl PaywallService {
     async fn filter_checkout_coupons(
         &self,
         tenant_id: &str,
-        all_coupons: &[Coupon],
+        checkout_auto_apply_coupons: &[Coupon],
         manual_code: Option<&str>,
         cart_subtotal_cents: i64,
     ) -> Vec<Coupon> {
-        let mut coupons: Vec<Coupon> = all_coupons
+        let mut coupons: Vec<Coupon> = checkout_auto_apply_coupons
             .iter()
             .filter(|c| {
                 c.auto_apply
@@ -663,7 +649,7 @@ impl PaywallService {
         // Add manual coupon if provided (may need DB lookup if not in pre-loaded list)
         if let Some(code) = manual_code {
             // First check if it's in the pre-loaded list
-            if let Some(c) = all_coupons
+            if let Some(c) = checkout_auto_apply_coupons
                 .iter()
                 .find(|c| c.code.eq_ignore_ascii_case(code))
             {

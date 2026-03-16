@@ -186,12 +186,13 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     const cluster = validatedConfig.solanaCluster;
     const endpoint = validatedConfig.solanaEndpoint;
     const allowUnknownMint = validatedConfig.dangerouslyAllowUnknownMint;
+    const complianceCheck = validatedConfig.complianceCheck;
 
-    getOrCreateManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint)
+    getOrCreateManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint, complianceCheck)
       .then((result) => {
         if (cancelled) {
           // If unmounted before async init completes, release immediately to avoid ref leaks.
-          releaseManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint);
+          releaseManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint, complianceCheck);
           return;
         }
 
@@ -207,7 +208,7 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     return () => {
       cancelled = true;
       if (managersAcquired) {
-        releaseManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint);
+        releaseManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint, complianceCheck);
       }
     };
   }, [
@@ -216,6 +217,7 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     validatedConfig.solanaCluster,
     validatedConfig.solanaEndpoint,
     validatedConfig.dangerouslyAllowUnknownMint,
+    validatedConfig.complianceCheck,
   ]);
 
   // Build context value (null until managers are loaded)

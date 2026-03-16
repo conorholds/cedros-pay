@@ -3,8 +3,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
+    extract::{Query, State},
     response::IntoResponse,
 };
 use chrono::DateTime;
@@ -110,29 +109,6 @@ pub async fn list_refunds(
     }
 }
 
-/// POST /api/admin/refunds/:id/process - Process a pending refund
-///
-/// This endpoint is intentionally NOT implemented.
-/// Use the signed admin flow under `/paywall/v1/refunds/approve` + `/paywall/v1/refunds/deny`.
-pub async fn process_refund(
-    State(_state): State<Arc<AdminState>>,
-    tenant: TenantContext,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
-    let (_status, body) = error_response(
-        ErrorCode::InvalidOperation,
-        Some(
-            "Refund processing is not supported via /api/admin/refunds/:id/process; use /paywall/v1/refunds/approve or /paywall/v1/refunds/deny"
-                .to_string(),
-        ),
-        Some(serde_json::json!({
-            "refundId": id,
-            "tenantId": tenant.tenant_id,
-        })),
-    );
-    json_error(StatusCode::NOT_IMPLEMENTED, body).into_response()
-}
-
 // ============================================================================
 // Credits Refund Requests
 // ============================================================================
@@ -227,60 +203,40 @@ pub async fn list_credits_refund_requests(
 mod tests {
     use super::*;
 
-    use std::collections::HashMap;
     use std::sync::Arc;
 
-    use axum::extract::{Path, State};
+    use axum::extract::{Query, State};
     use axum::response::IntoResponse;
 
     use crate::handlers::admin::AdminState;
     use crate::middleware::TenantContext;
-    use crate::models::money::get_asset;
-    use crate::models::Money;
     use crate::repositories::{InMemoryCouponRepository, InMemoryProductRepository};
-    use crate::storage::{InMemoryStore, Store};
+    use crate::storage::InMemoryStore;
 
     #[tokio::test]
-    async fn test_process_refund_is_not_implemented_and_does_not_modify_refund() {
-        use chrono::Duration;
-
-        let store = Arc::new(InMemoryStore::new());
+    async fn test_list_credits_refund_requests_rejects_invalid_status_filter() {
         let state = Arc::new(AdminState {
-            store: store.clone(),
+            store: Arc::new(InMemoryStore::new()),
             product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
             coupon_repo: Arc::new(InMemoryCouponRepository::new(Vec::new())),
             stripe_client: None,
         });
 
-        let tenant = TenantContext::default();
-        let now = Utc::now();
-        let refund = crate::models::RefundQuote {
-            id: "r1".to_string(),
-            tenant_id: tenant.tenant_id.clone(),
-            original_purchase_id: "tx1".to_string(),
-            recipient_wallet: "recipient".to_string(),
-            amount: Money::from_major(get_asset("USDC").unwrap(), 1.0),
-            reason: None,
-            metadata: HashMap::new(),
-            created_at: now,
-            expires_at: now + Duration::minutes(10),
-            processed_by: None,
-            processed_at: None,
-            signature: None,
-        };
+        let response = super::list_credits_refund_requests(
+            State(state),
+            TenantContext::default(),
+            Query(ListCreditsRefundRequestsQuery {
+                status: Some("unknown".to_string()),
+                limit: 20,
+                offset: 0,
+            }),
+        )
+        .await
+        .into_response();
 
-        store.store_refund_quote(refund).await.unwrap();
-
-        let resp = super::process_refund(State(state), tenant.clone(), Path("r1".to_string()))
-            .await
-            .into_response();
-        assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
-
-        let stored = store
-            .get_refund_quote(&tenant.tenant_id, "r1")
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(!stored.is_finalized());
+        assert_eq!(
+            response.status(),
+            crate::errors::ErrorCode::InvalidField.http_status()
+        );
     }
 }

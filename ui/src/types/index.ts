@@ -72,6 +72,20 @@ export namespace v1 {
      * @default false
      */
     dangerouslyAllowUnknownMint?: boolean;
+    /**
+     * Enable pre-flight compliance checks before Stripe checkout.
+     *
+     * When `true`, StripeButton and processPayment/processCartCheckout
+     * will call `/paywall/v1/compliance-check` before creating a Stripe
+     * session. If blocked (KYC, sanctions, accredited investor), the
+     * payment is rejected client-side with the reasons.
+     *
+     * The server also enforces compliance during session creation
+     * regardless of this setting (belt + suspenders).
+     *
+     * @default false
+     */
+    complianceCheck?: boolean;
   }
 
   /**

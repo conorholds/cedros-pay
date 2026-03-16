@@ -395,11 +395,11 @@ pub fn parse_collection(row: PgRow) -> StorageResult<Collection> {
     let product_ids: Vec<String> = serde_json::from_value(product_ids_json)
         .map_err(|e| StorageError::internal("failed to parse collection product_ids", e))?;
 
-    let tokenization_config: Option<crate::models::TokenizationConfig> =
-        row.try_get::<Option<serde_json::Value>, _>("tokenization_config")
-            .ok()
-            .flatten()
-            .and_then(|v| serde_json::from_value(v).ok());
+    let tokenization_config: Option<crate::models::TokenizationConfig> = row
+        .try_get::<Option<serde_json::Value>, _>("tokenization_config")
+        .ok()
+        .flatten()
+        .and_then(|v| serde_json::from_value(v).ok());
 
     Ok(Collection {
         id: row.get("id"),
@@ -502,7 +502,8 @@ pub fn parse_credits_hold(row: PgRow) -> StorageResult<CreditsHold> {
 }
 
 pub fn parse_admin_nonce(row: PgRow) -> StorageResult<AdminNonce> {
-    // Purpose is nullable in DB but required in model - default to empty string for wildcards
+    // Legacy rows may have a null purpose; preserve that as empty so validators
+    // reject the nonce instead of treating it as implicitly valid.
     let purpose: Option<String> = row.get("purpose");
     let tenant_id = parse_tenant_id(&row, "admin_nonce")?;
     Ok(AdminNonce {

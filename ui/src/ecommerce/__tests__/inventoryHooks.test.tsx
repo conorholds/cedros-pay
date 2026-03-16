@@ -103,4 +103,100 @@ describe('inventory hooks batching', () => {
     expect(verification?.issues[0]?.productId).toBe('prod-2');
     expect(verification?.issues[0]?.type).toBe('insufficient_stock');
   });
+
+  it('useCartInventory does not overlap slow polling refreshes', async () => {
+    vi.useFakeTimers();
+    try {
+      const resolvers: Array<() => void> = [];
+      let activeCalls = 0;
+      let maxConcurrentCalls = 0;
+      const getProductBySlug = vi.fn((slug: string) => {
+        activeCalls += 1;
+        maxConcurrentCalls = Math.max(maxConcurrentCalls, activeCalls);
+        return new Promise<Product | null>((resolve) => {
+          resolvers.push(() => {
+            activeCalls -= 1;
+            resolve(buildProduct(slug, 5));
+          });
+        });
+      });
+
+      const adapter = buildAdapter({ getProductBySlug });
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <CedrosShopProvider config={{ currency: 'USD', checkout: { mode: 'minimal' }, adapter }}>
+          {children}
+        </CedrosShopProvider>
+      );
+
+      const items = [
+        { productId: 'prod-1', qty: 1, unitPrice: 10, currency: 'USD', titleSnapshot: 'P1' },
+        { productId: 'prod-2', qty: 1, unitPrice: 10, currency: 'USD', titleSnapshot: 'P2' },
+        { productId: 'prod-3', qty: 1, unitPrice: 10, currency: 'USD', titleSnapshot: 'P3' },
+      ];
+
+      renderHook(() => useCartInventory({ items, refreshInterval: 10 }), { wrapper });
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(getProductBySlug).toHaveBeenCalledTimes(2);
+      expect(maxConcurrentCalls).toBe(2);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(25);
+      });
+
+      expect(getProductBySlug).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        resolvers.splice(0).forEach((resolve) => resolve());
+        await Promise.resolve();
+      });
+
+      expect(getProductBySlug).toHaveBeenCalledTimes(3);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+
+      expect(getProductBySlug).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('useCartInventory preserves inventory reference when results do not change', async () => {
+    const getProductsByIds = vi.fn(async (ids: string[]) => {
+      const map = new Map<string, Product>();
+      for (const id of ids) {
+        map.set(id, buildProduct(id, 5));
+      }
+      return map;
+    });
+
+    const adapter = buildAdapter({ getProductsByIds });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <CedrosShopProvider config={{ currency: 'USD', checkout: { mode: 'minimal' }, adapter }}>
+        {children}
+      </CedrosShopProvider>
+    );
+
+    const items = [
+      { productId: 'prod-1', qty: 1, unitPrice: 10, currency: 'USD', titleSnapshot: 'P1' },
+    ];
+
+    const { result } = renderHook(() => useCartInventory({ items, refreshInterval: 0 }), { wrapper });
+
+    await waitFor(() => expect(result.current.inventory.size).toBe(1));
+    const firstInventory = result.current.inventory;
+
+    await act(async () => {
+      result.current.refresh();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(getProductsByIds).toHaveBeenCalledTimes(2));
+    expect(result.current.inventory).toBe(firstInventory);
+  });
 });

@@ -33,9 +33,7 @@ pub use crate::handlers::admin_products::{
     adjust_product_inventory, create_product, delete_product, get_product, list_products,
     set_product_inventory, update_product,
 };
-pub use crate::handlers::admin_refunds::{
-    list_credits_refund_requests, list_refunds, process_refund,
-};
+pub use crate::handlers::admin_refunds::{list_credits_refund_requests, list_refunds};
 
 pub(crate) use super::cap_limit;
 
@@ -281,8 +279,12 @@ pub async fn get_stats(
     };
 
     // Get active products count
-    let active_products = match state.product_repo.list_products(&tenant.tenant_id).await {
-        Ok(products) => products.iter().filter(|p| p.active).count() as i64,
+    let active_products = match state
+        .product_repo
+        .count_active_products(&tenant.tenant_id)
+        .await
+    {
+        Ok(count) => count,
         Err(e) => {
             tracing::error!(error = %e, "Failed to get active products count");
             let (status, body) = error_response(
@@ -295,12 +297,8 @@ pub async fn get_stats(
     };
 
     // Get pending refunds count
-    let pending_refunds = match state
-        .store
-        .list_pending_refunds(&tenant.tenant_id, 1000)
-        .await
-    {
-        Ok(refunds) => refunds.len() as i64,
+    let pending_refunds = match state.store.count_pending_refunds(&tenant.tenant_id).await {
+        Ok(count) => count,
         Err(e) => {
             tracing::error!(error = %e, "Failed to get pending refunds count");
             let (status, body) = error_response(
@@ -446,11 +444,13 @@ mod tests {
 
     use async_trait::async_trait;
 
-    use crate::models::Product;
+    use crate::models::{Money, Product, RefundQuote};
     use crate::repositories::{
-        InMemoryCouponRepository, ProductRepository, ProductRepositoryError,
+        InMemoryCouponRepository, InMemoryProductRepository, ProductRepository,
+        ProductRepositoryError,
     };
     use crate::storage::InMemoryStore;
+    use chrono::{Duration, Utc};
 
     struct FailingListProductsRepo;
 
@@ -563,5 +563,58 @@ mod tests {
         let tenant = TenantContext::default();
         let response = super::get_stats(State(state), tenant).await.into_response();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn test_get_stats_counts_active_products_and_pending_refunds() {
+        let asset = crate::models::get_asset("USDC").expect("asset");
+        let store = Arc::new(InMemoryStore::new());
+        store
+            .store_refund_quote(RefundQuote {
+                id: "refund-1".to_string(),
+                tenant_id: "default".to_string(),
+                original_purchase_id: "purchase-1".to_string(),
+                recipient_wallet: "wallet-1".to_string(),
+                amount: Money::new(asset.clone(), 100),
+                created_at: Utc::now(),
+                expires_at: Utc::now() + Duration::hours(1),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let products = vec![
+            Product {
+                id: "product-1".to_string(),
+                tenant_id: "default".to_string(),
+                active: true,
+                ..Default::default()
+            },
+            Product {
+                id: "product-2".to_string(),
+                tenant_id: "default".to_string(),
+                active: false,
+                ..Default::default()
+            },
+        ];
+        let state = Arc::new(AdminState {
+            store,
+            product_repo: Arc::new(InMemoryProductRepository::new(products)),
+            coupon_repo: Arc::new(InMemoryCouponRepository::new(Vec::new())),
+            stripe_client: None,
+        });
+
+        let response = super::get_stats(State(state), TenantContext::default())
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["activeProducts"], 1);
+        assert_eq!(json["pendingRefunds"], 1);
+        assert_eq!(json["totalTransactions"], 0);
     }
 }

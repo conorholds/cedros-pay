@@ -389,6 +389,27 @@ pub async fn create_session<S: Store + 'static>(
         .extract_user_id_from_auth_header(auth)
         .await;
 
+    // Compliance gate: sanctions, KYC, accredited investor (server-side security boundary).
+    if let Some(ref checker) = state.paywall_service.compliance_checker {
+        let reqs = product
+            .compliance_requirements
+            .clone()
+            .unwrap_or_default();
+        // Stripe users have no wallet — pass empty string for wallet check.
+        let result = checker
+            .check_compliance(&tenant.tenant_id, "", user_id.as_deref(), &reqs)
+            .await;
+        if let crate::services::compliance_checker::ComplianceResult::Blocked { reasons } = result
+        {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some(format!("purchase blocked: {}", reasons.join("; "))),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
     // Build metadata with inventory reservation ID for webhook to convert
     let mut metadata = build_session_metadata(&tenant.tenant_id, req.metadata.as_ref(), user_id);
     if let Some(ref reservation_id) = inventory_reservation_id {

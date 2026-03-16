@@ -182,28 +182,43 @@ impl PaywallService {
         coupon_code: Option<&str>,
         payment_method: Option<&str>,
     ) -> ServiceResult<Vec<Coupon>> {
-        let mut coupons = Vec::new();
-        let explicit_coupon_code = coupon_code.map(str::to_ascii_uppercase);
+        let payment_method = payment_method.and_then(|method| match method {
+            "stripe" => Some(crate::models::PaymentMethod::Stripe),
+            "x402" => Some(crate::models::PaymentMethod::X402),
+            "credits" => Some(crate::models::PaymentMethod::Credits),
+            _ => None,
+        });
 
-        // Get auto-apply coupons
-        match self.coupons.list_coupons(tenant_id).await {
-            Ok(auto) => {
-                for c in auto {
-                    if c.auto_apply && self.coupon_applies_to(&c, resource, payment_method) {
-                        coupons.push(c);
-                    }
-                }
-            }
+        let mut coupons = match self
+            .coupons
+            .get_resource_auto_apply_coupons(tenant_id, resource, payment_method.as_ref())
+            .await
+        {
+            Ok(auto) => auto
+                .into_iter()
+                .filter(|coupon| {
+                    self.coupon_applies_to(
+                        coupon,
+                        resource,
+                        payment_method_name(payment_method.as_ref()),
+                    )
+                })
+                .collect(),
             Err(e) => {
                 warn!(error = %e, tenant_id = %tenant_id, "Failed to list coupons — proceeding without auto-apply coupons");
+                Vec::new()
             }
-        }
+        };
 
         // Get explicit coupon
         if let Some(code) = coupon_code {
             match self.coupons.get_coupon(tenant_id, code).await {
                 Ok(c) => {
-                    if self.coupon_applies_to(&c, resource, payment_method) {
+                    if self.coupon_applies_to(
+                        &c,
+                        resource,
+                        payment_method_name(payment_method.as_ref()),
+                    ) {
                         // Avoid duplicates
                         if !coupons.iter().any(|x| x.code == c.code) {
                             coupons.push(c);
@@ -227,39 +242,7 @@ impl PaywallService {
             }
         }
 
-        let mut refreshed = Vec::new();
-        for coupon in coupons {
-            if coupon.usage_limit.is_some() {
-                match self.coupons.get_coupon(tenant_id, &coupon.code).await {
-                    Ok(fresh_coupon) => {
-                        if self.coupon_applies_to(&fresh_coupon, resource, payment_method) {
-                            refreshed.push(fresh_coupon);
-                        }
-                    }
-                    Err(e) => {
-                        if explicit_coupon_code
-                            .as_deref()
-                            .is_some_and(|code| code == coupon.code.to_ascii_uppercase())
-                        {
-                            return Err(ServiceError::Coded {
-                                code: ErrorCode::DatabaseError,
-                                message: format!("failed to refresh coupon {}: {}", coupon.code, e),
-                            });
-                        }
-                        warn!(
-                            error = %e,
-                            tenant_id = %tenant_id,
-                            code = %coupon.code,
-                            "Failed to refresh coupon usage state — skipping coupon"
-                        );
-                    }
-                }
-            } else {
-                refreshed.push(coupon);
-            }
-        }
-
-        Ok(refreshed)
+        Ok(coupons)
     }
 
     async fn increment_coupon_usage_with_retry(
@@ -456,4 +439,14 @@ impl PaywallService {
             resource_id: product.id.clone(),
         })
     }
+}
+
+fn payment_method_name(
+    payment_method: Option<&crate::models::PaymentMethod>,
+) -> Option<&'static str> {
+    payment_method.map(|method| match method {
+        crate::models::PaymentMethod::Stripe => "stripe",
+        crate::models::PaymentMethod::X402 => "x402",
+        crate::models::PaymentMethod::Credits => "credits",
+    })
 }

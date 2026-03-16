@@ -219,6 +219,56 @@ describe('StripeManager', () => {
       expect(typeof capturedHeaders?.['Idempotency-Key']).toBe('string');
     });
 
+    it('coalesces identical in-flight session creation requests', async () => {
+      const request: StripeSessionRequest = {
+        resource: 'product-123',
+        successUrl: 'https://example.com/success',
+        cancelUrl: 'https://example.com/cancel',
+      };
+
+      const mockResponse: StripeSessionResponse = {
+        sessionId: 'cs_test_inflight',
+        url: 'https://checkout.stripe.com/test',
+      };
+
+      let resolveSession: ((response: Response) => void) | undefined;
+      let sessionCalls = 0;
+
+      fetchMock.mockImplementation((url: string) => {
+        if (typeof url === 'string' && url.includes('/cedros-health')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ routePrefix: '/api' }),
+          } as Response);
+        }
+        if (typeof url === 'string' && url.includes('/paywall/v1/stripe-session')) {
+          sessionCalls += 1;
+          return new Promise<Response>((resolve) => {
+            resolveSession = resolve;
+          });
+        }
+        return Promise.reject(new Error('Unmocked fetch call'));
+      });
+
+      const first = manager.createSession(request);
+      const second = manager.createSession(request);
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(sessionCalls).toBe(1);
+
+      resolveSession?.({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response);
+
+      await expect(first).resolves.toEqual(mockResponse);
+      await expect(second).resolves.toEqual(mockResponse);
+      expect(sessionCalls).toBe(1);
+    });
+
     it('redacts sensitive values from debug logging', async () => {
       const request: StripeSessionRequest = {
         resource: 'product-123',

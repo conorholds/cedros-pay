@@ -3,12 +3,12 @@ use super::*;
 use parking_lot::Mutex;
 
 use crate::models::{CartQuote, PaymentTransaction, RefundQuote, Subscription, SubscriptionStatus};
-use crate::x402::utils::hex_encode;
 use crate::storage::{
     AdminNonce, AdminStats, CreditsHold, DlqWebhook, IdempotencyResponse, InMemoryStore,
     PendingEmail, PendingWebhook, Purchase, StorageError, StorageResult, Store, WebhookStatus,
 };
 use crate::webhooks::{NoopNotifier, Notifier};
+use crate::x402::utils::hex_encode;
 
 #[derive(Default)]
 struct TestNotifier {
@@ -1328,6 +1328,75 @@ impl Store for FailingCompleteIdempotencyStore {
         _offset: i32,
     ) -> StorageResult<Vec<crate::models::AdminAuditEntry>> {
         Ok(vec![])
+    }
+
+    async fn record_token_holder(
+        &self,
+        _holder: crate::models::compliance::TokenHolder,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+    async fn list_token_holders(
+        &self,
+        _tenant_id: &str,
+        _status: Option<&str>,
+        _wallet: Option<&str>,
+        _collection_id: Option<&str>,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::compliance::TokenHolder>> {
+        unimplemented!()
+    }
+    async fn list_unfrozen_token_holders(
+        &self,
+        _tenant_id: &str,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::compliance::TokenHolder>> {
+        unimplemented!()
+    }
+    async fn count_token_holders(
+        &self,
+        _tenant_id: &str,
+        _status: Option<&str>,
+    ) -> StorageResult<i64> {
+        unimplemented!()
+    }
+    async fn update_token_holder_status(
+        &self,
+        _tenant_id: &str,
+        _holder_id: &str,
+        _status: &str,
+        _frozen_at: Option<DateTime<Utc>>,
+        _freeze_tx: Option<&str>,
+        _thaw_tx: Option<&str>,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+    async fn get_token_holder(
+        &self,
+        _tenant_id: &str,
+        _holder_id: &str,
+    ) -> StorageResult<Option<crate::models::compliance::TokenHolder>> {
+        unimplemented!()
+    }
+    async fn record_compliance_action(
+        &self,
+        _action: crate::models::compliance::ComplianceAction,
+    ) -> StorageResult<()> {
+        unimplemented!()
+    }
+    async fn list_compliance_actions(
+        &self,
+        _tenant_id: &str,
+        _action_type: Option<&str>,
+        _wallet: Option<&str>,
+        _from: Option<DateTime<Utc>>,
+        _to: Option<DateTime<Utc>>,
+        _limit: i32,
+        _offset: i32,
+    ) -> StorageResult<Vec<crate::models::compliance::ComplianceAction>> {
+        unimplemented!()
     }
 }
 

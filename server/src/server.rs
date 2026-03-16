@@ -94,6 +94,12 @@ pub(crate) async fn run_with_store<S: Store + 'static>(
     let built = build_services(&cfg, store.clone(), storage_pg_pool).await?;
     let health_state = built.health_state.clone();
     let notifier = built.notifier.clone();
+    let token22_for_workers = built.token22_service.clone();
+    let sanctions_list_for_workers = built.sanctions_list_service.clone();
+    let config_repo_for_workers = built
+        .storage_pg_pool
+        .as_ref()
+        .map(|pool| Arc::new(crate::config::PostgresConfigRepository::new(pool.clone())));
 
     let base_router = build_router(built.into_router_states());
 
@@ -171,6 +177,9 @@ pub(crate) async fn run_with_store<S: Store + 'static>(
         health_state,
         Some(rate_limiter),
         notifier,
+        token22_for_workers,
+        config_repo_for_workers,
+        sanctions_list_for_workers,
     )?;
 
     const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);

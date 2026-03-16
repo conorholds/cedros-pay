@@ -11,6 +11,8 @@ import { ErrorBanner } from './ErrorBanner';
 import { AssetClassesTab } from './AssetClassesTab';
 import { AssetRedemptionManager } from './AssetRedemptionManager';
 import { GiftCardComplianceTab } from './GiftCardComplianceTab';
+import { GiftCardAnalytics } from './GiftCardAnalytics';
+import { GiftCardManager } from './GiftCardManager';
 import { LiquidityPoolTab } from './LiquidityPoolTab';
 import type { SectionProps } from './types';
 
@@ -45,7 +47,7 @@ export function Token22Section({ serverUrl, apiKey, authManager }: SectionProps)
   const [redemptions, setRedemptions] = useState<GiftCardRedemption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'mint' | 'redemptions' | 'compliance' | 'liquidity' | 'asset-classes' | 'asset-redemptions'>('mint');
+  const [activeTab, setActiveTab] = useState<'mint' | 'inventory' | 'analytics' | 'redemptions' | 'compliance' | 'liquidity' | 'asset-classes' | 'asset-redemptions'>('mint');
 
   // Initialize mint form
   const [initForm, setInitForm] = useState({
@@ -151,8 +153,8 @@ export function Token22Section({ serverUrl, apiKey, authManager }: SectionProps)
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(0,0,0,0.1)', marginBottom: '1rem' }}>
-        {(['mint', 'redemptions', 'compliance', 'liquidity', 'asset-classes', 'asset-redemptions'] as const).map((tab) => {
-          const labels = { mint: 'Token-22 Mint', redemptions: 'Gift Card Redemptions', compliance: 'Compliance', liquidity: 'Liquidity', 'asset-classes': 'Asset Classes', 'asset-redemptions': 'Asset Redemptions' };
+        {(['mint', 'inventory', 'analytics', 'redemptions', 'compliance', 'liquidity', 'asset-classes', 'asset-redemptions'] as const).map((tab) => {
+          const labels = { mint: 'Token-22 Mint', inventory: 'Gift Cards', analytics: 'Analytics', redemptions: 'Redemptions', compliance: 'Compliance', liquidity: 'Liquidity', 'asset-classes': 'Asset Classes', 'asset-redemptions': 'Asset Redemptions' };
           return (
             <button
               key={tab}
@@ -188,6 +190,10 @@ export function Token22Section({ serverUrl, apiKey, authManager }: SectionProps)
           onHarvestFees={handleHarvestFees}
           formatDate={formatDate}
         />
+      ) : activeTab === 'inventory' ? (
+        <GiftCardManager serverUrl={serverUrl} apiKey={apiKey} authManager={authManager} />
+      ) : activeTab === 'analytics' ? (
+        <GiftCardAnalytics serverUrl={serverUrl} apiKey={apiKey} authManager={authManager} />
       ) : activeTab === 'redemptions' ? (
         <RedemptionsTab redemptions={redemptions} formatDate={formatDate} />
       ) : activeTab === 'compliance' ? (

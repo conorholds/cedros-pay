@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Path, State},
@@ -917,8 +917,10 @@ pub async fn verify_cart<S: Store + 'static>(
     State(state): State<Arc<AppState<S>>>,
     tenant: TenantContext,
     Path(cart_id): Path<String>,
+    country_code: Option<axum::extract::Extension<crate::middleware::real_ip::CountryCode>>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
+    let country_str = country_code.map(|axum::extract::Extension(cc)| cc.0);
     // Validate cart ID format per spec (16-formats.md)
     if crate::x402::utils::validate_cart_id(&cart_id).is_err() {
         let (status, body) = error_response(
@@ -1062,7 +1064,7 @@ pub async fn verify_cart<S: Store + 'static>(
     // Verify payment via paywall service
     match state
         .paywall_service
-        .verify_cart_payment(&tenant.tenant_id, &cart_id, proof)
+        .verify_cart_payment(&tenant.tenant_id, &cart_id, proof, country_str.as_deref())
         .await
     {
         Ok(verification) => {
@@ -1159,6 +1161,31 @@ pub async fn get_cart_inventory_status<S: Store + 'static>(
     // Build per-item inventory status
     let mut items = Vec::with_capacity(cart.items.len());
     let mut all_available = true;
+    let reservation_totals = if holds_enabled {
+        let reservation_keys: Vec<(String, Option<String>)> = cart
+            .items
+            .iter()
+            .map(|item| (item.resource_id.clone(), item.variant_id.clone()))
+            .collect();
+        match state
+            .store
+            .get_active_inventory_reservation_quantities_excluding_cart(
+                &tenant.tenant_id,
+                &reservation_keys,
+                &cart_id,
+                now,
+            )
+            .await
+        {
+            Ok(quantities) => quantities,
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to query reservation totals, assuming 0");
+                HashMap::new()
+            }
+        }
+    } else {
+        HashMap::new()
+    };
 
     for cart_item in &cart.items {
         let product = products_map.get(&cart_item.resource_id);
@@ -1173,27 +1200,10 @@ pub async fn get_cart_inventory_status<S: Store + 'static>(
             .is_some_and(|policy| policy == "allow_backorder");
 
         // Get reservations by others (excluding this cart)
-        let reserved_by_others = if holds_enabled {
-            match state
-                .store
-                .get_active_inventory_reservation_quantity_excluding_cart(
-                    &tenant.tenant_id,
-                    &cart_item.resource_id,
-                    cart_item.variant_id.as_deref(),
-                    &cart_id,
-                    now,
-                )
-                .await
-            {
-                Ok(qty) => qty as i32,
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to query reservations, assuming 0");
-                    0
-                }
-            }
-        } else {
-            0
-        };
+        let reserved_by_others = reservation_totals
+            .get(&(cart_item.resource_id.clone(), cart_item.variant_id.clone()))
+            .copied()
+            .unwrap_or(0) as i32;
 
         // Compute this cart's hold expiry based on cart creation + hold TTL
         let hold_expires_at = if holds_enabled {
@@ -1266,6 +1276,7 @@ mod tests {
         let asset = crate::models::get_asset("USDC").expect("asset");
         config.x402.token_mint = asset.metadata.solana_mint.clone().unwrap_or_default();
         config.x402.payment_address = "11111111111111111111111111111111".to_string();
+        config.storage.inventory_holds_enabled = true;
 
         let store = Arc::new(InMemoryStore::new());
         let product = crate::models::Product {
@@ -1275,7 +1286,28 @@ mod tests {
             active: true,
             ..Default::default()
         };
-        let product_repo = Arc::new(InMemoryProductRepository::new(vec![product]));
+        build_state_with_products_and_store(store, config, vec![product])
+    }
+
+    fn build_state_with_products(
+        products: Vec<crate::models::Product>,
+    ) -> Arc<AppState<InMemoryStore>> {
+        let mut config = Config::default();
+        let asset = crate::models::get_asset("USDC").expect("asset");
+        config.x402.token_mint = asset.metadata.solana_mint.clone().unwrap_or_default();
+        config.x402.payment_address = "11111111111111111111111111111111".to_string();
+        config.storage.inventory_holds_enabled = true;
+
+        let store = Arc::new(InMemoryStore::new());
+        build_state_with_products_and_store(store, config, products)
+    }
+
+    fn build_state_with_products_and_store(
+        store: Arc<InMemoryStore>,
+        config: Config,
+        products: Vec<crate::models::Product>,
+    ) -> Arc<AppState<InMemoryStore>> {
+        let product_repo = Arc::new(InMemoryProductRepository::new(products));
         let coupon_repo = Arc::new(InMemoryCouponRepository::new(Vec::new()));
         let paywall_service = Arc::new(crate::PaywallService::new(
             config,
@@ -1351,7 +1383,7 @@ mod tests {
             cart_id,
         );
         let tenant = TenantContext::default();
-        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), headers)
+        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), None, headers)
             .await
             .into_response();
 
@@ -1397,7 +1429,7 @@ mod tests {
             cart_id,
         );
         let tenant = TenantContext::default();
-        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), headers)
+        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), None, headers)
             .await
             .into_response();
 
@@ -1450,6 +1482,121 @@ mod tests {
             .await
             .into_response();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_get_cart_inventory_status_reports_reserved_quantities_for_all_items() {
+        let cart_id = "cart_dddddddddddddddddddddddddddddddd";
+        let asset = crate::models::get_asset("USDC").expect("asset");
+        let product_1 = crate::models::Product {
+            id: "product-1".to_string(),
+            tenant_id: "default".to_string(),
+            crypto_price: Some(Money::new(asset.clone(), 100)),
+            inventory_quantity: Some(10),
+            active: true,
+            ..Default::default()
+        };
+        let product_2 = crate::models::Product {
+            id: "product-2".to_string(),
+            tenant_id: "default".to_string(),
+            crypto_price: Some(Money::new(asset.clone(), 200)),
+            inventory_quantity: Some(8),
+            active: true,
+            ..Default::default()
+        };
+        let state = build_state_with_products(vec![product_1, product_2]);
+
+        let cart = crate::models::CartQuote {
+            id: cart_id.to_string(),
+            tenant_id: "default".to_string(),
+            items: vec![
+                crate::models::CartItem {
+                    resource_id: "product-1".to_string(),
+                    quantity: 2,
+                    price: Money::new(asset.clone(), 100),
+                    ..Default::default()
+                },
+                crate::models::CartItem {
+                    resource_id: "product-2".to_string(),
+                    quantity: 1,
+                    price: Money::new(asset.clone(), 200),
+                    ..Default::default()
+                },
+            ],
+            total: Money::new(asset.clone(), 400),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::minutes(10),
+            ..Default::default()
+        };
+        state.store.store_cart_quote(cart).await.unwrap();
+
+        let now = Utc::now();
+        state
+            .store
+            .reserve_inventory(crate::models::InventoryReservation {
+                id: "res-1".to_string(),
+                tenant_id: "default".to_string(),
+                product_id: "product-1".to_string(),
+                variant_id: None,
+                quantity: 3,
+                expires_at: now + chrono::Duration::minutes(5),
+                cart_id: Some("other-cart".to_string()),
+                status: "active".to_string(),
+                created_at: now,
+            })
+            .await
+            .unwrap();
+        state
+            .store
+            .reserve_inventory(crate::models::InventoryReservation {
+                id: "res-2".to_string(),
+                tenant_id: "default".to_string(),
+                product_id: "product-1".to_string(),
+                variant_id: None,
+                quantity: 2,
+                expires_at: now + chrono::Duration::minutes(5),
+                cart_id: Some(cart_id.to_string()),
+                status: "active".to_string(),
+                created_at: now,
+            })
+            .await
+            .unwrap();
+        state
+            .store
+            .reserve_inventory(crate::models::InventoryReservation {
+                id: "res-3".to_string(),
+                tenant_id: "default".to_string(),
+                product_id: "product-2".to_string(),
+                variant_id: None,
+                quantity: 1,
+                expires_at: now + chrono::Duration::minutes(5),
+                cart_id: Some("other-cart".to_string()),
+                status: "active".to_string(),
+                created_at: now,
+            })
+            .await
+            .unwrap();
+
+        let response = get_cart_inventory_status(
+            State(state),
+            TenantContext::default(),
+            Path(cart_id.to_string()),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let items = json["items"].as_array().unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["resourceId"], "product-1");
+        assert_eq!(items[0]["reservedByOthers"], 3);
+        assert_eq!(items[0]["availableQuantity"], 7);
+        assert_eq!(items[1]["resourceId"], "product-2");
+        assert_eq!(items[1]["reservedByOthers"], 1);
+        assert_eq!(items[1]["availableQuantity"], 7);
+        assert_eq!(json["allAvailable"], true);
     }
 
     #[tokio::test]

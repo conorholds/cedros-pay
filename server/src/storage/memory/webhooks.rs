@@ -168,15 +168,23 @@ pub(super) async fn dequeue_emails(
     limit: i32,
 ) -> StorageResult<Vec<PendingEmail>> {
     let now = Utc::now();
-    let emails = store.emails.lock();
-    let result: Vec<PendingEmail> = emails
-        .values()
-        .filter(|e| {
-            e.status == EmailStatus::Pending && e.next_attempt_at.map_or(true, |next| next <= now)
-        })
-        .take(limit as usize)
-        .cloned()
-        .collect();
+    let stale_after = now - chrono::Duration::minutes(5);
+    let mut emails = store.emails.lock();
+    let mut result = Vec::new();
+    for email in emails.values_mut() {
+        if result.len() as i32 >= limit {
+            break;
+        }
+        if email.status == EmailStatus::Pending
+            && email.next_attempt_at.map_or(true, |next| next <= now)
+            && email
+                .last_attempt_at
+                .map_or(true, |attempted_at| attempted_at < stale_after)
+        {
+            email.last_attempt_at = Some(now);
+            result.push(email.clone());
+        }
+    }
     Ok(result)
 }
 

@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ConfigApiClient } from './configApi';
 import { MeteoraPoolManager } from '../../managers/MeteoraPoolManager';
 import type { IAdminAuthManager } from './AdminAuthManager';
+import { PoolManagementView } from './PoolManagementView';
 
 interface LiquidityPoolTabProps {
   serverUrl: string;
@@ -32,9 +33,6 @@ type DeployStep = 'idle' | 'creating_pool' | 'adding_liquidity' | 'saving_config
 
 const USDC_DECIMALS = 6;
 const DEFAULT_BIN_STEP = 1;
-const SOLSCAN_URL = 'https://solscan.io/account';
-const METEORA_APP_URL = 'https://app.meteora.ag/dlmm';
-
 export function LiquidityPoolTab({
   serverUrl,
   authManager,
@@ -194,11 +192,16 @@ export function LiquidityPoolTab({
   // State C: Pool already configured
   if (config.liquidityPoolAddress) {
     return (
-      <PoolStatusView
+      <PoolManagementView
+        serverUrl={serverUrl}
+        authManager={authManager}
         poolAddress={config.liquidityPoolAddress}
         buybackRateBps={config.buybackRateBps}
         usdcAmount={config.usdcAmount}
         deployedAt={config.deployedAt}
+        mintAddress={mintAddress}
+        tokenDecimals={tokenDecimals}
+        onConfigUpdated={fetchConfig}
       />
     );
   }
@@ -371,63 +374,6 @@ function DeployProgress({ step, poolAddress }: { step: DeployStep; poolAddress: 
 }
 
 // ---------------------------------------------------------------------------
-// Pool Status (State C)
-// ---------------------------------------------------------------------------
-
-function PoolStatusView({ poolAddress, buybackRateBps, usdcAmount, deployedAt }: {
-  poolAddress: string;
-  buybackRateBps: number | null;
-  usdcAmount: number | null;
-  deployedAt: string | null;
-}) {
-  const buybackDisplay = buybackRateBps != null
-    ? `$${(buybackRateBps / 10000).toFixed(2)}`
-    : 'Unknown';
-  const usdcDisplay = usdcAmount != null
-    ? `$${(usdcAmount / 10 ** USDC_DECIMALS).toFixed(2)}`
-    : null;
-  const deployedDisplay = deployedAt
-    ? new Date(deployedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
-  const shortAddr = poolAddress.length > 16
-    ? `${poolAddress.slice(0, 8)}...${poolAddress.slice(-8)}`
-    : poolAddress;
-
-  return (
-    <div>
-      <h3 className="cedros-admin__section-title" style={{ marginBottom: '1rem' }}>
-        Liquidity Pool Active
-      </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', maxWidth: 600 }}>
-        <div style={{ fontWeight: 500, fontSize: 13 }}>Pool Address</div>
-        <div style={{ fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-all' }}>
-          {shortAddr}
-          <span style={{ marginLeft: 8, display: 'inline-flex', gap: 6 }}>
-            <CopyButton text={poolAddress} />
-            <ExternalLink href={`${SOLSCAN_URL}/${poolAddress}`} label="Solscan" />
-            <ExternalLink href={`${METEORA_APP_URL}/${poolAddress}`} label="Meteora" />
-          </span>
-        </div>
-        <div style={{ fontWeight: 500, fontSize: 13 }}>Buyback Rate</div>
-        <div style={{ fontSize: 13 }}>{buybackDisplay} per $1.00</div>
-        {usdcDisplay && (
-          <>
-            <div style={{ fontWeight: 500, fontSize: 13 }}>USDC Deposited</div>
-            <div style={{ fontSize: 13 }}>{usdcDisplay}</div>
-          </>
-        )}
-        {deployedDisplay && (
-          <>
-            <div style={{ fontWeight: 500, fontSize: 13 }}>Deployed</div>
-            <div style={{ fontSize: 13 }}>{deployedDisplay}</div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Utility sub-components
 // ---------------------------------------------------------------------------
 
@@ -439,38 +385,6 @@ function Prerequisite({ label, met }: { label: string; met: boolean }) {
       </span>
       <span style={{ opacity: met ? 0.8 : 0.5 }}>{label}</span>
     </div>
-  );
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, opacity: 0.7, padding: 0 }}
-    >
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  );
-}
-
-function ExternalLink({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ fontSize: 12, opacity: 0.7 }}
-    >
-      {label}
-    </a>
   );
 }
 

@@ -24,7 +24,12 @@ import { formatError, parseErrorResponse } from '../utils/errorHandling';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { createRateLimiter, RATE_LIMITER_PRESETS } from '../utils/rateLimiter';
 import { createCircuitBreaker, CircuitBreakerOpenError } from '../utils/circuitBreaker';
-import { retryWithBackoff, RETRY_PRESETS } from '../utils/exponentialBackoff';
+import {
+  retryWithBackoff,
+  RETRY_PRESETS,
+  RetryableHttpError,
+  type RetryConfig,
+} from '../utils/exponentialBackoff';
 
 /**
  * Options for requesting a subscription quote (x402)
@@ -149,14 +154,15 @@ export class SubscriptionManager implements ISubscriptionManager {
     rateLimiter: ReturnType<typeof createRateLimiter>,
     operation: () => Promise<T>,
     retryName: string,
-    errorContext: string
+    errorContext: string,
+    retryConfig: RetryConfig = RETRY_PRESETS.STANDARD
   ): Promise<T> {
     if (!rateLimiter.tryConsume()) {
       throw new Error(`Rate limit exceeded. Please try again later.`);
     }
     try {
       return await this.circuitBreaker.execute(() =>
-        retryWithBackoff(operation, { ...RETRY_PRESETS.STANDARD, name: retryName })
+        retryWithBackoff(operation, { ...retryConfig, name: retryName })
       );
     } catch (error) {
       if (error instanceof CircuitBreakerOpenError) {
@@ -180,6 +186,7 @@ export class SubscriptionManager implements ISubscriptionManager {
 
     // Circuit breaker + retry logic
     const idempotencyKey = generateUUID();
+    const requestBody = JSON.stringify(request);
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -198,7 +205,7 @@ export class SubscriptionManager implements ISubscriptionManager {
                 'Content-Type': 'application/json',
                 'Idempotency-Key': idempotencyKey,
               },
-              body: JSON.stringify(request),
+              body: requestBody,
             });
 
             if (!response.ok) {
@@ -206,12 +213,16 @@ export class SubscriptionManager implements ISubscriptionManager {
                 response,
                 'Failed to create subscription session'
               );
-              throw new Error(errorMessage);
+              throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
             return await response.json();
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'subscription-create-session' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'subscription-create-session',
+            inFlightKey: `subscription:create-session:${requestBody}`,
+          }
         );
       });
     } catch (error) {
@@ -390,6 +401,7 @@ export class SubscriptionManager implements ISubscriptionManager {
   async activateX402Subscription(
     request: ActivateX402SubscriptionRequest
   ): Promise<ActivateX402SubscriptionResponse> {
+    const requestBody = JSON.stringify(request);
     return this.executeWithResilience(
       this.sessionRateLimiter,
       async () => {
@@ -398,13 +410,22 @@ export class SubscriptionManager implements ISubscriptionManager {
         const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
+          body: requestBody,
         });
-        if (!response.ok) throw new Error(await parseErrorResponse(response, 'Failed to activate'));
+        if (!response.ok) {
+          throw RetryableHttpError.fromResponse(
+            response,
+            await parseErrorResponse(response, 'Failed to activate')
+          );
+        }
         return await response.json();
       },
       'subscription-activate',
-      'activation'
+      'activation',
+      {
+        ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+        inFlightKey: `subscription:activate:${requestBody}`,
+      }
     );
   }
 }

@@ -11,7 +11,10 @@ use crate::models::{
     CheckoutRequirements, FulfillmentInfo, GiftCardConfig, Product, ProductImage, ProductVariant,
     ProductVariationConfig, SubscriptionConfig,
 };
-use crate::repositories::{ProductRepository, ProductRepositoryError};
+use crate::repositories::{
+    AiCatalogProduct, DiscoveryProduct, ProductRepository, ProductRepositoryError,
+    ProductsTxtProduct,
+};
 
 use super::validation::validate_table_name;
 
@@ -59,8 +62,58 @@ struct ProductRow {
     subscription_grace_period_hours: Option<i32>,
     gift_card_config: Option<serde_json::Value>,
     tokenized_asset_config: Option<serde_json::Value>,
+    compliance_requirements: Option<serde_json::Value>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, FromRow)]
+struct DiscoveryProductRow {
+    id: String,
+    description: String,
+    fiat_amount_atomic: Option<i64>,
+    fiat_currency: Option<String>,
+    crypto_amount_atomic: Option<i64>,
+    crypto_token: Option<String>,
+    metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, FromRow)]
+struct ProductsTxtProductRow {
+    id: String,
+    title: Option<String>,
+    short_description: Option<String>,
+    slug: Option<String>,
+    description: String,
+    tags: Option<serde_json::Value>,
+    category_ids: Option<serde_json::Value>,
+    featured: bool,
+    fulfillment: Option<serde_json::Value>,
+    fiat_amount_atomic: Option<i64>,
+    fiat_currency: Option<String>,
+    compare_at_fiat_amount_atomic: Option<i64>,
+    compare_at_fiat_currency: Option<String>,
+    crypto_amount_atomic: Option<i64>,
+    crypto_token: Option<String>,
+    inventory_status: Option<String>,
+    inventory_quantity: Option<i32>,
+    inventory_policy: Option<String>,
+    variants: Option<serde_json::Value>,
+    subscription_billing_period: Option<String>,
+    subscription_billing_interval: Option<i32>,
+    subscription_trial_days: Option<i32>,
+    subscription_stripe_price_id: Option<String>,
+    subscription_allow_x402: Option<bool>,
+    subscription_grace_period_hours: Option<i32>,
+}
+
+#[derive(Debug, FromRow)]
+struct AiCatalogProductRow {
+    id: String,
+    title: Option<String>,
+    description: String,
+    tags: Option<serde_json::Value>,
+    category_ids: Option<serde_json::Value>,
 }
 
 const PRODUCT_SELECT_COLUMNS: &str = r#"
@@ -73,32 +126,36 @@ const PRODUCT_SELECT_COLUMNS: &str = r#"
     variants, variation_config, crypto_account, memo_template,
     metadata, active, subscription_billing_period, subscription_billing_interval,
     subscription_trial_days, subscription_stripe_price_id, subscription_allow_x402,
-    subscription_grace_period_hours, gift_card_config, tokenized_asset_config, created_at, updated_at
+    subscription_grace_period_hours, gift_card_config, tokenized_asset_config,
+    compliance_requirements, created_at, updated_at
+"#;
+
+const DISCOVERY_SELECT_COLUMNS: &str = r#"
+    id, description, fiat_amount_atomic, fiat_currency, crypto_amount_atomic, crypto_token, metadata
+"#;
+
+const PRODUCTS_TXT_SELECT_COLUMNS: &str = r#"
+    id, title, short_description, slug, description, tags, category_ids, featured,
+    fulfillment, fiat_amount_atomic, fiat_currency, compare_at_fiat_amount_atomic,
+    compare_at_fiat_currency, crypto_amount_atomic, crypto_token, inventory_status,
+    inventory_quantity, inventory_policy, variants, subscription_billing_period,
+    subscription_billing_interval, subscription_trial_days, subscription_stripe_price_id,
+    subscription_allow_x402, subscription_grace_period_hours
+"#;
+
+const AI_CATALOG_SELECT_COLUMNS: &str = r#"
+    id, title, description, tags, category_ids
 "#;
 
 impl ProductRow {
     fn into_product(self) -> Product {
-        let fiat_price = match (self.fiat_amount_atomic, &self.fiat_currency) {
-            (Some(atomic), Some(currency)) => {
-                get_asset(currency).map(|asset| Money { asset, atomic })
-            }
-            _ => None,
-        };
-
-        let compare_at_fiat_price = match (
+        let fiat_price = money_from_parts(self.fiat_amount_atomic, self.fiat_currency.as_deref());
+        let compare_at_fiat_price = money_from_parts(
             self.compare_at_fiat_amount_atomic,
-            &self.compare_at_fiat_currency,
-        ) {
-            (Some(atomic), Some(currency)) => {
-                get_asset(currency).map(|asset| Money { asset, atomic })
-            }
-            _ => None,
-        };
-
-        let crypto_price = match (self.crypto_amount_atomic, &self.crypto_token) {
-            (Some(atomic), Some(token)) => get_asset(token).map(|asset| Money { asset, atomic }),
-            _ => None,
-        };
+            self.compare_at_fiat_currency.as_deref(),
+        );
+        let crypto_price =
+            money_from_parts(self.crypto_amount_atomic, self.crypto_token.as_deref());
 
         let subscription = self
             .subscription_billing_period
@@ -148,6 +205,9 @@ impl ProductRow {
         let tokenized_asset_config: Option<crate::models::TokenizedAssetConfig> = self
             .tokenized_asset_config
             .and_then(|v| serde_json::from_value(v).ok());
+        let compliance_requirements: Option<crate::models::compliance::ComplianceRequirements> =
+            self.compliance_requirements
+                .and_then(|v| serde_json::from_value(v).ok());
 
         Product {
             id: self.id,
@@ -183,9 +243,100 @@ impl ProductRow {
             subscription,
             gift_card_config,
             tokenized_asset_config,
+            compliance_requirements,
             created_at: Some(self.created_at),
             updated_at: Some(self.updated_at),
         }
+    }
+}
+
+impl DiscoveryProductRow {
+    fn into_discovery_product(self) -> DiscoveryProduct {
+        DiscoveryProduct {
+            id: self.id,
+            description: self.description,
+            fiat_price: money_from_parts(self.fiat_amount_atomic, self.fiat_currency.as_deref()),
+            crypto_price: money_from_parts(self.crypto_amount_atomic, self.crypto_token.as_deref()),
+            metadata: self
+                .metadata
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl ProductsTxtProductRow {
+    fn into_products_txt_product(self) -> ProductsTxtProduct {
+        ProductsTxtProduct {
+            id: self.id,
+            title: self.title,
+            slug: self.slug,
+            short_description: self.short_description,
+            description: self.description,
+            tags: self
+                .tags
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default(),
+            category_ids: self
+                .category_ids
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default(),
+            featured: self.featured,
+            fiat_price: money_from_parts(self.fiat_amount_atomic, self.fiat_currency.as_deref()),
+            compare_at_fiat_price: money_from_parts(
+                self.compare_at_fiat_amount_atomic,
+                self.compare_at_fiat_currency.as_deref(),
+            ),
+            crypto_price: money_from_parts(self.crypto_amount_atomic, self.crypto_token.as_deref()),
+            inventory_status: self.inventory_status,
+            inventory_quantity: self.inventory_quantity,
+            inventory_policy: self.inventory_policy,
+            variants: self
+                .variants
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default(),
+            fulfillment: self
+                .fulfillment
+                .and_then(|value| serde_json::from_value(value).ok()),
+            subscription: self
+                .subscription_billing_period
+                .map(|period| SubscriptionConfig {
+                    billing_period: period,
+                    billing_interval: self.subscription_billing_interval.unwrap_or(1),
+                    trial_days: self.subscription_trial_days.unwrap_or(0),
+                    stripe_price_id: self.subscription_stripe_price_id,
+                    allow_x402: self.subscription_allow_x402.unwrap_or(false),
+                    grace_period_hours: self.subscription_grace_period_hours.unwrap_or(0),
+                }),
+        }
+    }
+}
+
+impl AiCatalogProductRow {
+    fn into_ai_catalog_product(self) -> AiCatalogProduct {
+        let tags: Vec<String> = self
+            .tags
+            .and_then(|value| serde_json::from_value(value).ok())
+            .unwrap_or_default();
+        let category_ids: Vec<String> = self
+            .category_ids
+            .and_then(|value| serde_json::from_value(value).ok())
+            .unwrap_or_default();
+
+        AiCatalogProduct {
+            id: self.id,
+            title: self.title,
+            description: self.description,
+            tags,
+            category_ids,
+        }
+    }
+}
+
+fn money_from_parts(atomic: Option<i64>, currency: Option<&str>) -> Option<Money> {
+    match (atomic, currency) {
+        (Some(atomic), Some(currency)) => get_asset(currency).map(|asset| Money { asset, atomic }),
+        _ => None,
     }
 }
 
@@ -208,6 +359,32 @@ mod tests {
         let subscription = repo.stripe_price_lookup_query("subscription_stripe_price_id");
         assert!(subscription.contains("subscription_stripe_price_id"));
         assert!(!subscription.contains(" OR "));
+    }
+
+    #[tokio::test]
+    async fn test_collection_pagination_query_preserves_order_and_filters_active() {
+        let pool = PgPool::connect_lazy("postgres://postgres:postgres@localhost/postgres")
+            .expect("valid pool config");
+        let repo = PostgresProductRepository::new(pool);
+
+        let query = repo.collection_pagination_query();
+        assert!(query.contains("WITH ORDINALITY"));
+        assert!(query.contains("ORDER BY requested.ord"));
+        assert!(query.contains("LIMIT $3"));
+        assert!(query.contains("OFFSET $4"));
+        assert!(query.contains("AND p.active = true"));
+    }
+
+    #[tokio::test]
+    async fn test_related_products_query_is_slim_and_limited() {
+        let pool = PgPool::connect_lazy("postgres://postgres:postgres@localhost/postgres")
+            .expect("valid pool config");
+        let repo = PostgresProductRepository::new(pool);
+
+        let query = repo.related_products_candidates_query();
+        assert!(query.contains(super::AI_CATALOG_SELECT_COLUMNS.trim()));
+        assert!(query.contains("active = true"));
+        assert!(query.contains("LIMIT $3"));
     }
 }
 
@@ -257,6 +434,52 @@ impl PostgresProductRepository {
             cols = PRODUCT_SELECT_COLUMNS,
             table = self.table_name,
             column = column
+        )
+    }
+
+    fn collection_pagination_query(&self) -> String {
+        format!(
+            r#"
+            SELECT {cols}
+            FROM UNNEST($2::text[]) WITH ORDINALITY AS requested(id, ord)
+            JOIN {table} p
+              ON p.id = requested.id
+             AND p.tenant_id = $1
+             AND p.active = true
+            ORDER BY requested.ord
+            LIMIT $3
+            OFFSET $4
+            "#,
+            cols = PRODUCT_SELECT_COLUMNS,
+            table = self.table_name
+        )
+    }
+
+    fn active_product_ids_query(&self) -> String {
+        format!(
+            r#"
+            SELECT id
+            FROM {table}
+            WHERE tenant_id = $1 AND active = true
+            ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            "#,
+            table = self.table_name
+        )
+    }
+
+    fn related_products_candidates_query(&self) -> String {
+        format!(
+            r#"
+            SELECT {cols}
+            FROM {table}
+            WHERE tenant_id = $1
+              AND active = true
+              AND ($2::text IS NULL OR id != $2)
+            ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            LIMIT $3
+            "#,
+            cols = AI_CATALOG_SELECT_COLUMNS,
+            table = self.table_name
         )
     }
 }
@@ -366,6 +589,62 @@ impl ProductRepository for PostgresProductRepository {
         Ok(rows.into_iter().map(|r| r.into_product()).collect())
     }
 
+    async fn list_discovery_products(
+        &self,
+        tenant_id: &str,
+    ) -> Result<Vec<DiscoveryProduct>, ProductRepositoryError> {
+        let query = format!(
+            r#"
+            SELECT {cols}
+            FROM {table}
+            WHERE tenant_id = $1 AND active = true
+            ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            LIMIT 10000
+            "#,
+            cols = DISCOVERY_SELECT_COLUMNS,
+            table = self.table_name
+        );
+
+        let rows: Vec<DiscoveryProductRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        Ok(rows
+            .into_iter()
+            .map(DiscoveryProductRow::into_discovery_product)
+            .collect())
+    }
+
+    async fn list_products_txt_products(
+        &self,
+        tenant_id: &str,
+    ) -> Result<Vec<ProductsTxtProduct>, ProductRepositoryError> {
+        let query = format!(
+            r#"
+            SELECT {cols}
+            FROM {table}
+            WHERE tenant_id = $1 AND active = true
+            ORDER BY sort_order ASC NULLS LAST, created_at DESC
+            LIMIT 10000
+            "#,
+            cols = PRODUCTS_TXT_SELECT_COLUMNS,
+            table = self.table_name
+        );
+
+        let rows: Vec<ProductsTxtProductRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        Ok(rows
+            .into_iter()
+            .map(ProductsTxtProductRow::into_products_txt_product)
+            .collect())
+    }
+
     async fn list_all_products(
         &self,
         tenant_id: &str,
@@ -408,6 +687,64 @@ impl ProductRepository for PostgresProductRepository {
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
         Ok(count)
+    }
+
+    async fn count_active_products(&self, tenant_id: &str) -> Result<i64, ProductRepositoryError> {
+        let query = format!(
+            r#"
+            SELECT COUNT(*)
+            FROM {table}
+            WHERE tenant_id = $1 AND active = true
+            "#,
+            table = self.table_name
+        );
+
+        let (count,): (i64,) = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        Ok(count)
+    }
+
+    async fn list_active_product_ids(
+        &self,
+        tenant_id: &str,
+    ) -> Result<Vec<String>, ProductRepositoryError> {
+        let query = self.active_product_ids_query();
+        let rows: Vec<(String,)> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+        Ok(rows.into_iter().map(|(id,)| id).collect())
+    }
+
+    async fn list_related_products_candidates(
+        &self,
+        tenant_id: &str,
+        exclude_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<AiCatalogProduct>, ProductRepositoryError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+
+        let limit = i64::try_from(limit)
+            .map_err(|_| ProductRepositoryError::Validation("limit out of range".to_string()))?;
+        let query = self.related_products_candidates_query();
+        let rows: Vec<AiCatalogProductRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .bind(exclude_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+        Ok(rows
+            .into_iter()
+            .map(AiCatalogProductRow::into_ai_catalog_product)
+            .collect())
     }
 
     async fn list_products_paginated(
@@ -548,6 +885,13 @@ impl ProductRepository for PostgresProductRepository {
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
+        let compliance_requirements_json: Option<serde_json::Value> = product
+            .compliance_requirements
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
         let (sub_period, sub_interval, sub_trial, sub_stripe, sub_x402, sub_grace) =
             match &product.subscription {
                 Some(s) => (
@@ -575,7 +919,8 @@ impl ProductRepository for PostgresProductRepository {
                 metadata, active, subscription_billing_period, subscription_billing_interval,
                 subscription_trial_days, subscription_stripe_price_id, subscription_allow_x402,
                 subscription_grace_period_hours, inventory_quantity, inventory_policy,
-                gift_card_config, tokenized_asset_config, created_at, updated_at
+                gift_card_config, tokenized_asset_config, compliance_requirements,
+                created_at, updated_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8,
@@ -586,7 +931,7 @@ impl ProductRepository for PostgresProductRepository {
                 $23, $24, $25, $26, $27,
                 $28, $29,
                 $30, $31, $32, $33, $34, $35, $36, $37,
-                $38, $39, $40, $41, $42, $43
+                $38, $39, $40, $41, $42, $43, $44
             )
             "#,
             self.table_name
@@ -634,6 +979,7 @@ impl ProductRepository for PostgresProductRepository {
             .bind(&product.inventory_policy)
             .bind(&gift_card_config)
             .bind(&tokenized_asset_config)
+            .bind(&compliance_requirements_json)
             .bind(now)
             .bind(now)
             .execute(&self.pool)
@@ -719,6 +1065,13 @@ impl ProductRepository for PostgresProductRepository {
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
+        let compliance_requirements_json: Option<serde_json::Value> = product
+            .compliance_requirements
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
         let (sub_period, sub_interval, sub_trial, sub_stripe, sub_x402, sub_grace) =
             match &product.subscription {
                 Some(s) => (
@@ -775,8 +1128,9 @@ impl ProductRepository for PostgresProductRepository {
                 inventory_policy = $38,
                 gift_card_config = $39,
                 tokenized_asset_config = $40,
-                updated_at = $41
-            WHERE id = $1 AND tenant_id = $42
+                compliance_requirements = $41,
+                updated_at = $42
+            WHERE id = $1 AND tenant_id = $43
             "#,
             self.table_name
         );
@@ -822,8 +1176,9 @@ impl ProductRepository for PostgresProductRepository {
             .bind(&product.inventory_policy)
             .bind(&gift_card_config)
             .bind(&tokenized_asset_config)
+            .bind(&compliance_requirements_json)
             .bind(Utc::now())
-            .bind(&product.tenant_id) // $42: tenant isolation
+            .bind(&product.tenant_id) // $43: tenant isolation
             .execute(&self.pool)
             .await
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
@@ -972,5 +1327,34 @@ impl ProductRepository for PostgresProductRepository {
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
         Ok(rows.into_iter().map(|r| r.into_product()).collect())
+    }
+
+    async fn list_collection_products_paginated(
+        &self,
+        tenant_id: &str,
+        collection_product_ids: &[String],
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<Product>, ProductRepositoryError> {
+        if limit == 0 || collection_product_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let limit = i64::try_from(limit)
+            .map_err(|_| ProductRepositoryError::Validation("limit out of range".to_string()))?;
+        let offset = i64::try_from(offset)
+            .map_err(|_| ProductRepositoryError::Validation("offset out of range".to_string()))?;
+
+        let query = self.collection_pagination_query();
+        let rows: Vec<ProductRow> = sqlx::query_as(&query)
+            .bind(tenant_id)
+            .bind(collection_product_ids)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+
+        Ok(rows.into_iter().map(|row| row.into_product()).collect())
     }
 }

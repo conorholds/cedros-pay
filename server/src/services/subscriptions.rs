@@ -21,17 +21,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration as ChronoDuration, Timelike, Utc};
+use futures_util::StreamExt;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::config::Config;
 use crate::constants::PAYMENT_CALLBACK_TIMEOUT;
 use crate::errors::ErrorCode;
+use crate::models::compliance::ComplianceRequirements;
 use crate::models::{BillingPeriod, PaymentMethod, Subscription, SubscriptionStatus};
+use crate::repositories::ProductRepository;
 use crate::services::cedros_login::CedrosLoginClient;
+use crate::services::compliance_checker::{ComplianceChecker, ComplianceResult};
 use crate::services::{ServiceError, ServiceResult};
 use crate::storage::Store;
 use crate::webhooks::Notifier;
+
+const EXPIRE_OVERDUE_NOTIFY_CONCURRENCY: usize = 16;
 
 /// Update request for Stripe subscription changes
 #[derive(Debug, Default)]
@@ -89,6 +95,12 @@ pub struct SubscriptionService<S: Store> {
 
     /// Per-subscription mutation locks used to serialize concurrent updates.
     subscription_locks: parking_lot::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+
+    /// Optional compliance checker for sanctions/KYC/accredited investor gates
+    compliance_checker: Option<Arc<ComplianceChecker>>,
+
+    /// Optional product repository for loading per-product compliance requirements
+    products: Option<Arc<dyn ProductRepository>>,
 }
 
 impl<S: Store> SubscriptionService<S> {
@@ -101,6 +113,8 @@ impl<S: Store> SubscriptionService<S> {
             wallet_user_cache: crate::ttl_cache::TtlCache::new(10_000),
             payment_callback: None,
             subscription_locks: parking_lot::Mutex::new(HashMap::new()),
+            compliance_checker: None,
+            products: None,
         }
     }
 
@@ -113,6 +127,145 @@ impl<S: Store> SubscriptionService<S> {
     pub fn with_payment_callback(mut self, callback: Arc<dyn crate::PaymentCallback>) -> Self {
         self.payment_callback = Some(callback);
         self
+    }
+
+    /// Set compliance checker for sanctions/KYC/accredited investor gates
+    pub fn with_compliance_checker(mut self, checker: Arc<ComplianceChecker>) -> Self {
+        self.compliance_checker = Some(checker);
+        self
+    }
+
+    /// Set product repository for per-product compliance requirements
+    pub fn with_products(mut self, products: Arc<dyn ProductRepository>) -> Self {
+        self.products = Some(products);
+        self
+    }
+
+    /// Run compliance check for a subscription purchase.
+    /// Returns `Ok(())` if cleared, or an appropriate `ServiceError` if blocked.
+    async fn check_subscription_compliance(
+        &self,
+        tenant_id: &str,
+        wallet: &str,
+        product_id: &str,
+    ) -> ServiceResult<()> {
+        let checker = match self.compliance_checker {
+            Some(ref c) => c,
+            None => return Ok(()),
+        };
+
+        let reqs = match self.products {
+            Some(ref repo) => repo
+                .get_product(tenant_id, product_id)
+                .await
+                .ok()
+                .and_then(|p| p.compliance_requirements)
+                .unwrap_or_default(),
+            None => ComplianceRequirements::default(),
+        };
+
+        let user_id = self.resolve_user_id_from_wallet(wallet).await;
+        if let ComplianceResult::Blocked { reasons } =
+            checker.check_compliance(tenant_id, wallet, user_id.as_deref(), &reqs).await
+        {
+            warn!(
+                tenant_id = %tenant_id,
+                wallet = %wallet,
+                product_id = %product_id,
+                ?reasons,
+                "Subscription blocked by compliance check"
+            );
+            return Err(ServiceError::Coded {
+                code: crate::errors::ErrorCode::InvalidField,
+                message: format!("subscription blocked: {}", reasons.join("; ")),
+            });
+        }
+        Ok(())
+    }
+
+    async fn claim_x402_renewal_payment_signature(
+        &self,
+        tenant_id: &str,
+        payment_signature: &str,
+        wallet: &str,
+        product_id: &str,
+        subscription_id: &str,
+    ) -> ServiceResult<bool> {
+        let processed_payment = self
+            .store
+            .get_payment(tenant_id, payment_signature)
+            .await
+            .map_err(|e| ServiceError::Internal(e.to_string()))?;
+
+        let marker = crate::models::PaymentTransaction {
+            signature: x402_subscription_renewal_signature(payment_signature),
+            tenant_id: tenant_id.to_string(),
+            resource_id: product_id.to_string(),
+            wallet: wallet.to_string(),
+            user_id: processed_payment
+                .as_ref()
+                .and_then(|payment| payment.user_id.clone()),
+            amount: processed_payment
+                .map(|payment| payment.amount)
+                .unwrap_or_default(),
+            created_at: Utc::now(),
+            metadata: HashMap::from([
+                (
+                    "payment_signature".to_string(),
+                    payment_signature.to_string(),
+                ),
+                ("subscription_id".to_string(), subscription_id.to_string()),
+                ("subscription_renewal".to_string(), "true".to_string()),
+            ]),
+        };
+
+        match self.store.try_record_payment(marker.clone()).await {
+            Ok(true) => Ok(true),
+            Ok(false) => {
+                let existing = self
+                    .store
+                    .get_payment(tenant_id, &marker.signature)
+                    .await
+                    .map_err(|e| ServiceError::Internal(e.to_string()))?
+                    .ok_or_else(|| {
+                        ServiceError::Internal("renewal marker missing after conflict".into())
+                    })?;
+
+                let same_subscription =
+                    existing.metadata.get("subscription_id").map(String::as_str)
+                        == Some(subscription_id);
+
+                if existing.resource_id == product_id
+                    && existing.wallet == wallet
+                    && same_subscription
+                {
+                    return Ok(false);
+                }
+
+                Err(ServiceError::Coded {
+                    code: ErrorCode::PaymentAlreadyUsed,
+                    message: "payment signature already used for a subscription renewal".into(),
+                })
+            }
+            Err(e) => Err(ServiceError::Internal(e.to_string())),
+        }
+    }
+
+    async fn clear_x402_renewal_payment_signature(&self, tenant_id: &str, payment_signature: &str) {
+        if let Err(e) = self
+            .store
+            .delete_payment(
+                tenant_id,
+                &x402_subscription_renewal_signature(payment_signature),
+            )
+            .await
+        {
+            warn!(
+                error = %e,
+                payment_signature = %payment_signature,
+                "Failed to clear x402 renewal payment marker"
+            );
+        }
     }
 
     async fn call_subscription_created_callback(&self, sub: &Subscription) {
@@ -393,6 +546,9 @@ impl<S: Store> SubscriptionService<S> {
             });
         }
 
+        // Compliance gate: sanctions, KYC, accredited investor
+        self.check_subscription_compliance(&tenant_id, &wallet, &product_id).await?;
+
         // SECURITY (H-004): Check if payment signature already used for a subscription.
         // This prevents creating duplicate subscriptions for the same payment.
         if let Some(ref sig) = payment_signature {
@@ -416,6 +572,26 @@ impl<S: Store> SubscriptionService<S> {
             .find_active_wallet_subscription(&tenant_id, &wallet, &product_id)
             .await?
         {
+            if let Some(signature) = payment_signature.as_deref() {
+                let claimed = self
+                    .claim_x402_renewal_payment_signature(
+                        &tenant_id,
+                        signature,
+                        &wallet,
+                        &product_id,
+                        &active_sub.id,
+                    )
+                    .await?;
+                if !claimed {
+                    debug!(
+                        sub_id = %active_sub.id,
+                        signature = %signature,
+                        "x402 renewal payment signature already claimed; returning current subscription"
+                    );
+                    return self.get_subscription(&tenant_id, &active_sub.id).await;
+                }
+            }
+
             // Extend existing subscription instead of creating new one
             debug!(
                 sub_id = %active_sub.id,
@@ -423,14 +599,26 @@ impl<S: Store> SubscriptionService<S> {
                 product_id = %product_id,
                 "Found existing active subscription, extending instead of creating"
             );
-            return self
-                .extend_x402_subscription(
+            let extension = self
+                .extend_x402_subscription_internal(
                     &tenant_id,
                     &active_sub.id,
                     billing_period,
                     billing_interval,
+                    payment_signature.clone(),
                 )
                 .await;
+
+            return match extension {
+                Ok(subscription) => Ok(subscription),
+                Err(err) => {
+                    if let Some(signature) = payment_signature.as_deref() {
+                        self.clear_x402_renewal_payment_signature(&tenant_id, signature)
+                            .await;
+                    }
+                    Err(err)
+                }
+            };
         }
 
         let id = Uuid::new_v4().to_string();
@@ -517,6 +705,9 @@ impl<S: Store> SubscriptionService<S> {
                 message: "billing_interval must be a positive integer".into(),
             });
         }
+
+        // Compliance gate: sanctions, KYC, accredited investor
+        self.check_subscription_compliance(tenant_id, wallet, product_id).await?;
 
         if let Some(active_sub) = self
             .find_active_wallet_subscription(tenant_id, wallet, product_id)
@@ -687,6 +878,18 @@ impl<S: Store> SubscriptionService<S> {
         period: BillingPeriod,
         interval: i32,
     ) -> ServiceResult<Subscription> {
+        self.extend_x402_subscription_internal(tenant_id, id, period, interval, None)
+            .await
+    }
+
+    async fn extend_x402_subscription_internal(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        period: BillingPeriod,
+        interval: i32,
+        payment_signature: Option<String>,
+    ) -> ServiceResult<Subscription> {
         let _guard = self.lock_subscription_mutation(tenant_id, id).await;
         let mut subscription = self.get_subscription(tenant_id, id).await?;
 
@@ -719,6 +922,9 @@ impl<S: Store> SubscriptionService<S> {
         subscription.status = SubscriptionStatus::Active;
         subscription.cancel_at_period_end = false;
         subscription.updated_at = Some(now);
+        if payment_signature.is_some() {
+            subscription.payment_signature = payment_signature;
+        }
 
         self.store
             .save_subscription(subscription.clone())
@@ -1035,6 +1241,7 @@ impl<S: Store> SubscriptionService<S> {
         // Process in batches to bound memory and DB roundtrips.
         const BATCH_LIMIT: i64 = 500;
         let mut total = 0;
+        let mut expired_subscriptions = Vec::new();
 
         loop {
             // Only expire x402/credits subscriptions - Stripe is managed by webhooks.
@@ -1055,8 +1262,15 @@ impl<S: Store> SubscriptionService<S> {
                 .await
                 .map_err(|e| ServiceError::Internal(e.to_string()))?;
 
-            for sub in to_expire {
-                self.notifier
+            total += ids.len() as i32;
+            expired_subscriptions.extend(to_expire);
+        }
+
+        let service = self;
+        futures_util::stream::iter(expired_subscriptions)
+            .for_each_concurrent(EXPIRE_OVERDUE_NOTIFY_CONCURRENCY, |sub| async move {
+                service
+                    .notifier
                     .subscription_cancelled(
                         tenant_id,
                         &sub.id,
@@ -1065,12 +1279,11 @@ impl<S: Store> SubscriptionService<S> {
                     )
                     .await;
 
-                self.call_subscription_cancelled_callback(&sub).await;
+                service.call_subscription_cancelled_callback(&sub).await;
 
                 info!(id = %sub.id, "Expired overdue x402 subscription");
-                total += 1;
-            }
-        }
+            })
+            .await;
 
         Ok(total)
     }
@@ -1339,6 +1552,10 @@ fn calculate_period_end(
     }
 }
 
+fn x402_subscription_renewal_signature(payment_signature: &str) -> String {
+    format!("subscription:x402:{payment_signature}")
+}
+
 /// Get the number of days in a given month
 fn days_in_month(year: i32, month: u32) -> u32 {
     match month {
@@ -1408,6 +1625,7 @@ mod tests {
     #[derive(Clone, Default)]
     struct TestPaymentCallback {
         created: Arc<Mutex<u32>>,
+        cancelled: Arc<Mutex<u32>>,
     }
 
     #[derive(Clone)]
@@ -1430,11 +1648,27 @@ mod tests {
             *self.created.lock() += 1;
             Ok(())
         }
+
+        async fn on_subscription_cancelled(
+            &self,
+            _subscription: &Subscription,
+        ) -> Result<(), crate::PaymentCallbackError> {
+            *self.cancelled.lock() += 1;
+            Ok(())
+        }
     }
 
     #[async_trait::async_trait]
     impl crate::PaymentCallback for SlowPaymentCallback {
         async fn on_subscription_created(
+            &self,
+            _subscription: &Subscription,
+        ) -> Result<(), crate::PaymentCallbackError> {
+            tokio::time::sleep(self.delay).await;
+            Ok(())
+        }
+
+        async fn on_subscription_cancelled(
             &self,
             _subscription: &Subscription,
         ) -> Result<(), crate::PaymentCallbackError> {
@@ -1607,6 +1841,19 @@ mod tests {
             metadata: HashMap::new(),
         };
         store.save_subscription(existing.clone()).await.unwrap();
+        store
+            .record_payment(crate::models::PaymentTransaction {
+                signature: "sig-1".to_string(),
+                tenant_id: "default".to_string(),
+                resource_id: "prod-1".to_string(),
+                wallet: "wallet-1".to_string(),
+                user_id: None,
+                amount: crate::models::money::Money::default(),
+                created_at: now,
+                metadata: HashMap::new(),
+            })
+            .await
+            .unwrap();
 
         let renewed = service
             .create_x402_subscription(CreateX402SubscriptionParams {
@@ -1624,6 +1871,95 @@ mod tests {
 
         assert_eq!(renewed.id, existing.id);
         assert!(renewed.current_period_end > existing.current_period_end);
+        assert_eq!(renewed.payment_signature.as_deref(), Some("sig-1"));
+        assert!(store
+            .get_payment("default", &x402_subscription_renewal_signature("sig-1"))
+            .await
+            .unwrap()
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn test_create_x402_replayed_renewal_signature_does_not_extend_twice() {
+        let now = Utc::now();
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let service = SubscriptionService::new(
+            Arc::new(Config::default()),
+            store.clone(),
+            notifier as Arc<dyn Notifier>,
+        );
+
+        let existing = Subscription {
+            id: "sub-existing".to_string(),
+            tenant_id: "default".to_string(),
+            wallet: Some("wallet-1".to_string()),
+            user_id: None,
+            product_id: "prod-1".to_string(),
+            plan_id: None,
+            payment_method: PaymentMethod::X402,
+            stripe_subscription_id: None,
+            stripe_customer_id: None,
+            status: SubscriptionStatus::Active,
+            billing_period: BillingPeriod::Month,
+            billing_interval: 1,
+            current_period_start: now - ChronoDuration::days(10),
+            current_period_end: now + ChronoDuration::days(20),
+            trial_end: None,
+            cancel_at_period_end: false,
+            cancelled_at: None,
+            payment_signature: None,
+            created_at: Some(now - ChronoDuration::days(10)),
+            updated_at: Some(now - ChronoDuration::days(10)),
+            metadata: HashMap::new(),
+        };
+        store.save_subscription(existing.clone()).await.unwrap();
+        store
+            .record_payment(crate::models::PaymentTransaction {
+                signature: "sig-replay".to_string(),
+                tenant_id: "default".to_string(),
+                resource_id: "prod-1".to_string(),
+                wallet: "wallet-1".to_string(),
+                user_id: None,
+                amount: crate::models::money::Money::default(),
+                created_at: now,
+                metadata: HashMap::new(),
+            })
+            .await
+            .unwrap();
+
+        let first = service
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: Some("sig-replay".into()),
+                metadata: None,
+                plan_id: None,
+            })
+            .await
+            .unwrap();
+
+        let first_end = first.current_period_end;
+
+        let second = service
+            .create_x402_subscription(CreateX402SubscriptionParams {
+                tenant_id: "default".into(),
+                wallet: "wallet-1".into(),
+                product_id: "prod-1".into(),
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                payment_signature: Some("sig-replay".into()),
+                metadata: None,
+                plan_id: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(second.id, first.id);
+        assert_eq!(second.current_period_end, first_end);
     }
 
     #[tokio::test]
@@ -1643,6 +1979,70 @@ mod tests {
         .await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_expire_overdue_persists_batches_before_slow_callback_fanout() {
+        let mut cfg = Config::default();
+        cfg.subscriptions.grace_period_hours = 0;
+
+        let store = Arc::new(InMemoryStore::new());
+        let notifier = Arc::new(TestNotifier::default());
+        let callback = Arc::new(SlowPaymentCallback::new(std::time::Duration::from_millis(
+            150,
+        )));
+        let service =
+            SubscriptionService::new(Arc::new(cfg), store.clone(), notifier as Arc<dyn Notifier>)
+                .with_payment_callback(callback);
+
+        let now = Utc::now();
+        for idx in 0..12 {
+            store
+                .save_subscription(Subscription {
+                    id: format!("sub-{idx}"),
+                    tenant_id: "default".to_string(),
+                    wallet: Some(format!("wallet-{idx}")),
+                    user_id: None,
+                    product_id: "prod-1".to_string(),
+                    plan_id: None,
+                    payment_method: PaymentMethod::X402,
+                    stripe_subscription_id: None,
+                    stripe_customer_id: None,
+                    status: SubscriptionStatus::Active,
+                    billing_period: BillingPeriod::Month,
+                    billing_interval: 1,
+                    current_period_start: now - ChronoDuration::days(2),
+                    current_period_end: now - ChronoDuration::hours(1),
+                    trial_end: None,
+                    cancel_at_period_end: false,
+                    cancelled_at: None,
+                    payment_signature: None,
+                    created_at: Some(now - ChronoDuration::days(2)),
+                    updated_at: Some(now - ChronoDuration::days(1)),
+                    metadata: HashMap::new(),
+                })
+                .await
+                .unwrap();
+        }
+
+        let started = tokio::time::Instant::now();
+        let expired = service.expire_overdue("default").await.unwrap();
+        let elapsed = started.elapsed();
+
+        assert_eq!(expired, 12);
+        assert!(
+            elapsed < std::time::Duration::from_secs(1),
+            "expected bounded callback fanout, elapsed={elapsed:?}"
+        );
+
+        for idx in 0..12 {
+            let sub = store
+                .get_subscription("default", &format!("sub-{idx}"))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(sub.status, SubscriptionStatus::Expired);
+        }
     }
 
     #[tokio::test]

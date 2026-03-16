@@ -91,7 +91,10 @@ pub async fn initialize_mint(
         transfer_fee_bps: req.transfer_fee_bps.unwrap_or(0),
         max_transfer_fee: req.max_transfer_fee.unwrap_or(0),
         treasury_address: req.treasury_address.clone(),
-        token_symbol: req.token_symbol.clone().unwrap_or_else(|| "storeUSD".to_string()),
+        token_symbol: req
+            .token_symbol
+            .clone()
+            .unwrap_or_else(|| "storeUSD".to_string()),
         token_decimals: req.token_decimals.unwrap_or(2),
         created_at: now,
         updated_at: now,
@@ -213,7 +216,15 @@ pub async fn harvest_fees(
 
     // NOTE: In production, enumerate token accounts with withheld fees.
     // For now, return an info message since we need account enumeration.
-    audit(&*state.store, &tenant, "token22_mint", "all", "harvest_fees", None).await;
+    audit(
+        &*state.store,
+        &tenant,
+        "token22_mint",
+        "all",
+        "harvest_fees",
+        None,
+    )
+    .await;
     json_ok(serde_json::json!({
         "message": "Fee harvesting requires specifying source accounts with withheld fees",
         "mintAddress": mint_pubkey.to_string(),
@@ -236,7 +247,9 @@ pub async fn list_gift_card_redemptions(
         .list_gift_card_redemptions(&tenant.tenant_id, limit, offset)
         .await
     {
-        Ok(redemptions) => json_ok(serde_json::json!({ "redemptions": redemptions })).into_response(),
+        Ok(redemptions) => {
+            json_ok(serde_json::json!({ "redemptions": redemptions })).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "Failed to list gift card redemptions");
             let (status, body) = error_response(

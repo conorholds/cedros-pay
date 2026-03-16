@@ -747,6 +747,50 @@ impl CedrosLoginClient {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Compliance helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Get a user's compliance status (KYC, accredited investor).
+    ///
+    /// Calls: GET /admin/users/{user_id}/compliance
+    /// Returns None on 404 (endpoint not yet deployed on cedros-login).
+    pub async fn get_user_compliance(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<crate::models::compliance::UserComplianceStatus>, CedrosLoginError> {
+        let url = format!("{}/admin/users/{}/compliance", self.base_url, user_id);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("X-Admin-Api-Key", &self.api_key)
+            .send()
+            .await
+            .map_err(|e| CedrosLoginError::Http(e.to_string()))?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(CedrosLoginError::Http(format!(
+                "get user compliance failed ({}): {}",
+                status, error_text
+            )));
+        }
+
+        let parsed: crate::models::compliance::UserComplianceStatus = response
+            .json()
+            .await
+            .map_err(|e| CedrosLoginError::Http(format!("invalid compliance response: {}", e)))?;
+        Ok(Some(parsed))
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Internal JWKS helpers
     // ─────────────────────────────────────────────────────────────────────────
 

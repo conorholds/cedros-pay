@@ -28,12 +28,8 @@ interface SubscribeButtonProps {
   successUrl?: string;
   /** URL to redirect on cancel */
   cancelUrl?: string;
-  /** Metadata for tracking */
-  metadata?: Record<string, string>;
   /** Customer email (pre-fills Stripe checkout) */
   customerEmail?: string;
-  /** Coupon code for discount */
-  couponCode?: string;
   /** Custom button label */
   label?: string;
   /** Disable button */
@@ -71,9 +67,7 @@ export function SubscribeButton({
   trialDays,
   successUrl,
   cancelUrl,
-  metadata,
   customerEmail,
-  couponCode,
   label,
   disabled = false,
   onAttempt,
@@ -116,7 +110,6 @@ export function SubscribeButton({
       interval,
       intervalDays,
       trialDays,
-      couponCode,
     });
 
     // Emit payment start event
@@ -136,8 +129,6 @@ export function SubscribeButton({
       intervalDays,
       trialDays,
       customerEmail,
-      metadata,
-      couponCode,
       successUrl,
       cancelUrl,
     });
@@ -159,8 +150,6 @@ export function SubscribeButton({
     intervalDays,
     trialDays,
     customerEmail,
-    metadata,
-    couponCode,
     successUrl,
     cancelUrl,
     processSubscription,

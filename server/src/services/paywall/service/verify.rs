@@ -218,7 +218,7 @@ impl PaywallService {
                 // Cart verification
                 // PS-009: Removed unused sig_opt - authorize_cart gets signature from proof
                 let cart_id = resource.strip_prefix("cart:").unwrap_or(&resource);
-                let result = self.authorize_cart(tenant_id, cart_id, proof).await?;
+                let result = self.authorize_cart(tenant_id, cart_id, proof, None).await?;
 
                 Ok(PaymentVerificationResult {
                     success: result.granted,
@@ -265,6 +265,7 @@ impl PaywallService {
         tenant_id: &str,
         cart_id: &str,
         proof: crate::models::PaymentProof,
+        country_code: Option<&str>,
     ) -> ServiceResult<PaymentVerificationResult> {
         // Clone values before moving proof
         let sig = proof.signature.clone();
@@ -289,7 +290,7 @@ impl PaywallService {
             });
         }
 
-        let result = self.authorize_cart(tenant_id, cart_id, proof).await?;
+        let result = self.authorize_cart(tenant_id, cart_id, proof, country_code).await?;
 
         Ok(PaymentVerificationResult {
             success: result.granted,

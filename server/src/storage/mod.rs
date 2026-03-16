@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::models::compliance::{ComplianceAction, TokenHolder};
 use crate::models::StripeRefundRequest;
 use crate::models::{
     AdminAuditEntry, AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer,
@@ -342,6 +343,9 @@ pub trait Store: Send + Sync {
         tenant_id: &str,
         limit: i32,
     ) -> StorageResult<Vec<RefundQuote>>;
+    async fn count_pending_refunds(&self, tenant_id: &str) -> StorageResult<i64> {
+        Ok(self.list_pending_refunds(tenant_id, i32::MAX).await?.len() as i64)
+    }
     /// Mark refund as processed with tenant isolation
     async fn mark_refund_processed(
         &self,
@@ -505,6 +509,29 @@ pub trait Store: Send + Sync {
         exclude_cart_id: &str,
         now: DateTime<Utc>,
     ) -> StorageResult<i64>;
+    /// Batch variant-aware lookup of active reservation totals excluding a specific cart.
+    async fn get_active_inventory_reservation_quantities_excluding_cart(
+        &self,
+        tenant_id: &str,
+        items: &[(String, Option<String>)],
+        exclude_cart_id: &str,
+        now: DateTime<Utc>,
+    ) -> StorageResult<HashMap<(String, Option<String>), i64>> {
+        let mut quantities = HashMap::with_capacity(items.len());
+        for (product_id, variant_id) in items {
+            let reserved = self
+                .get_active_inventory_reservation_quantity_excluding_cart(
+                    tenant_id,
+                    product_id,
+                    variant_id.as_deref(),
+                    exclude_cart_id,
+                    now,
+                )
+                .await?;
+            quantities.insert((product_id.clone(), variant_id.clone()), reserved);
+        }
+        Ok(quantities)
+    }
     async fn list_active_reservations_for_cart(
         &self,
         tenant_id: &str,
@@ -1207,6 +1234,59 @@ pub trait Store: Send + Sync {
         limit: i32,
         offset: i32,
     ) -> StorageResult<(Vec<Faq>, i64)>;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Compliance: token holders + compliance actions
+    // ─────────────────────────────────────────────────────────────────────────
+    async fn record_token_holder(&self, holder: TokenHolder) -> StorageResult<()>;
+    #[allow(clippy::too_many_arguments)]
+    async fn list_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        wallet: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>>;
+    async fn list_unfrozen_token_holders(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>>;
+    async fn count_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+    ) -> StorageResult<i64>;
+    #[allow(clippy::too_many_arguments)]
+    async fn update_token_holder_status(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+        status: &str,
+        frozen_at: Option<DateTime<Utc>>,
+        freeze_tx: Option<&str>,
+        thaw_tx: Option<&str>,
+    ) -> StorageResult<()>;
+    async fn get_token_holder(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+    ) -> StorageResult<Option<TokenHolder>>;
+    async fn record_compliance_action(&self, action: ComplianceAction) -> StorageResult<()>;
+    #[allow(clippy::too_many_arguments)]
+    async fn list_compliance_actions(
+        &self,
+        tenant_id: &str,
+        action_type: Option<&str>,
+        wallet: Option<&str>,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<ComplianceAction>>;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Lifecycle

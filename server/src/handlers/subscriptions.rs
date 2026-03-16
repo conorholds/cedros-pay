@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::response::{json_error, json_ok};
 use crate::errors::{error_response, ErrorCode};
 use crate::middleware::tenant::TenantContext;
-use crate::models::BillingPeriod;
+use crate::models::{BillingPeriod, PaymentMethod, Product, Subscription};
 use crate::repositories::ProductRepository;
 use crate::services::subscriptions::CreateX402SubscriptionParams;
 use crate::services::{PaywallService, StripeClient, SubscriptionService};
@@ -43,6 +43,35 @@ pub struct SubscriptionStatusResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<String>,
     pub cancel_at_period_end: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionDetailsQuery {
+    pub user_id: String,
+    pub resource: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionDetailsResponse {
+    pub id: String,
+    pub resource: String,
+    pub status: String,
+    pub interval: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval_days: Option<i32>,
+    pub price_per_period: i64,
+    pub currency: String,
+    pub cancel_at_period_end: bool,
+    pub current_period_start: DateTime<Utc>,
+    pub current_period_end: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub payment_method: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trial_end: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -145,15 +174,13 @@ pub struct ReactivateResponse {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StripeSessionRequest {
     pub resource: String,
     pub interval: String,
     pub interval_days: Option<i32>,
     pub trial_days: Option<i32>,
     pub customer_email: Option<String>,
-    pub metadata: Option<serde_json::Value>,
-    pub coupon_code: Option<String>,
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
 }
@@ -185,6 +212,36 @@ pub struct PortalRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PortalResponse {
     pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangePreviewRequest {
+    pub current_resource: String,
+    pub new_resource: String,
+    pub user_id: String,
+    pub new_interval: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangePreviewResponse {
+    pub success: bool,
+    pub immediate_amount: i64,
+    pub currency: String,
+    pub current_plan_price: i64,
+    pub new_plan_price: i64,
+    pub days_remaining: i64,
+    pub effective_date: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proration_details: Option<ChangePreviewBreakdown>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangePreviewBreakdown {
+    pub unused_credit: i64,
+    pub new_plan_cost: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -228,17 +285,13 @@ pub async fn status<S: Store + 'static>(
     tenant: TenantContext,
     Query(query): Query<SubscriptionStatusQuery>,
 ) -> impl IntoResponse {
-    let result = if query.user_id.starts_with("cus_") {
-        state
-            .subscription_service
-            .has_access_by_stripe_customer_id(&tenant.tenant_id, &query.user_id, &query.resource)
-            .await
-    } else {
-        state
-            .subscription_service
-            .has_access(&tenant.tenant_id, &query.user_id, &query.resource)
-            .await
-    };
+    let result = lookup_subscription_for_subject(
+        &state.subscription_service,
+        &tenant.tenant_id,
+        &query.user_id,
+        &query.resource,
+    )
+    .await;
 
     match result {
         Ok((has_access, sub_opt)) => {
@@ -267,6 +320,81 @@ pub async fn status<S: Store + 'static>(
             json_error(status, body)
         }
     }
+}
+
+/// GET /paywall/v1/subscription/details - Get full subscription details for management UI
+pub async fn details<S: Store + 'static>(
+    State(state): State<Arc<SubscriptionAppState<S>>>,
+    tenant: TenantContext,
+    Query(query): Query<SubscriptionDetailsQuery>,
+) -> impl IntoResponse {
+    let (_, subscription) = match lookup_subscription_for_subject(
+        &state.subscription_service,
+        &tenant.tenant_id,
+        &query.user_id,
+        &query.resource,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            return json_error(status, body);
+        }
+    };
+
+    let subscription = match subscription {
+        Some(subscription) => subscription,
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::SubscriptionNotFound,
+                Some("Subscription not found".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let product = match state
+        .product_repo
+        .get_product(&tenant.tenant_id, &subscription.product_id)
+        .await
+    {
+        Ok(product) => product,
+        Err(_) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ProductNotFound,
+                Some(format!("Product not found: {}", subscription.product_id)),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let (price_per_period, currency) =
+        subscription_price_and_currency(&product, &subscription.payment_method);
+
+    let resp = SubscriptionDetailsResponse {
+        id: subscription.id.clone(),
+        resource: subscription.product_id.clone(),
+        status: subscription.status.to_string(),
+        interval: billing_period_to_interval(&subscription.billing_period).to_string(),
+        interval_days: (subscription.billing_period == BillingPeriod::Day)
+            .then_some(subscription.billing_interval),
+        price_per_period,
+        currency,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
+        created_at: subscription
+            .created_at
+            .unwrap_or(subscription.current_period_start),
+        payment_method: subscription.payment_method.to_string(),
+        trial_end: subscription.trial_end,
+        customer_id: subscription.stripe_customer_id.clone(),
+    };
+    json_ok(resp)
 }
 
 /// POST /paywall/v1/subscription/x402/activate - Activate x402 subscription
@@ -465,39 +593,106 @@ pub async fn create_credits<S: Store + 'static>(
         return json_error(status, body);
     }
 
-    // CREDITS-001: Credits subscription activation must not create an active subscription
-    // without proof that payment was captured and recorded.
-    let payment_verified = match req.hold_id.as_deref() {
+    let (hold_id, processed_payment) = match req.hold_id.as_deref() {
         Some(hold_id) => {
-            let signature = format!("credits:{}", hold_id);
-            match state
+            let signature = credits_hold_payment_signature(hold_id);
+            let payment = match state
                 .paywall_service
-                .has_payment_been_processed(&tenant.tenant_id, &signature)
+                .get_payment(&tenant.tenant_id, &signature)
                 .await
             {
-                Ok(v) => v,
+                Ok(payment) => payment,
+                Err(crate::services::ServiceError::Coded {
+                    code: crate::errors::ErrorCode::TransactionNotFound,
+                    ..
+                }) => {
+                    let quote = state
+                        .paywall_service
+                        .generate_quote(&tenant.tenant_id, &req.product_id, None)
+                        .await
+                        .ok()
+                        .and_then(|q| serde_json::to_value(q).ok());
+
+                    let (status, body) = crate::errors::error_response(
+                        crate::errors::ErrorCode::PaymentRequired,
+                        Some("payment required".to_string()),
+                        quote.map(|q| serde_json::json!({ "quote": q })),
+                    );
+                    return json_error(status, body);
+                }
                 Err(e) => {
                     let (status, body) =
                         crate::errors::error_response(e.code(), Some(e.safe_message()), None);
                     return json_error(status, body);
                 }
+            };
+
+            if payment.resource_id != req.product_id || payment.wallet != req.wallet {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidPaymentProof,
+                    Some("credits hold does not match wallet/resource".to_string()),
+                    None,
+                );
+                return json_error(status, body);
             }
+
+            (hold_id.to_string(), payment)
         }
-        None => false,
+        None => {
+            let quote = state
+                .paywall_service
+                .generate_quote(&tenant.tenant_id, &req.product_id, None)
+                .await
+                .ok()
+                .and_then(|q| serde_json::to_value(q).ok());
+
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::PaymentRequired,
+                Some("payment required".to_string()),
+                quote.map(|q| serde_json::json!({ "quote": q })),
+            );
+            return json_error(status, body);
+        }
     };
 
-    if !payment_verified {
-        let quote = state
-            .paywall_service
-            .generate_quote(&tenant.tenant_id, &req.product_id, None)
-            .await
-            .ok()
-            .and_then(|q| serde_json::to_value(q).ok());
+    let activation_signature = credits_subscription_activation_signature(&hold_id);
+    let activation_marker = crate::models::PaymentTransaction {
+        signature: activation_signature.clone(),
+        tenant_id: tenant.tenant_id.clone(),
+        resource_id: req.product_id.clone(),
+        wallet: req.wallet.clone(),
+        user_id: processed_payment.user_id.clone(),
+        amount: processed_payment.amount.clone(),
+        created_at: Utc::now(),
+        metadata: std::collections::HashMap::from([
+            (
+                "credits_hold_signature".to_string(),
+                credits_hold_payment_signature(&hold_id),
+            ),
+            ("subscription_activation".to_string(), "true".to_string()),
+        ]),
+    };
 
+    let activation_claimed = match state
+        .subscription_service
+        .store()
+        .try_record_payment(activation_marker)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to persist credits subscription activation marker");
+            let (status, body) =
+                crate::errors::error_response(crate::errors::ErrorCode::DatabaseError, None, None);
+            return json_error(status, body);
+        }
+    };
+
+    if !activation_claimed {
         let (status, body) = crate::errors::error_response(
-            crate::errors::ErrorCode::PaymentRequired,
-            Some("payment required".to_string()),
-            quote.map(|q| serde_json::json!({ "quote": q })),
+            crate::errors::ErrorCode::PaymentAlreadyUsed,
+            Some("credits hold already used for subscription activation".to_string()),
+            None,
         );
         return json_error(status, body);
     }
@@ -532,6 +727,18 @@ pub async fn create_credits<S: Store + 'static>(
             json_ok(resp)
         }
         Err(e) => {
+            if let Err(delete_err) = state
+                .subscription_service
+                .store()
+                .delete_payment(&tenant.tenant_id, &activation_signature)
+                .await
+            {
+                tracing::error!(
+                    error = %delete_err,
+                    activation_signature = %activation_signature,
+                    "Failed to roll back credits subscription activation marker after error"
+                );
+            }
             let (status, body) =
                 crate::errors::error_response(e.code(), Some(e.safe_message()), None);
             json_error(status, body)
@@ -547,6 +754,64 @@ pub async fn cancel<S: Store + 'static>(
 ) -> impl IntoResponse {
     let at_period_end = req.at_period_end.unwrap_or(true);
 
+    let existing = match state
+        .subscription_service
+        .store()
+        .get_subscription(&tenant.tenant_id, &req.subscription_id)
+        .await
+    {
+        Ok(Some(subscription)) => subscription,
+        Ok(None) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::SubscriptionNotFound,
+                Some("Subscription not found".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to load subscription before cancellation");
+            let (status, body) =
+                crate::errors::error_response(crate::errors::ErrorCode::DatabaseError, None, None);
+            return json_error(status, body);
+        }
+    };
+
+    if existing.payment_method == PaymentMethod::Stripe {
+        let stripe_client = match &state.stripe_client {
+            Some(client) => client,
+            None => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::ServiceUnavailable,
+                    Some("Stripe is not configured".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        };
+
+        let stripe_sub_id = match existing.stripe_subscription_id.as_ref() {
+            Some(id) => id,
+            None => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidOperation,
+                    Some("Subscription is missing a Stripe subscription ID".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        };
+
+        if let Err(e) = stripe_client
+            .cancel_subscription(stripe_sub_id, at_period_end)
+            .await
+        {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            return json_error(status, body);
+        }
+    }
+
     let result = state
         .subscription_service
         .cancel(&tenant.tenant_id, &req.subscription_id, at_period_end)
@@ -561,6 +826,14 @@ pub async fn cancel<S: Store + 'static>(
             json_ok(resp)
         }
         Err(e) => {
+            if existing.payment_method == PaymentMethod::Stripe {
+                tracing::error!(
+                    subscription_id = %req.subscription_id,
+                    at_period_end,
+                    error = %e,
+                    "Stripe cancellation succeeded but local subscription update failed"
+                );
+            }
             let (status, body) =
                 crate::errors::error_response(e.code(), Some(e.safe_message()), None);
             json_error(status, body)
@@ -574,6 +847,61 @@ pub async fn reactivate<S: Store + 'static>(
     tenant: TenantContext,
     Json(req): Json<ReactivateRequest>,
 ) -> impl IntoResponse {
+    let existing = match state
+        .subscription_service
+        .store()
+        .get_subscription(&tenant.tenant_id, &req.subscription_id)
+        .await
+    {
+        Ok(Some(subscription)) => subscription,
+        Ok(None) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::SubscriptionNotFound,
+                Some("Subscription not found".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to load subscription before reactivation");
+            let (status, body) =
+                crate::errors::error_response(crate::errors::ErrorCode::DatabaseError, None, None);
+            return json_error(status, body);
+        }
+    };
+
+    if existing.payment_method == PaymentMethod::Stripe {
+        let stripe_client = match &state.stripe_client {
+            Some(client) => client,
+            None => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::ServiceUnavailable,
+                    Some("Stripe is not configured".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        };
+
+        let stripe_sub_id = match existing.stripe_subscription_id.as_ref() {
+            Some(id) => id,
+            None => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidOperation,
+                    Some("Subscription is missing a Stripe subscription ID".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        };
+
+        if let Err(e) = stripe_client.reactivate_subscription(stripe_sub_id).await {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            return json_error(status, body);
+        }
+    }
+
     let result = state
         .subscription_service
         .reactivate(&tenant.tenant_id, &req.subscription_id)
@@ -591,6 +919,13 @@ pub async fn reactivate<S: Store + 'static>(
             json_ok(resp)
         }
         Err(e) => {
+            if existing.payment_method == PaymentMethod::Stripe {
+                tracing::error!(
+                    subscription_id = %req.subscription_id,
+                    error = %e,
+                    "Stripe reactivation succeeded but local subscription update failed"
+                );
+            }
             let (status, body) =
                 crate::errors::error_response(e.code(), Some(e.safe_message()), None);
             json_error(status, body)
@@ -605,6 +940,28 @@ pub async fn stripe_session<S: Store + 'static>(
     headers: axum::http::HeaderMap,
     Json(req): Json<StripeSessionRequest>,
 ) -> impl IntoResponse {
+    if let Some(ref email) = req.customer_email {
+        if let Err(e) = crate::errors::validation::validate_email(email) {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some(e.message),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
+    if let Some(days) = req.trial_days {
+        if days < 0 {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some("trialDays must be >= 0".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
     // SEC-006: Validate redirect URLs to prevent SSRF
     if let Some(ref url) = req.success_url {
         if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
@@ -676,6 +1033,12 @@ pub async fn stripe_session<S: Store + 'static>(
         }
     };
 
+    if let Err(msg) = validate_stripe_checkout_interval(&req, sub_config) {
+        let (status, body) =
+            crate::errors::error_response(crate::errors::ErrorCode::InvalidField, Some(msg), None);
+        return json_error(status, body);
+    }
+
     let price_id = match &sub_config.stripe_price_id {
         Some(id) => id.clone(),
         None => {
@@ -705,6 +1068,11 @@ pub async fn stripe_session<S: Store + 'static>(
         .paywall_service
         .extract_user_id_from_auth_header(auth)
         .await;
+    let idempotency_key = headers
+        .get(crate::constants::HEADER_IDEMPOTENCY_KEY)
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .map(str::to_string);
 
     let metadata = build_stripe_subscription_metadata(&tenant.tenant_id, user_id);
 
@@ -716,6 +1084,7 @@ pub async fn stripe_session<S: Store + 'static>(
         success_url: req.success_url,
         cancel_url: req.cancel_url,
         trial_days,
+        idempotency_key,
     };
 
     // Create session
@@ -874,10 +1243,199 @@ pub async fn portal<S: Store + 'static>(
     }
 }
 
+/// POST /paywall/v1/subscription/change/preview - Preview proration for a Stripe plan change
+pub async fn preview_change<S: Store + 'static>(
+    State(state): State<Arc<SubscriptionAppState<S>>>,
+    tenant: TenantContext,
+    Json(req): Json<ChangePreviewRequest>,
+) -> impl IntoResponse {
+    let stripe_client = match &state.stripe_client {
+        Some(client) => client,
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ServiceUnavailable,
+                Some("Stripe is not configured".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let (_, subscription) = match lookup_subscription_for_subject(
+        &state.subscription_service,
+        &tenant.tenant_id,
+        &req.user_id,
+        &req.current_resource,
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            return json_error(status, body);
+        }
+    };
+
+    let subscription = match subscription {
+        Some(subscription) => subscription,
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::SubscriptionNotFound,
+                Some("Subscription not found".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    if subscription.product_id != req.current_resource {
+        let (status, body) = crate::errors::error_response(
+            crate::errors::ErrorCode::InvalidField,
+            Some("currentResource does not match the subscription".to_string()),
+            None,
+        );
+        return json_error(status, body);
+    }
+
+    let stripe_sub_id = match &subscription.stripe_subscription_id {
+        Some(id) => id.clone(),
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidOperation,
+                Some("Subscription is not a Stripe subscription".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let current_product = match state
+        .product_repo
+        .get_product(&tenant.tenant_id, &subscription.product_id)
+        .await
+    {
+        Ok(product) => product,
+        Err(_) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ProductNotFound,
+                Some(format!("Product not found: {}", subscription.product_id)),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let new_product = match state
+        .product_repo
+        .get_product(&tenant.tenant_id, &req.new_resource)
+        .await
+    {
+        Ok(product) => product,
+        Err(_) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ProductNotFound,
+                Some(format!("Product not found: {}", req.new_resource)),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    if let Some(ref interval) = req.new_interval {
+        let requested_period = match parse_billing_period(interval) {
+            Ok(period) => period,
+            Err(code) => {
+                let (status, body) = crate::errors::error_response(
+                    code,
+                    Some(format!("invalid newInterval: {}", interval)),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        };
+
+        let configured_period = new_product
+            .subscription
+            .as_ref()
+            .and_then(|config| parse_billing_period(&config.billing_period).ok());
+        if configured_period != Some(requested_period) {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some("newInterval does not match the target product".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
+    let new_price_id = match new_product
+        .subscription
+        .as_ref()
+        .and_then(|s| s.stripe_price_id.as_ref())
+    {
+        Some(id) => id.clone(),
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidResource,
+                Some("New product has no Stripe subscription price ID".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    match stripe_client
+        .preview_proration(&stripe_sub_id, &new_price_id)
+        .await
+    {
+        Ok(preview) => {
+            let (current_plan_price, _) =
+                subscription_price_and_currency(&current_product, &PaymentMethod::Stripe);
+            let (new_plan_price, _) =
+                subscription_price_and_currency(&new_product, &PaymentMethod::Stripe);
+            let (unused_credit, new_plan_cost) =
+                preview
+                    .lines
+                    .iter()
+                    .fold((0i64, 0i64), |(credit, cost), line| {
+                        if line.amount < 0 {
+                            (credit + line.amount.abs(), cost)
+                        } else {
+                            (credit, cost + line.amount)
+                        }
+                    });
+
+            let resp = ChangePreviewResponse {
+                success: true,
+                immediate_amount: preview.proration_amount,
+                currency: preview.currency.to_uppercase(),
+                current_plan_price,
+                new_plan_price,
+                days_remaining: (subscription.current_period_end - Utc::now())
+                    .num_days()
+                    .max(0),
+                effective_date: Utc::now(),
+                proration_details: (!preview.lines.is_empty()).then_some(ChangePreviewBreakdown {
+                    unused_credit,
+                    new_plan_cost,
+                }),
+            };
+            json_ok(resp)
+        }
+        Err(e) => {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            json_error(status, body)
+        }
+    }
+}
+
 /// POST /paywall/v1/subscription/change - Change subscription plan
 pub async fn change<S: Store + 'static>(
     State(state): State<Arc<SubscriptionAppState<S>>>,
     tenant: TenantContext,
+    headers: axum::http::HeaderMap,
     Json(req): Json<ChangeRequest>,
 ) -> impl IntoResponse {
     // Check if Stripe is configured
@@ -966,25 +1524,60 @@ pub async fn change<S: Store + 'static>(
     let proration_behavior = req
         .proration_behavior
         .unwrap_or_else(|| "create_prorations".to_string());
+    let idempotency_key = headers
+        .get(crate::constants::HEADER_IDEMPOTENCY_KEY)
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .map(str::to_string);
 
-    // Change subscription via Stripe
-    match stripe_client
-        .change_subscription(&stripe_sub_id, &new_price_id, &proration_behavior)
+    let stripe_result = match stripe_client
+        .change_subscription(
+            &stripe_sub_id,
+            &new_price_id,
+            &proration_behavior,
+            idempotency_key.as_deref(),
+        )
         .await
     {
-        Ok(result) => {
+        Ok(result) => result,
+        Err(e) => {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            return json_error(status, body);
+        }
+    };
+
+    let local_change = state
+        .subscription_service
+        .change_subscription(
+            &tenant.tenant_id,
+            &req.subscription_id,
+            &req.new_resource,
+            None,
+            None,
+        )
+        .await;
+
+    match local_change {
+        Ok(local_result) => {
             let resp = ChangeResponse {
                 success: true,
                 subscription_id: req.subscription_id.clone(),
-                previous_resource: sub.product_id.clone(),
+                previous_resource: local_result.previous_product,
                 new_resource: req.new_resource.clone(),
-                status: result.status,
-                current_period_end: result.current_period_end,
-                proration_behavior: result.proration_behavior,
+                status: stripe_result.status,
+                current_period_end: stripe_result.current_period_end,
+                proration_behavior: stripe_result.proration_behavior,
             };
             json_ok(resp)
         }
         Err(e) => {
+            tracing::error!(
+                subscription_id = %req.subscription_id,
+                new_resource = %req.new_resource,
+                error = %e,
+                "Stripe subscription change succeeded but local subscription update failed"
+            );
             let (status, body) =
                 crate::errors::error_response(e.code(), Some(e.safe_message()), None);
             json_error(status, body)
@@ -996,6 +1589,23 @@ pub async fn change<S: Store + 'static>(
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+async fn lookup_subscription_for_subject<S: Store + 'static>(
+    subscription_service: &Arc<SubscriptionService<S>>,
+    tenant_id: &str,
+    user_id: &str,
+    resource: &str,
+) -> Result<(bool, Option<Subscription>), crate::services::ServiceError> {
+    if user_id.starts_with("cus_") {
+        subscription_service
+            .has_access_by_stripe_customer_id(tenant_id, user_id, resource)
+            .await
+    } else {
+        subscription_service
+            .has_access(tenant_id, user_id, resource)
+            .await
+    }
+}
+
 /// Parse billing period string, returning error for invalid values per spec (17-validation.md)
 fn parse_billing_period(s: &str) -> Result<BillingPeriod, crate::errors::ErrorCode> {
     match s.to_lowercase().as_str() {
@@ -1005,6 +1615,35 @@ fn parse_billing_period(s: &str) -> Result<BillingPeriod, crate::errors::ErrorCo
         "year" | "yearly" | "annual" => Ok(BillingPeriod::Year),
         _ => Err(crate::errors::ErrorCode::InvalidField),
     }
+}
+
+fn billing_period_to_interval(period: &BillingPeriod) -> &'static str {
+    match period {
+        BillingPeriod::Day => "custom",
+        BillingPeriod::Week => "weekly",
+        BillingPeriod::Month => "monthly",
+        BillingPeriod::Year => "yearly",
+    }
+}
+
+fn subscription_price_and_currency(
+    product: &Product,
+    payment_method: &PaymentMethod,
+) -> (i64, String) {
+    let preferred = match payment_method {
+        PaymentMethod::Stripe => product
+            .fiat_price
+            .as_ref()
+            .or(product.crypto_price.as_ref()),
+        PaymentMethod::X402 | PaymentMethod::Credits => product
+            .crypto_price
+            .as_ref()
+            .or(product.fiat_price.as_ref()),
+    };
+
+    preferred
+        .map(|price| (price.atomic, price.asset.code.clone()))
+        .unwrap_or_else(|| (0, "USD".to_string()))
 }
 
 fn build_stripe_subscription_metadata(
@@ -1019,6 +1658,49 @@ fn build_stripe_subscription_metadata(
     metadata
 }
 
+fn credits_hold_payment_signature(hold_id: &str) -> String {
+    format!("credits:{hold_id}")
+}
+
+fn credits_subscription_activation_signature(hold_id: &str) -> String {
+    format!("subscription:credits:{hold_id}")
+}
+
+fn validate_stripe_checkout_interval(
+    req: &StripeSessionRequest,
+    sub_config: &crate::models::SubscriptionConfig,
+) -> Result<(), String> {
+    let configured_period = parse_billing_period(&sub_config.billing_period)
+        .map_err(|_| "product has invalid subscription billing period".to_string())?;
+    let configured_interval = billing_period_to_interval(&configured_period);
+
+    if req.interval.to_lowercase() != configured_interval {
+        return Err(format!(
+            "interval must match the product subscription interval: {}",
+            configured_interval
+        ));
+    }
+
+    match configured_period {
+        BillingPeriod::Day => {
+            if req.interval_days != Some(sub_config.billing_interval) {
+                return Err(format!(
+                    "intervalDays must match the product subscription interval: {}",
+                    sub_config.billing_interval
+                ));
+            }
+        }
+        _ if req.interval_days.is_some() => {
+            return Err(
+                "intervalDays is only supported for custom day-based subscriptions".to_string(),
+            )
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1029,28 +1711,36 @@ mod tests {
 
     use crate::models::{
         get_asset, BillingPeriod, Money, PaymentMethod, PaymentTransaction, Product, Subscription,
-        SubscriptionStatus,
+        SubscriptionConfig, SubscriptionStatus,
     };
     use crate::repositories::{InMemoryCouponRepository, InMemoryProductRepository};
     use crate::storage::memory::InMemoryStore;
     use crate::webhooks::NoopNotifier;
     use crate::Config;
-    use crate::{NoopVerifier, PaywallService};
+    use crate::{NoopVerifier, PaywallService, StripeClient};
 
     fn build_state() -> Arc<SubscriptionAppState<InMemoryStore>> {
         let cfg = Config::default();
         let store = Arc::new(InMemoryStore::new());
 
         let asset = get_asset("USDC").expect("asset");
-        let product = Product {
+        let product_repo = Arc::new(InMemoryProductRepository::new(vec![Product {
             id: "prod-1".to_string(),
             tenant_id: "default".to_string(),
+            fiat_price: Some(Money::new(asset.clone(), 2500)),
             crypto_price: Some(Money::new(asset, 100)),
+            subscription: Some(SubscriptionConfig {
+                billing_period: "monthly".to_string(),
+                billing_interval: 1,
+                trial_days: 0,
+                stripe_price_id: Some("price_prod_1".to_string()),
+                allow_x402: true,
+                grace_period_hours: 0,
+            }),
             active: true,
             created_at: Some(Utc::now()),
             ..Product::default()
-        };
-        let product_repo = Arc::new(InMemoryProductRepository::new(vec![product]));
+        }]));
         let coupon_repo = Arc::new(InMemoryCouponRepository::new(Vec::new()));
         let notifier = Arc::new(NoopNotifier);
 
@@ -1059,7 +1749,7 @@ mod tests {
             store.clone(),
             Arc::new(NoopVerifier),
             notifier.clone(),
-            product_repo,
+            product_repo.clone(),
             coupon_repo,
         ));
 
@@ -1073,7 +1763,26 @@ mod tests {
             subscription_service,
             stripe_client: None,
             paywall_service,
-            product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
+            product_repo,
+        })
+    }
+
+    fn build_state_with_stripe() -> Arc<SubscriptionAppState<InMemoryStore>> {
+        let state = build_state();
+        let stripe_client = Arc::new(
+            StripeClient::new(
+                Config::default(),
+                state.subscription_service.store(),
+                Arc::new(NoopNotifier),
+            )
+            .expect("stripe client"),
+        );
+
+        Arc::new(SubscriptionAppState {
+            subscription_service: state.subscription_service.clone(),
+            stripe_client: Some(stripe_client),
+            paywall_service: state.paywall_service.clone(),
+            product_repo: state.product_repo.clone(),
         })
     }
 
@@ -1162,6 +1871,110 @@ mod tests {
             .await
             .unwrap();
         assert!(subs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_credits_rejects_hold_wallet_mismatch() {
+        let state = build_state();
+        seed_payment(&state, "credits:hold-wallet-mismatch", "wallet-a", "prod-1").await;
+
+        let response = create_credits(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateCreditsSubscriptionRequest {
+                wallet: "wallet-b".to_string(),
+                product_id: "prod-1".to_string(),
+                hold_id: Some("hold-wallet-mismatch".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], "invalid_payment_proof");
+    }
+
+    #[tokio::test]
+    async fn test_create_credits_rejects_hold_resource_mismatch() {
+        let state = build_state();
+        seed_payment(
+            &state,
+            "credits:hold-resource-mismatch",
+            "wallet-1",
+            "prod-other",
+        )
+        .await;
+
+        let response = create_credits(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateCreditsSubscriptionRequest {
+                wallet: "wallet-1".to_string(),
+                product_id: "prod-1".to_string(),
+                hold_id: Some("hold-resource-mismatch".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], "invalid_payment_proof");
+    }
+
+    #[tokio::test]
+    async fn test_create_credits_rejects_replayed_hold_id() {
+        let state = build_state();
+        seed_payment(&state, "credits:hold-replay", "wallet-1", "prod-1").await;
+
+        let first = create_credits(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CreateCreditsSubscriptionRequest {
+                wallet: "wallet-1".to_string(),
+                product_id: "prod-1".to_string(),
+                hold_id: Some("hold-replay".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+        assert_eq!(first.status(), StatusCode::OK);
+
+        let second = create_credits(
+            State(state),
+            TenantContext::default(),
+            Json(CreateCreditsSubscriptionRequest {
+                wallet: "wallet-1".to_string(),
+                product_id: "prod-1".to_string(),
+                hold_id: Some("hold-replay".to_string()),
+                metadata: None,
+                billing_period: None,
+                billing_interval: None,
+                plan_id: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(second.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = second.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"]["code"], "payment_already_used");
     }
 
     #[tokio::test]
@@ -1285,10 +2098,322 @@ mod tests {
         assert_eq!(json["status"], "active");
     }
 
+    #[tokio::test]
+    async fn test_details_returns_subscription_management_payload() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-details-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::Stripe,
+                stripe_subscription_id: Some("sub_stripe_1".to_string()),
+                stripe_customer_id: Some("cus_123".to_string()),
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = details(
+            State(state),
+            TenantContext::default(),
+            Query(SubscriptionDetailsQuery {
+                user_id: "cus_123".to_string(),
+                resource: "prod-1".to_string(),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["id"], "sub-details-1");
+        assert_eq!(json["resource"], "prod-1");
+        assert_eq!(json["interval"], "monthly");
+        assert_eq!(json["pricePerPeriod"], 2500);
+        assert_eq!(json["currency"], "USDC");
+        assert_eq!(json["customerId"], "cus_123");
+    }
+
+    #[tokio::test]
+    async fn test_preview_change_returns_service_unavailable_without_stripe() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-preview-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::Stripe,
+                stripe_subscription_id: Some("sub_stripe_1".to_string()),
+                stripe_customer_id: Some("cus_123".to_string()),
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = preview_change(
+            State(state),
+            TenantContext::default(),
+            Json(ChangePreviewRequest {
+                current_resource: "prod-1".to_string(),
+                new_resource: "prod-1".to_string(),
+                user_id: "cus_123".to_string(),
+                new_interval: Some("monthly".to_string()),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_cancel_stripe_subscription_requires_stripe_client() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-cancel-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::Stripe,
+                stripe_subscription_id: Some("sub_stripe_1".to_string()),
+                stripe_customer_id: Some("cus_123".to_string()),
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = cancel(
+            State(state),
+            TenantContext::default(),
+            Json(CancelRequest {
+                subscription_id: "sub-cancel-1".to_string(),
+                at_period_end: Some(true),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_reactivate_stripe_subscription_requires_stripe_client() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-reactivate-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::Stripe,
+                stripe_subscription_id: Some("sub_stripe_1".to_string()),
+                stripe_customer_id: Some("cus_123".to_string()),
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: true,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = reactivate(
+            State(state),
+            TenantContext::default(),
+            Json(ReactivateRequest {
+                subscription_id: "sub-reactivate-1".to_string(),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_cancel_x402_subscription_still_updates_local_state_without_stripe() {
+        let state = build_state();
+        let now = Utc::now();
+        state
+            .subscription_service
+            .store()
+            .save_subscription(Subscription {
+                id: "sub-x402-1".to_string(),
+                tenant_id: "default".to_string(),
+                wallet: Some("wallet-1".to_string()),
+                user_id: None,
+                product_id: "prod-1".to_string(),
+                plan_id: None,
+                payment_method: PaymentMethod::X402,
+                stripe_subscription_id: None,
+                stripe_customer_id: None,
+                status: SubscriptionStatus::Active,
+                billing_period: BillingPeriod::Month,
+                billing_interval: 1,
+                current_period_start: now,
+                current_period_end: now + chrono::Duration::days(30),
+                trial_end: None,
+                cancel_at_period_end: false,
+                cancelled_at: None,
+                payment_signature: None,
+                created_at: Some(now),
+                updated_at: Some(now),
+                metadata: std::collections::HashMap::new(),
+            })
+            .await
+            .expect("seed subscription");
+
+        let response = cancel(
+            State(state.clone()),
+            TenantContext::default(),
+            Json(CancelRequest {
+                subscription_id: "sub-x402-1".to_string(),
+                at_period_end: Some(false),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let saved = state
+            .subscription_service
+            .store()
+            .get_subscription("default", "sub-x402-1")
+            .await
+            .unwrap()
+            .expect("subscription updated");
+        assert_eq!(saved.status, SubscriptionStatus::Cancelled);
+    }
+
     #[test]
     fn test_build_stripe_subscription_metadata_includes_user_id() {
         let m = build_stripe_subscription_metadata("tenant-1", Some("user-1".to_string()));
         assert_eq!(m.get("tenant_id").map(String::as_str), Some("tenant-1"));
         assert_eq!(m.get("user_id").map(String::as_str), Some("user-1"));
+    }
+
+    #[test]
+    fn test_stripe_session_request_rejects_unknown_fields() {
+        let err = serde_json::from_value::<StripeSessionRequest>(serde_json::json!({
+            "resource": "prod-1",
+            "interval": "monthly",
+            "couponCode": "SAVE20",
+        }))
+        .expect_err("unknown fields should be rejected");
+
+        assert!(err.to_string().contains("unknown field"));
+    }
+
+    #[tokio::test]
+    async fn test_stripe_session_rejects_interval_mismatch() {
+        let state = build_state_with_stripe();
+
+        let response = stripe_session(
+            State(state),
+            TenantContext::default(),
+            axum::http::HeaderMap::new(),
+            Json(StripeSessionRequest {
+                resource: "prod-1".to_string(),
+                interval: "yearly".to_string(),
+                interval_days: None,
+                trial_days: None,
+                customer_email: None,
+                success_url: Some("https://example.com/success".to_string()),
+                cancel_url: Some("https://example.com/cancel".to_string()),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_stripe_session_rejects_interval_days_for_fixed_subscription() {
+        let state = build_state_with_stripe();
+
+        let response = stripe_session(
+            State(state),
+            TenantContext::default(),
+            axum::http::HeaderMap::new(),
+            Json(StripeSessionRequest {
+                resource: "prod-1".to_string(),
+                interval: "monthly".to_string(),
+                interval_days: Some(45),
+                trial_days: None,
+                customer_email: None,
+                success_url: Some("https://example.com/success".to_string()),
+                cancel_url: Some("https://example.com/cancel".to_string()),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }

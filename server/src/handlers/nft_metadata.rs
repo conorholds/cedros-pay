@@ -48,8 +48,7 @@ pub async fn get_nft_metadata(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     if let Err(e) = crate::errors::validation::validate_resource_id(&id) {
-        let (status, body) =
-            error_response(ErrorCode::InvalidResource, Some(e.message), None);
+        let (status, body) = error_response(ErrorCode::InvalidResource, Some(e.message), None);
         return json_error(status, body).into_response();
     }
 

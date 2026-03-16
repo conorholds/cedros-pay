@@ -23,7 +23,12 @@ import { parseErrorResponse } from '../utils/errorHandling';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { createRateLimiter, RATE_LIMITER_PRESETS } from '../utils/rateLimiter';
 import { createCircuitBreaker, CircuitBreakerOpenError } from '../utils/circuitBreaker';
-import { retryWithBackoff, RETRY_PRESETS } from '../utils/exponentialBackoff';
+import {
+  retryWithBackoff,
+  RETRY_PRESETS,
+  RetryableHttpError,
+  type RetryConfig,
+} from '../utils/exponentialBackoff';
 
 /**
  * Public interface for subscription change operations.
@@ -70,14 +75,15 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
     rateLimiter: ReturnType<typeof createRateLimiter>,
     operation: () => Promise<T>,
     retryName: string,
-    errorContext: string
+    errorContext: string,
+    retryConfig: RetryConfig = RETRY_PRESETS.STANDARD
   ): Promise<T> {
     if (!rateLimiter.tryConsume()) {
       throw new Error('Rate limit exceeded. Please try again later.');
     }
     try {
       return await this.circuitBreaker.execute(() =>
-        retryWithBackoff(operation, { ...RETRY_PRESETS.STANDARD, name: retryName })
+        retryWithBackoff(operation, { ...retryConfig, name: retryName })
       );
     } catch (error) {
       if (error instanceof CircuitBreakerOpenError) {
@@ -91,6 +97,7 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
   /** Change subscription plan (upgrade or downgrade) */
   async changeSubscription(request: ChangeSubscriptionRequest): Promise<ChangeSubscriptionResponse> {
     const idempotencyKey = generateUUID();
+    const requestBody = JSON.stringify(request);
     return this.executeWithResilience(
       this.rateLimiter,
       async () => {
@@ -99,15 +106,22 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
         const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify(request),
+          body: requestBody,
         });
         if (!response.ok) {
-          throw new Error(await parseErrorResponse(response, 'Failed to change subscription'));
+          throw RetryableHttpError.fromResponse(
+            response,
+            await parseErrorResponse(response, 'Failed to change subscription')
+          );
         }
         return await response.json();
       },
       'subscription-change',
-      'plan change'
+      'plan change',
+      {
+        ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+        inFlightKey: `subscription:change:${requestBody}`,
+      }
     );
   }
 
@@ -157,6 +171,7 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
 
   /** Cancel a subscription */
   async cancel(request: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse> {
+    const requestBody = JSON.stringify(request);
     return this.executeWithResilience(
       this.rateLimiter,
       async () => {
@@ -165,20 +180,28 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
         const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
+          body: requestBody,
         });
         if (!response.ok) {
-          throw new Error(await parseErrorResponse(response, 'Failed to cancel subscription'));
+          throw RetryableHttpError.fromResponse(
+            response,
+            await parseErrorResponse(response, 'Failed to cancel subscription')
+          );
         }
         return await response.json();
       },
       'subscription-cancel',
-      'cancellation'
+      'cancellation',
+      {
+        ...RETRY_PRESETS.WRITE_ONCE,
+        inFlightKey: `subscription:cancel:${requestBody}`,
+      }
     );
   }
 
   /** Get Stripe billing portal URL */
   async getBillingPortalUrl(request: BillingPortalRequest): Promise<BillingPortalResponse> {
+    const requestBody = JSON.stringify(request);
     return this.executeWithResilience(
       this.queryRateLimiter,
       async () => {
@@ -187,15 +210,22 @@ export class SubscriptionChangeManager implements ISubscriptionChangeManager {
         const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(request),
+          body: requestBody,
         });
         if (!response.ok) {
-          throw new Error(await parseErrorResponse(response, 'Failed to get billing portal URL'));
+          throw RetryableHttpError.fromResponse(
+            response,
+            await parseErrorResponse(response, 'Failed to get billing portal URL')
+          );
         }
         return await response.json();
       },
       'subscription-portal',
-      'portal'
+      'portal',
+      {
+        ...RETRY_PRESETS.WRITE_ONCE,
+        inFlightKey: `subscription:portal:${requestBody}`,
+      }
     );
   }
 }

@@ -32,6 +32,8 @@ export {
   type PluginPermission,
 } from './admin';
 export { StripeButton } from './components/StripeButton';
+export { ComplianceGatePage } from './components/ComplianceGatePage';
+export type { ComplianceGatePageProps } from './components/ComplianceGatePage';
 export { CreditsButton } from './components/CreditsButton';
 export { CreditsBalance } from './components/CreditsBalance';
 export type { CreditsBalanceProps } from './components/CreditsBalance';
@@ -61,6 +63,8 @@ export { usePaymentMode } from './hooks/usePaymentMode';
 export { useSubscription } from './hooks/useSubscription';
 export { useCreditsSubscription } from './hooks/useCreditsSubscription';
 export { useSubscriptionManagement } from './hooks/useSubscriptionManagement';
+export { useComplianceCheck } from './hooks/useComplianceCheck';
+export type { ComplianceCheckResult } from './hooks/useComplianceCheck';
 export type {
   SubscriptionManagementState,
   ChangeOptions,

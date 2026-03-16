@@ -144,7 +144,11 @@ pub async fn update_status(
     }
 
     // Fetch current redemption to validate transition
-    let redemption = match state.store.get_asset_redemption(&tenant.tenant_id, &id).await {
+    let redemption = match state
+        .store
+        .get_asset_redemption(&tenant.tenant_id, &id)
+        .await
+    {
         Ok(Some(r)) => r,
         Ok(None) => {
             let (status, body) = error_response(
@@ -236,7 +240,11 @@ pub async fn complete_redemption(
         return json_error(status, body).into_response();
     }
 
-    let redemption = match state.store.get_asset_redemption(&tenant.tenant_id, &id).await {
+    let redemption = match state
+        .store
+        .get_asset_redemption(&tenant.tenant_id, &id)
+        .await
+    {
         Ok(Some(r)) => r,
         Ok(None) => {
             let (status, body) = error_response(
@@ -267,8 +275,15 @@ pub async fn complete_redemption(
     }
 
     // Look up the product to determine how many tokens to burn
-    let burn_amount = match state.products.get_product(&tenant.tenant_id, &redemption.product_id).await {
-        Ok(p) => p.tokenized_asset_config.map(|c| c.tokens_per_unit as u64).unwrap_or(1),
+    let burn_amount = match state
+        .products
+        .get_product(&tenant.tenant_id, &redemption.product_id)
+        .await
+    {
+        Ok(p) => p
+            .tokenized_asset_config
+            .map(|c| c.tokens_per_unit as u64)
+            .unwrap_or(1),
         Err(e) => {
             tracing::warn!(error = %e, product_id = %redemption.product_id, "Failed to look up product for burn amount, defaulting to 1");
             1
@@ -308,7 +323,15 @@ pub async fn complete_redemption(
         .await
     {
         Ok(()) => {
-            audit(&*state.store, &tenant, "asset_redemption", &id, "complete", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "asset_redemption",
+                &id,
+                "complete",
+                None,
+            )
+            .await;
             json_ok(serde_json::json!({ "completed": true, "id": id })).into_response()
         }
         Err(e) => {

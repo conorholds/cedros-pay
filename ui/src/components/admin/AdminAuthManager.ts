@@ -8,6 +8,7 @@
  */
 
 import bs58 from 'bs58';
+import { Base64 } from 'js-base64';
 import { getLogger } from '../../utils/logger';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 
@@ -16,8 +17,9 @@ export type AdminAuthMethod = 'wallet' | 'cedros-login' | 'none';
 
 /** Nonce response from server */
 interface NonceResponse {
-  nonce_id: string;
-  expires_at: string;
+  nonce: string;
+  expiresAt: number;
+  purpose: string;
 }
 
 /** Admin auth credentials */
@@ -44,6 +46,12 @@ export interface AdminAuthHeaders {
   'X-Signature': string;
 }
 
+/** Canonical admin request target used for server-side nonce resolution */
+export interface AdminAuthTarget {
+  path: string;
+  method: string;
+}
+
 /** JWT auth headers for cedros-login */
 export interface JwtAuthHeaders {
   'Authorization': string;
@@ -64,7 +72,7 @@ export interface IAdminAuthManager {
   setCedrosLoginAuth(token: string | null, isAdmin?: boolean): void;
 
   /** Create auth headers for admin request */
-  createAuthHeaders(purpose: string): Promise<AdminAuthHeaders | JwtAuthHeaders>;
+  createAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders | JwtAuthHeaders>;
 
   /** Fetch with admin auth headers */
   fetchWithAuth<T>(path: string, options?: RequestInit): Promise<T>;
@@ -112,11 +120,11 @@ export class AdminAuthManager implements IAdminAuthManager {
     getLogger().debug('[AdminAuthManager] Cedros-login auth updated:', { hasToken: !!token, isAdmin: this.isAdminUser });
   }
 
-  async createAuthHeaders(purpose: string): Promise<AdminAuthHeaders | JwtAuthHeaders> {
+  async createAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders | JwtAuthHeaders> {
     const method = this.getAuthMethod();
 
     if (method === 'wallet') {
-      return this.createWalletAuthHeaders(purpose);
+      return this.createWalletAuthHeaders(target);
     }
 
     if (method === 'cedros-login') {
@@ -126,26 +134,26 @@ export class AdminAuthManager implements IAdminAuthManager {
     throw new Error('No admin authentication configured. Connect a wallet or sign in as admin.');
   }
 
-  private async createWalletAuthHeaders(purpose: string): Promise<AdminAuthHeaders> {
+  private async createWalletAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders> {
     if (!this.walletSigner?.publicKey || !this.walletSigner.signMessage) {
       throw new Error('Wallet not connected or does not support message signing');
     }
 
     // Fetch nonce from server
-    const nonce = await this.fetchNonce(purpose);
+    const nonce = await this.fetchNonce(target);
 
-    // Sign the nonce ID with wallet
-    const messageBytes = new TextEncoder().encode(nonce.nonce_id);
+    // Sign the issued nonce exactly as returned by the server
+    const messageBytes = new TextEncoder().encode(nonce.nonce);
     const signatureBytes = await this.walletSigner.signMessage(messageBytes);
 
-    // Convert to base58 strings (Solana standard encoding)
+    // Server expects a base58 signer and a base64-encoded raw Ed25519 signature.
     const publicKeyBase58 = bs58.encode(this.walletSigner.publicKey.toBytes());
-    const signatureBase58 = bs58.encode(signatureBytes);
+    const signatureBase64 = Base64.fromUint8Array(signatureBytes);
 
     return {
       'X-Signer': publicKeyBase58,
-      'X-Message': nonce.nonce_id,
-      'X-Signature': signatureBase58,
+      'X-Message': nonce.nonce,
+      'X-Signature': signatureBase64,
     };
   }
 
@@ -159,14 +167,17 @@ export class AdminAuthManager implements IAdminAuthManager {
     };
   }
 
-  private async fetchNonce(purpose: string): Promise<NonceResponse> {
+  private async fetchNonce(target: string | AdminAuthTarget): Promise<NonceResponse> {
     const url = `${this.serverUrl}/paywall/v1/nonce`;
-    getLogger().debug('[AdminAuthManager] Fetching nonce for purpose:', purpose);
+    const nonceRequest = typeof target === 'string'
+      ? { purpose: target }
+      : { path: target.path, method: target.method.toUpperCase() };
+    getLogger().debug('[AdminAuthManager] Fetching nonce:', nonceRequest);
 
     const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purpose }),
+      body: JSON.stringify(nonceRequest),
     });
 
     if (!response.ok) {
@@ -184,11 +195,8 @@ export class AdminAuthManager implements IAdminAuthManager {
       throw new Error('No admin authentication configured');
     }
 
-    // Determine purpose from path for nonce
-    const purpose = this.getPurposeFromPath(path, options.method || 'GET');
-    const authHeaders = await this.createAuthHeaders(purpose);
-
     const reqMethod = (options.method || 'GET').toUpperCase();
+    const authHeaders = await this.createAuthHeaders({ path, method: reqMethod });
     const headers: Record<string, string> = {
       // Only set Content-Type for methods that typically carry a body
       ...(reqMethod !== 'GET' && reqMethod !== 'HEAD' ? { 'Content-Type': 'application/json' } : {}),
@@ -218,51 +226,6 @@ export class AdminAuthManager implements IAdminAuthManager {
     }
 
     return await response.json();
-  }
-
-  private getPurposeFromPath(path: string, method: string): string {
-    // Map paths to nonce purposes as defined by server-rust
-    const purposeMap: Record<string, Record<string, string>> = {
-      '/admin/stats': { GET: 'admin_stats' },
-      '/admin/products': {
-        GET: 'admin_products_list',
-        POST: 'admin_products_create',
-      },
-      '/admin/transactions': { GET: 'admin_transactions_list' },
-      '/admin/coupons': {
-        GET: 'admin_coupons_list',
-        POST: 'admin_coupons_create',
-      },
-      '/admin/refunds': { GET: 'admin_refunds_list' },
-      '/admin/config': { GET: 'admin_config_list' },
-    };
-
-    // Check exact path match first
-    const pathPurposes = purposeMap[path];
-    if (pathPurposes?.[method]) {
-      return pathPurposes[method];
-    }
-
-    // Check for parameterized paths
-    if (path.startsWith('/admin/products/')) {
-      if (method === 'PUT') return 'admin_products_update';
-      if (method === 'DELETE') return 'admin_products_delete';
-    }
-    if (path.startsWith('/admin/coupons/')) {
-      if (method === 'PUT') return 'admin_coupons_update';
-      if (method === 'DELETE') return 'admin_coupons_delete';
-    }
-    if (path.startsWith('/admin/refunds/') && path.includes('/process')) {
-      return 'admin_refunds_process';
-    }
-    if (path.startsWith('/admin/config/')) {
-      if (method === 'GET') return 'admin_config_get';
-      if (method === 'PUT') return 'admin_config_update';
-      if (method === 'PATCH') return 'admin_config_patch';
-    }
-
-    // Fallback to generic purpose
-    return `admin_${method.toLowerCase()}`;
   }
 }
 

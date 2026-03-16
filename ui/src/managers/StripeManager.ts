@@ -8,7 +8,11 @@ import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import type { NormalizedCartItem } from '../utils/cartHelpers';
 import { createRateLimiter, RATE_LIMITER_PRESETS } from '../utils/rateLimiter';
 import { createCircuitBreaker, CircuitBreakerOpenError } from '../utils/circuitBreaker';
-import { retryWithBackoff, RETRY_PRESETS } from '../utils/exponentialBackoff';
+import {
+  retryWithBackoff,
+  RETRY_PRESETS,
+  RetryableHttpError,
+} from '../utils/exponentialBackoff';
 
 /**
  * Options for processing a cart checkout
@@ -113,6 +117,7 @@ export class StripeManager implements IStripeManager {
   private initPromise: Promise<void> | null = null;
   private readonly publicKey: string;
   private readonly routeDiscovery: RouteDiscoveryManager;
+  private readonly complianceCheckEnabled: boolean;
   private readonly rateLimiter = createRateLimiter(RATE_LIMITER_PRESETS.PAYMENT);
   private readonly circuitBreaker = createCircuitBreaker({
     failureThreshold: 5,
@@ -120,9 +125,10 @@ export class StripeManager implements IStripeManager {
     name: 'stripe-manager',
   });
 
-  constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager) {
+  constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager, complianceCheckEnabled = false) {
     this.publicKey = publicKey;
     this.routeDiscovery = routeDiscovery;
+    this.complianceCheckEnabled = complianceCheckEnabled;
   }
 
   /**
@@ -157,6 +163,7 @@ export class StripeManager implements IStripeManager {
 
     // Circuit breaker + retry logic
     const idempotencyKey = generateUUID();
+    const requestBody = JSON.stringify(request);
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -174,17 +181,21 @@ export class StripeManager implements IStripeManager {
                 'Content-Type': 'application/json',
                 'Idempotency-Key': idempotencyKey,
               },
-              body: JSON.stringify(request),
+              body: requestBody,
             });
 
             if (!response.ok) {
               const errorMessage = await parseErrorResponse(response, 'Failed to create Stripe session');
-              throw new Error(errorMessage);
+              throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
             return await response.json();
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'stripe-create-session' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'stripe-create-session',
+            inFlightKey: `stripe:create-session:${requestBody}`,
+          }
         );
       });
     } catch (error) {
@@ -225,10 +236,38 @@ export class StripeManager implements IStripeManager {
   }
 
   /**
+   * Run a pre-flight compliance check for the given resources.
+   * Returns null if cleared, or a PaymentResult with the block reasons.
+   */
+  private async runComplianceCheck(resources: string[]): Promise<PaymentResult | null> {
+    if (!this.complianceCheckEnabled) return null;
+    try {
+      const url = await this.routeDiscovery.buildUrl('/paywall/v1/compliance-check');
+      const response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resources }),
+      });
+      if (!response.ok) return null; // Fail open — server-side gate is the security boundary
+      const data = await response.json();
+      if (!data.cleared) {
+        const reasons = (data.reasons as string[]) ?? ['Purchase blocked by compliance check'];
+        return { success: false, error: `Purchase blocked: ${reasons.join('; ')}` };
+      }
+    } catch {
+      // Fail open on network errors
+      getLogger().warn('[StripeManager] Compliance pre-check failed, proceeding');
+    }
+    return null;
+  }
+
+  /**
    * Handle complete payment flow: create session and redirect
    */
   async processPayment(request: StripeSessionRequest): Promise<PaymentResult> {
     try {
+      const blocked = await this.runComplianceCheck([request.resource]);
+      if (blocked) return blocked;
       const session = await this.createSession(request);
       return await this.redirectToCheckout(session.sessionId);
     } catch (error) {
@@ -261,6 +300,11 @@ export class StripeManager implements IStripeManager {
       paymentMethodId,
     } = options;
 
+    // Compliance pre-check for all cart resources
+    const cartResources = items.map(item => item.resource);
+    const blocked = await this.runComplianceCheck(cartResources);
+    if (blocked) return blocked;
+
     // Rate limiting check
     if (!this.rateLimiter.tryConsume()) {
       return {
@@ -270,30 +314,28 @@ export class StripeManager implements IStripeManager {
     }
 
     const cartIdempotencyKey = generateUUID();
+    const cartRequest = {
+      items,
+      successUrl,
+      cancelUrl,
+      metadata,
+      customerEmail,
+      customerName,
+      customerPhone,
+      shippingAddress,
+      billingAddress,
+      coupon: couponCode,
+      couponCode,
+      tipAmount,
+      shippingMethodId,
+      paymentMethodId,
+    };
+    const cartRequestBody = JSON.stringify(cartRequest);
     try {
       const session = await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
           async () => {
             const url = await this.routeDiscovery.buildUrl('/paywall/v1/cart/checkout');
-
-            // Rust server uses 'coupon', Go server used 'couponCode'
-            // Send both for backwards compatibility during migration
-            const cartRequest = {
-              items,
-              successUrl,
-              cancelUrl,
-              metadata,
-              customerEmail,
-              customerName,
-              customerPhone,
-              shippingAddress,
-              billingAddress,
-              coupon: couponCode,      // New Rust server field
-              couponCode,              // Legacy Go server field (backwards compat)
-              tipAmount,
-              shippingMethodId,
-              paymentMethodId,
-            };
 
             const response = await fetchWithTimeout(url, {
               method: 'POST',
@@ -301,17 +343,21 @@ export class StripeManager implements IStripeManager {
                 'Content-Type': 'application/json',
                 'Idempotency-Key': cartIdempotencyKey,
               },
-              body: JSON.stringify(cartRequest),
+              body: cartRequestBody,
             });
 
             if (!response.ok) {
               const errorMessage = await parseErrorResponse(response, 'Failed to create cart checkout session');
-              throw new Error(errorMessage);
+              throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
             return await response.json() as StripeSessionResponse;
           },
-          { ...RETRY_PRESETS.STANDARD, name: 'stripe-cart-checkout' }
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'stripe-cart-checkout',
+            inFlightKey: `stripe:cart-checkout:${cartRequestBody}`,
+          }
         );
       });
 

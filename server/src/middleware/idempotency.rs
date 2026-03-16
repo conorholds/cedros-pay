@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::{
-    body::Body,
+    body::{Body, HttpBody},
     extract::Request,
     http::{HeaderMap, StatusCode},
     middleware::Next,
@@ -139,19 +139,46 @@ pub async fn idempotency_middleware<S: Store + 'static>(
         &raw_idempotency_key,
     );
 
-    // Check for cached response
-    if let Ok(Some(cached)) = state.store.get_idempotency_key(&idempotency_key).await {
-        if let Some(stored_hash) = cached.headers.get(INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER) {
-            if stored_hash != &body_hash {
+    let claim = build_processing_claim(&body_hash);
+    match state
+        .store
+        .try_save_idempotency_key(&idempotency_key, claim, state.ttl)
+        .await
+    {
+        Ok(true) => {}
+        Ok(false) => match state.store.get_idempotency_key(&idempotency_key).await {
+            Ok(Some(cached)) => return build_existing_idempotency_response(cached, &body_hash),
+            Ok(None) => {
                 return Response::builder()
                     .status(StatusCode::CONFLICT)
                     .body(Body::from(
-                        "Idempotency-Key reuse with different request body",
+                        "Request with this Idempotency-Key is already in progress",
                     ))
                     .unwrap_or_else(|_| Response::new(Body::empty()));
             }
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    key = %idempotency_key,
+                    "Failed to load existing idempotency key after claim conflict"
+                );
+                return Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::from("Idempotency unavailable"))
+                    .unwrap_or_else(|_| Response::new(Body::empty()));
+            }
+        },
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                key = %idempotency_key,
+                "Failed to atomically claim idempotency key"
+            );
+            return Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("Idempotency unavailable"))
+                .unwrap_or_else(|_| Response::new(Body::empty()));
         }
-        return build_cached_response(cached);
     }
 
     // Reconstruct request with body for next handler
@@ -160,53 +187,70 @@ pub async fn idempotency_middleware<S: Store + 'static>(
     // Execute request and capture response
     let response = next.run(request).await;
 
-    // Cache the response
     let (parts, body) = response.into_parts();
+    if !parts.status.is_success() {
+        release_idempotency_claim(state.store.as_ref(), &idempotency_key).await;
+        return Response::from_parts(parts, body);
+    }
+
+    let size_hint = body.size_hint();
+    if response_size_known_too_large(size_hint.lower(), size_hint.upper()) {
+        tracing::warn!(
+            lower = size_hint.lower(),
+            upper = size_hint.upper().unwrap_or_default(),
+            max = MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE,
+            "Idempotency response too large to cache"
+        );
+        release_idempotency_claim(state.store.as_ref(), &idempotency_key).await;
+        return Response::from_parts(parts, body);
+    }
+
     let bytes = match body.collect().await {
         Ok(collected) => collected.to_bytes(),
-        Err(_) => return Response::from_parts(parts, Body::empty()),
+        Err(_) => {
+            release_idempotency_claim(state.store.as_ref(), &idempotency_key).await;
+            return Response::from_parts(parts, Body::empty());
+        }
     };
 
-    // Per spec (10-middleware.md): Only cache 2xx responses
-    // Non-success responses should not be cached (allows retry)
-    if parts.status.is_success() {
-        if bytes.len() <= MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE {
-            let mut headers: HashMap<String, String> = parts
-                .headers
-                .iter()
-                .filter_map(|(k, v)| Some((k.to_string(), v.to_str().ok()?.to_string())))
-                .collect();
-            headers.insert(
-                INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER.to_string(),
-                body_hash.clone(),
-            );
+    if bytes.len() <= MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE {
+        let mut headers: HashMap<String, String> = parts
+            .headers
+            .iter()
+            .filter_map(|(k, v)| Some((k.to_string(), v.to_str().ok()?.to_string())))
+            .collect();
+        headers.insert(
+            INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER.to_string(),
+            body_hash.clone(),
+        );
 
-            let cached = IdempotencyResponse {
-                status_code: parts.status.as_u16() as i32,
-                headers,
-                body: bytes.to_vec(),
-                cached_at: Utc::now(),
-            };
+        let cached = IdempotencyResponse {
+            status_code: parts.status.as_u16() as i32,
+            headers,
+            body: bytes.to_vec(),
+            cached_at: Utc::now(),
+        };
 
-            // ERR-002: Store in cache with warning on failure
-            if let Err(e) = state
-                .store
-                .save_idempotency_key(&idempotency_key, cached.clone(), state.ttl)
-                .await
-            {
-                tracing::warn!(
-                    error = %e,
-                    key = %idempotency_key,
-                    "failed to save idempotency key - response will not be cached"
-                );
-            }
-        } else {
+        // ERR-002: Store in cache with warning on failure
+        if let Err(e) = state
+            .store
+            .save_idempotency_key(&idempotency_key, cached, state.ttl)
+            .await
+        {
             tracing::warn!(
-                size = bytes.len(),
-                max = MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE,
-                "Idempotency response too large to cache"
+                error = %e,
+                key = %idempotency_key,
+                "failed to save idempotency key - response will not be cached"
             );
+            release_idempotency_claim(state.store.as_ref(), &idempotency_key).await;
         }
+    } else {
+        tracing::warn!(
+            size = bytes.len(),
+            max = MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE,
+            "Idempotency response too large to cache"
+        );
+        release_idempotency_claim(state.store.as_ref(), &idempotency_key).await;
     }
 
     // Rebuild response
@@ -220,6 +264,17 @@ pub async fn idempotency_middleware<S: Store + 'static>(
 pub const HEADER_IDEMPOTENCY_REPLAY: &str = "x-idempotency-replay";
 
 const INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER: &str = "x-cedros-idempotency-request-hash";
+const IDEMPOTENCY_IN_PROGRESS_STATUS_CODE: i32 = 102;
+
+fn response_size_known_too_large(lower: u64, upper: Option<u64>) -> bool {
+    if lower > MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE as u64 {
+        return true;
+    }
+
+    upper
+        .map(|size| size > MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE as u64)
+        .unwrap_or(false)
+}
 
 fn build_cached_response(cached: IdempotencyResponse) -> Response {
     let mut response = Response::new(Body::from(cached.body));
@@ -245,6 +300,55 @@ fn build_cached_response(cached: IdempotencyResponse) -> Response {
     );
 
     response
+}
+
+fn build_processing_claim(body_hash: &str) -> IdempotencyResponse {
+    let mut headers = HashMap::new();
+    headers.insert(
+        INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER.to_string(),
+        body_hash.to_string(),
+    );
+
+    IdempotencyResponse {
+        status_code: IDEMPOTENCY_IN_PROGRESS_STATUS_CODE,
+        headers,
+        body: Vec::new(),
+        cached_at: Utc::now(),
+    }
+}
+
+fn build_existing_idempotency_response(cached: IdempotencyResponse, body_hash: &str) -> Response {
+    if let Some(stored_hash) = cached.headers.get(INTERNAL_IDEMPOTENCY_REQUEST_HASH_HEADER) {
+        if stored_hash != body_hash {
+            return Response::builder()
+                .status(StatusCode::CONFLICT)
+                .body(Body::from(
+                    "Idempotency-Key reuse with different request body",
+                ))
+                .unwrap_or_else(|_| Response::new(Body::empty()));
+        }
+    }
+
+    if cached.status_code == IDEMPOTENCY_IN_PROGRESS_STATUS_CODE {
+        return Response::builder()
+            .status(StatusCode::CONFLICT)
+            .body(Body::from(
+                "Request with this Idempotency-Key is already in progress",
+            ))
+            .unwrap_or_else(|_| Response::new(Body::empty()));
+    }
+
+    build_cached_response(cached)
+}
+
+async fn release_idempotency_claim<S: Store>(store: &S, key: &str) {
+    if let Err(e) = store.delete_idempotency_key(key).await {
+        tracing::warn!(
+            error = %e,
+            key = %key,
+            "Failed to release idempotency claim"
+        );
+    }
 }
 
 /// Simple idempotency check without full middleware (for manual use)
@@ -279,6 +383,12 @@ pub async fn save_idempotency<S: Store>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use axum::{routing::post, Router};
+    use tower::ServiceExt;
+
+    use crate::storage::InMemoryStore;
 
     #[test]
     fn test_idempotency_key_includes_query() {
@@ -286,5 +396,149 @@ mod tests {
         let key_b = build_idempotency_key("tenant", "POST", "/paywall/v1/cart?x=2", "abc");
         assert_ne!(key_a, key_b);
         assert!(key_a.contains("?x=1"));
+    }
+
+    #[tokio::test]
+    async fn test_idempotency_replays_completed_response_without_reexecuting() {
+        let store = Arc::new(InMemoryStore::new());
+        let state = Arc::new(IdempotencyState::with_ttl(store, Duration::from_secs(60)));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let handler_calls = calls.clone();
+
+        let app = Router::new()
+            .route(
+                "/",
+                post(move || {
+                    let handler_calls = handler_calls.clone();
+                    async move {
+                        handler_calls.fetch_add(1, Ordering::SeqCst);
+                        "ok"
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn_with_state(
+                state,
+                idempotency_middleware::<InMemoryStore>,
+            ));
+
+        let req1 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+        let resp1 = app.clone().oneshot(req1).await.unwrap();
+        assert_eq!(resp1.status(), StatusCode::OK);
+
+        let req2 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+        let resp2 = app.oneshot(req2).await.unwrap();
+        assert_eq!(resp2.status(), StatusCode::OK);
+        assert_eq!(
+            resp2.headers().get(HEADER_IDEMPOTENCY_REPLAY).unwrap(),
+            "true"
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_idempotency_prevents_concurrent_duplicate_execution() {
+        let store = Arc::new(InMemoryStore::new());
+        let state = Arc::new(IdempotencyState::with_ttl(store, Duration::from_secs(60)));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let handler_calls = calls.clone();
+
+        let app = Router::new()
+            .route(
+                "/",
+                post(move || {
+                    let handler_calls = handler_calls.clone();
+                    async move {
+                        handler_calls.fetch_add(1, Ordering::SeqCst);
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                        "ok"
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn_with_state(
+                state,
+                idempotency_middleware::<InMemoryStore>,
+            ));
+
+        let req1 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+        let req2 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+
+        let (resp1, resp2) = tokio::join!(app.clone().oneshot(req1), app.oneshot(req2));
+        let statuses = [resp1.unwrap().status(), resp2.unwrap().status()];
+
+        assert!(statuses.contains(&StatusCode::OK));
+        assert!(statuses.contains(&StatusCode::CONFLICT));
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_idempotency_skips_caching_known_large_success_responses() {
+        let store = Arc::new(InMemoryStore::new());
+        let state = Arc::new(IdempotencyState::with_ttl(store, Duration::from_secs(60)));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let handler_calls = calls.clone();
+        let large_body = Arc::new("x".repeat(MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE + 1));
+
+        let app = Router::new()
+            .route(
+                "/",
+                post(move || {
+                    let handler_calls = handler_calls.clone();
+                    let large_body = large_body.clone();
+                    async move {
+                        handler_calls.fetch_add(1, Ordering::SeqCst);
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "text/plain")
+                            .body(Body::from((*large_body).clone()))
+                            .unwrap()
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn_with_state(
+                state,
+                idempotency_middleware::<InMemoryStore>,
+            ));
+
+        let req1 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+        let resp1 = app.clone().oneshot(req1).await.unwrap();
+        let body1 = resp1.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(body1.len(), MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE + 1);
+
+        let req2 = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header(HEADER_IDEMPOTENCY_KEY, "same-key")
+            .body(Body::from(r#"{"value":1}"#))
+            .unwrap();
+        let resp2 = app.oneshot(req2).await.unwrap();
+        assert!(resp2.headers().get(HEADER_IDEMPOTENCY_REPLAY).is_none());
+        let body2 = resp2.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(body2.len(), MAX_IDEMPOTENCY_CACHED_RESPONSE_BODY_SIZE + 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
     }
 }

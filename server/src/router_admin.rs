@@ -9,6 +9,9 @@ use axum::{
     Router,
 };
 
+use axum::extract::DefaultBodyLimit;
+
+use crate::constants;
 use crate::handlers;
 use crate::middleware;
 use crate::router::RouterStates;
@@ -33,6 +36,10 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         storefront_state,
         token22_admin_state,
         asset_redemption_admin_state,
+        compliance_admin_state,
+        sweep_settings_state,
+        compliance_policy_state,
+        admin_images_state,
         paywall_prefix,
         store,
     } = states;
@@ -78,7 +85,10 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
     // Public storefront settings endpoint (PostgreSQL only, no admin auth)
     if let Some(storefront_state) = storefront_state {
         let storefront_routes = Router::new()
-            .route("/storefront", get(handlers::storefront::get_storefront_config))
+            .route(
+                "/storefront",
+                get(handlers::storefront::get_storefront_config),
+            )
             .with_state(storefront_state);
         router = router.nest(&paywall_prefix, storefront_routes);
     }
@@ -102,6 +112,32 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
     if let Some(ar_state) = asset_redemption_admin_state {
         let ar_routes = build_asset_redemption_routes(ar_state, admin_auth_state.clone());
         router = router.nest("/admin", ar_routes);
+    }
+
+    // Compliance admin routes (optional — only when Token22Service is configured)
+    if let Some(compliance_state) = compliance_admin_state {
+        let compliance_routes =
+            build_compliance_routes(compliance_state, admin_auth_state.clone());
+        router = router.nest("/admin", compliance_routes);
+    }
+
+    // Compliance sanctions-api policy routes (requires Postgres + SanctionsListService)
+    if let Some(policy_state) = compliance_policy_state {
+        let policy_routes =
+            build_compliance_policy_routes(policy_state, admin_auth_state.clone());
+        router = router.nest("/admin", policy_routes);
+    }
+
+    // Compliance sweep-settings routes (requires Postgres + Token22)
+    if let Some(sweep_state) = sweep_settings_state {
+        let sweep_routes = build_sweep_settings_routes(sweep_state, admin_auth_state.clone());
+        router = router.nest("/admin", sweep_routes);
+    }
+
+    // Image upload/delete routes (PostgreSQL only, with increased body size limit)
+    if let Some(images_state) = admin_images_state {
+        let image_routes = build_image_routes(images_state, admin_auth_state.clone());
+        router = router.nest("/admin", image_routes);
     }
 
     router
@@ -140,10 +176,7 @@ fn build_token22_routes<S: Store + 'static>(
             "/token22/initialize",
             post(handlers::admin_token22::initialize_mint),
         )
-        .route(
-            "/token22/status",
-            get(handlers::admin_token22::get_status),
-        )
+        .route("/token22/status", get(handlers::admin_token22::get_status))
         .route(
             "/token22/harvest-fees",
             post(handlers::admin_token22::harvest_fees),
@@ -175,6 +208,12 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub token22_admin_state: Option<Arc<handlers::admin_token22::Token22AdminState>>,
     pub asset_redemption_admin_state:
         Option<Arc<handlers::admin_asset_redemptions::AssetRedemptionAdminState>>,
+    pub compliance_admin_state: Option<Arc<handlers::admin_compliance::ComplianceAdminState>>,
+    pub sweep_settings_state:
+        Option<Arc<handlers::admin_compliance_settings::SweepSettingsState>>,
+    pub compliance_policy_state:
+        Option<Arc<handlers::admin_compliance_policy::CompliancePolicyState>>,
+    pub admin_images_state: Option<Arc<handlers::admin_images::ImageUploadState>>,
     pub paywall_prefix: String,
     pub store: Arc<S>,
 }
@@ -197,6 +236,34 @@ impl<S: Store + 'static> AdminRouteStates<S> {
                     store: states.store.clone() as Arc<dyn Store>,
                 })
             }),
+            admin_images_state: states.admin_images_state.clone(),
+            compliance_admin_state: states.token22_service.clone().map(|t22| {
+                Arc::new(handlers::admin_compliance::ComplianceAdminState {
+                    token22: t22,
+                    store: states.store.clone() as Arc<dyn Store>,
+                })
+            }),
+            sweep_settings_state: states
+                .admin_config_state
+                .as_ref()
+                .zip(states.token22_service.as_ref())
+                .map(|(cfg, _t22)| {
+                    Arc::new(handlers::admin_compliance_settings::SweepSettingsState {
+                        config_repo: cfg.repo.clone(),
+                        store: states.store.clone() as Arc<dyn Store>,
+                    })
+                }),
+            compliance_policy_state: states
+                .admin_config_state
+                .as_ref()
+                .zip(states.sanctions_list_service.as_ref())
+                .map(|(cfg, sls)| {
+                    Arc::new(handlers::admin_compliance_policy::CompliancePolicyState {
+                        config_repo: cfg.repo.clone(),
+                        sanctions_service: sls.clone(),
+                        store: states.store.clone() as Arc<dyn Store>,
+                    })
+                }),
             asset_redemption_admin_state: Some(Arc::new(
                 handlers::admin_asset_redemptions::AssetRedemptionAdminState {
                     store: states.store.clone() as Arc<dyn Store>,
@@ -566,13 +633,106 @@ fn build_dashboard_routes<S: Store + 'static>(
         )
         // Refunds
         .route("/refunds", get(handlers::admin::list_refunds))
-        .route(
-            "/refunds/{id}/process",
-            post(handlers::admin::process_refund),
-        )
         // Audit log
         .route("/audit", get(handlers::admin::list_audit))
         .with_state(admin_dashboard_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_compliance_routes<S: Store + 'static>(
+    compliance_state: Arc<handlers::admin_compliance::ComplianceAdminState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/compliance/holders",
+            get(handlers::admin_compliance::list_holders),
+        )
+        .route(
+            "/compliance/actions",
+            get(handlers::admin_compliance::list_actions),
+        )
+        .route(
+            "/compliance/freeze",
+            post(handlers::admin_compliance::freeze_holder),
+        )
+        .route(
+            "/compliance/thaw",
+            post(handlers::admin_compliance::thaw_holder),
+        )
+        .route(
+            "/compliance/report",
+            get(handlers::admin_compliance::generate_report),
+        )
+        .with_state(compliance_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_sweep_settings_routes<S: Store + 'static>(
+    sweep_state: Arc<handlers::admin_compliance_settings::SweepSettingsState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/compliance/sweep-settings",
+            get(handlers::admin_compliance_settings::get_sweep_settings),
+        )
+        .route(
+            "/compliance/sweep-settings",
+            put(handlers::admin_compliance_settings::update_sweep_settings),
+        )
+        .with_state(sweep_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_compliance_policy_routes<S: Store + 'static>(
+    policy_state: Arc<handlers::admin_compliance_policy::CompliancePolicyState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/compliance/sanctions-api",
+            get(handlers::admin_compliance_policy::get_sanctions_api_settings),
+        )
+        .route(
+            "/compliance/sanctions-api",
+            put(handlers::admin_compliance_policy::update_sanctions_api_settings),
+        )
+        .route(
+            "/compliance/sanctions-api/refresh",
+            post(handlers::admin_compliance_policy::force_refresh),
+        )
+        .with_state(policy_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_image_routes<S: Store + 'static>(
+    images_state: Arc<handlers::admin_images::ImageUploadState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/images/upload",
+            post(handlers::admin_images::upload_image),
+        )
+        .route(
+            "/images",
+            delete(handlers::admin_images::delete_image),
+        )
+        .with_state(images_state)
+        .layer(DefaultBodyLimit::max(constants::MAX_IMAGE_UPLOAD_SIZE))
         .layer(axum::middleware::from_fn_with_state(
             admin_auth_state,
             middleware::admin_middleware,

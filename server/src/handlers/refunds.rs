@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::IntoResponse,
     Json,
 };
@@ -158,6 +158,8 @@ pub struct PendingRefundInfo {
 #[serde(rename_all = "camelCase")]
 pub struct NonceRequest {
     pub purpose: Option<String>,
+    pub path: Option<String>,
+    pub method: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,7 +167,7 @@ pub struct NonceRequest {
 pub struct NonceResponse {
     pub nonce: String,
     pub expires_at: i64,
-    /// Purpose echoed back (empty string = wildcard)
+    /// Canonical purpose stored with the issued nonce
     pub purpose: String,
 }
 
@@ -173,6 +175,55 @@ use super::cap_limit;
 
 fn default_limit() -> i32 {
     100
+}
+
+fn resolve_requested_nonce_purpose(req: &NonceRequest) -> Result<String, (ErrorCode, String)> {
+    match (&req.path, &req.method) {
+        (Some(path), Some(method)) => {
+            let parsed_method = Method::from_bytes(method.trim().to_uppercase().as_bytes())
+                .map_err(|_| {
+                    (
+                        ErrorCode::InvalidField,
+                        "invalid method for nonce request".to_string(),
+                    )
+                })?;
+
+            let resolved = crate::middleware::auth::admin_nonce_purpose_for_path_and_method(
+                &parsed_method,
+                path.trim(),
+            )
+            .ok_or_else(|| {
+                (
+                    ErrorCode::InvalidField,
+                    "unknown admin route for nonce request".to_string(),
+                )
+            })?
+            .to_string();
+
+            if let Some(explicit) = req.purpose.as_deref() {
+                if !explicit.trim().is_empty() && explicit != resolved {
+                    return Err((
+                        ErrorCode::InvalidField,
+                        "nonce purpose does not match requested route".to_string(),
+                    ));
+                }
+            }
+
+            Ok(resolved)
+        }
+        (None, None) => match req.purpose.as_deref().map(str::trim) {
+            Some("") => Err((
+                ErrorCode::InvalidField,
+                "purpose must not be empty".to_string(),
+            )),
+            Some(purpose) => Ok(purpose.to_string()),
+            None => Err((ErrorCode::MissingField, "purpose is required".to_string())),
+        },
+        _ => Err((
+            ErrorCode::MissingField,
+            "path and method must both be provided for route-derived nonces".to_string(),
+        )),
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -349,16 +400,15 @@ pub async fn approve_refund<S: Store + 'static>(
         return json_error(status, body);
     }
 
-    // Validate admin signature over the nonce (expensive cryptographic operation)
-    let sig_result = verify_admin_signature(
+    // Body deserialization already guarantees signature/nonce/signer strings exist here.
+    // Only invalid signatures should reach this check.
+    let sig_result = verify_refund_body_signature(
         &req.signature,
         &req.nonce,
         &req.signer,
         &state.admin_public_keys,
     );
-    if let SignatureVerifyResult::Invalid { reason } | SignatureVerifyResult::Missing { reason } =
-        sig_result
-    {
+    if let Err(reason) = sig_result {
         let (status, body) = crate::errors::error_response(
             ErrorCode::InvalidSignature,
             Some(format!("signature verification failed: {}", reason)),
@@ -422,16 +472,15 @@ pub async fn deny_refund<S: Store + 'static>(
         return json_error(status, body);
     }
 
-    // Validate admin signature over the nonce (expensive cryptographic operation)
-    let sig_result = verify_admin_signature(
+    // Body deserialization already guarantees signature/nonce/signer strings exist here.
+    // Only invalid signatures should reach this check.
+    let sig_result = verify_refund_body_signature(
         &req.signature,
         &req.nonce,
         &req.signer,
         &state.admin_public_keys,
     );
-    if let SignatureVerifyResult::Invalid { reason } | SignatureVerifyResult::Missing { reason } =
-        sig_result
-    {
+    if let Err(reason) = sig_result {
         let (status, body) = crate::errors::error_response(
             ErrorCode::InvalidSignature,
             Some(format!("signature verification failed: {}", reason)),
@@ -479,16 +528,15 @@ pub async fn list_pending_refunds<S: Store + 'static>(
         return json_error(status, body);
     }
 
-    // Validate admin signature over the nonce (expensive cryptographic operation)
-    let sig_result = verify_admin_signature(
+    // Body deserialization already guarantees signature/nonce/signer strings exist here.
+    // Only invalid signatures should reach this check.
+    let sig_result = verify_refund_body_signature(
         &req.signature,
         &req.nonce,
         &req.signer,
         &state.admin_public_keys,
     );
-    if let SignatureVerifyResult::Invalid { reason } | SignatureVerifyResult::Missing { reason } =
-        sig_result
-    {
+    if let Err(reason) = sig_result {
         let (status, body) = crate::errors::error_response(
             ErrorCode::InvalidSignature,
             Some(format!("signature verification failed: {}", reason)),
@@ -545,8 +593,13 @@ pub async fn create_nonce<S: Store + 'static>(
         + chrono::Duration::from_std(NONCE_TTL).unwrap_or_else(|_| chrono::Duration::minutes(5));
     let nonce_id = generate_nonce_id();
 
-    // Empty string purpose acts as wildcard per spec 04-http-endpoints-refunds.md
-    let purpose = req.purpose.clone().unwrap_or_default();
+    let purpose = match resolve_requested_nonce_purpose(&req) {
+        Ok(purpose) => purpose,
+        Err((code, message)) => {
+            let (status, body) = crate::errors::error_response(code, Some(message), None);
+            return json_error(status, body);
+        }
+    };
     let nonce = AdminNonce {
         id: nonce_id.clone(),
         tenant_id: tenant.tenant_id.clone(),
@@ -658,6 +711,26 @@ fn nonce_error_to_code(err: &str) -> ErrorCode {
     }
 }
 
+fn verify_refund_body_signature(
+    signature: &str,
+    nonce: &str,
+    signer: &str,
+    admin_public_keys: &[String],
+) -> Result<(), String> {
+    match verify_admin_signature(signature, nonce, signer, admin_public_keys) {
+        SignatureVerifyResult::Valid { .. } => Ok(()),
+        SignatureVerifyResult::Invalid { reason } => Err(reason),
+        SignatureVerifyResult::Missing { reason } => {
+            debug_assert!(
+                false,
+                "refund body signature verification should not return Missing: {}",
+                reason
+            );
+            Err(reason)
+        }
+    }
+}
+
 async fn validate_and_consume_nonce<S: Store>(
     store: &Arc<S>,
     tenant_id: &str,
@@ -698,5 +771,85 @@ async fn validate_and_consume_nonce<S: Store>(
             Err("nonce_already_used".to_string())
         }
         Err(e) => Err(format!("consume_failed: {}", e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        resolve_requested_nonce_purpose, verify_refund_body_signature, NonceRequest,
+        RefundPendingRequest, RefundProcessRequest,
+    };
+    use crate::errors::ErrorCode;
+
+    #[test]
+    fn route_derived_nonce_requests_use_canonical_admin_purposes() {
+        let req = NonceRequest {
+            purpose: None,
+            path: Some("/admin/config/history".to_string()),
+            method: Some("GET".to_string()),
+        };
+
+        assert_eq!(
+            resolve_requested_nonce_purpose(&req).unwrap(),
+            "config_history"
+        );
+    }
+
+    #[test]
+    fn empty_purpose_nonce_requests_are_rejected() {
+        let req = NonceRequest {
+            purpose: Some("   ".to_string()),
+            path: None,
+            method: None,
+        };
+
+        assert_eq!(
+            resolve_requested_nonce_purpose(&req),
+            Err((
+                ErrorCode::InvalidField,
+                "purpose must not be empty".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn missing_purpose_nonce_requests_are_rejected() {
+        let req = NonceRequest {
+            purpose: None,
+            path: None,
+            method: None,
+        };
+
+        assert_eq!(
+            resolve_requested_nonce_purpose(&req),
+            Err((ErrorCode::MissingField, "purpose is required".to_string()))
+        );
+    }
+
+    #[test]
+    fn refund_process_requests_require_signature_fields() {
+        let err = serde_json::from_str::<RefundProcessRequest>(
+            r#"{"refundId":"r1","nonce":"n1","signer":"s1"}"#,
+        )
+        .unwrap_err();
+
+        assert!(err.to_string().contains("signature"));
+    }
+
+    #[test]
+    fn refund_pending_requests_require_signature_fields() {
+        let err = serde_json::from_str::<RefundPendingRequest>(r#"{"nonce":"n1","signer":"s1"}"#)
+            .unwrap_err();
+
+        assert!(err.to_string().contains("signature"));
+    }
+
+    #[test]
+    fn refund_body_signature_helper_propagates_invalid_signature_reasons() {
+        let err = verify_refund_body_signature("bad", "nonce", "signer", &["signer".to_string()])
+            .unwrap_err();
+
+        assert!(err.contains("invalid"));
     }
 }

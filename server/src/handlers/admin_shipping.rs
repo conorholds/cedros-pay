@@ -196,7 +196,15 @@ pub async fn create_profile(
 
     match state.store.create_shipping_profile(profile.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_profile", &profile.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_profile",
+                &profile.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(profile)
         }
         Err(e) => {
@@ -266,7 +274,15 @@ pub async fn update_profile(
 
     match state.store.update_shipping_profile(profile.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_profile", &id, "update", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_profile",
+                &id,
+                "update",
+                None,
+            )
+            .await;
             json_ok(profile)
         }
         Err(crate::storage::StorageError::NotFound) => {
@@ -299,7 +315,15 @@ pub async fn delete_profile(
         .await
     {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_profile", &id, "delete", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_profile",
+                &id,
+                "delete",
+                None,
+            )
+            .await;
             json_ok(serde_json::json!({ "success": true }))
         }
         Err(crate::storage::StorageError::NotFound) => {
@@ -379,7 +403,15 @@ pub async fn create_rate(
 
     match state.store.create_shipping_rate(rate.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_rate", &rate.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_rate",
+                &rate.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(rate)
         }
         Err(e) => {
@@ -447,7 +479,15 @@ pub async fn update_rate(
 
     match state.store.update_shipping_rate(rate.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_rate", &rate_id, "update", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_rate",
+                &rate_id,
+                "update",
+                None,
+            )
+            .await;
             json_ok(rate)
         }
         Err(crate::storage::StorageError::NotFound) => {
@@ -480,7 +520,15 @@ pub async fn delete_rate(
         .await
     {
         Ok(()) => {
-            audit(&*state.store, &tenant, "shipping_rate", &rate_id, "delete", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "shipping_rate",
+                &rate_id,
+                "delete",
+                None,
+            )
+            .await;
             json_ok(serde_json::json!({ "success": true }))
         }
         Err(crate::storage::StorageError::NotFound) => {

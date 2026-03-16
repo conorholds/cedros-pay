@@ -1,9 +1,9 @@
-use std::sync::LazyLock;
 use prometheus::{
     register_counter_vec_with_registry, register_gauge_vec_with_registry,
     register_gauge_with_registry, register_histogram_vec_with_registry, CounterVec, Gauge,
     GaugeVec, HistogramVec,
 };
+use std::sync::LazyLock;
 
 use super::REGISTRY;
 

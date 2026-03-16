@@ -2,7 +2,8 @@
 
 use std::str::FromStr;
 
-#[allow(deprecated)] // solana_sdk::system_instruction re-exported; solana_system_interface not in dep tree
+#[allow(deprecated)]
+// solana_sdk::system_instruction re-exported; solana_system_interface not in dep tree
 use solana_sdk::system_instruction;
 use solana_sdk::{
     hash::Hash,
@@ -56,7 +57,7 @@ fn build_init_transfer_fee_config_ix(
     let mut data = Vec::with_capacity(80);
     data.push(26u8); // TransferFeeExtension
     data.push(0u8); // sub: InitializeTransferFeeConfig
-    // transfer_fee_config_authority: COption::Some(authority)
+                    // transfer_fee_config_authority: COption::Some(authority)
     data.push(1u8);
     data.extend_from_slice(&authority.to_bytes());
     // withdraw_withheld_authority: COption::Some(authority)
@@ -142,7 +143,7 @@ pub async fn create_mint_with_transfer_fee(
     let init_fee_ix =
         build_init_transfer_fee_config_ix(&mint_pubkey, &authority, transfer_fee_bps, max_fee);
 
-    let init_mint_ix = build_init_mint2_ix(&mint_pubkey, &authority, None, decimals);
+    let init_mint_ix = build_init_mint2_ix(&mint_pubkey, &authority, Some(&authority), decimals);
 
     let bh_response = service
         .blockhash_cache

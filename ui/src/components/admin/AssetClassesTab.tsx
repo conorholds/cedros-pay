@@ -27,6 +27,7 @@ interface AssetClassCollection {
     custodyProofUrl?: string;
     regulatoryNotice?: string;
     allowedJurisdictions: string[];
+    redemptionConfig?: RedemptionConfig | null;
   };
 }
 
@@ -248,7 +249,7 @@ export function AssetClassesTab({ serverUrl, apiKey, authManager, onNavigateToLi
       treasuryAddress: cfg.treasuryAddress ?? '',
       regulatoryNotice: cfg.regulatoryNotice ?? '',
       jurisdictions: cfg.allowedJurisdictions.join(', '),
-      redemptionConfig: null,
+      redemptionConfig: cfg.redemptionConfig ?? null,
     });
     setEditingId(c.id);
     setShowForm(true);
@@ -312,6 +313,18 @@ export function AssetClassesTab({ serverUrl, apiKey, authManager, onNavigateToLi
                 {ASSET_CLASS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, marginBottom: 4 }}>Description</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Brief description of this asset class"
+              style={{ width: '100%', padding: '0.4rem 0.6rem', border: '1px solid rgba(0,0,0,0.2)', borderRadius: 4, fontSize: '0.9rem' }}
+            />
           </div>
 
           {/* Row 2: Symbol + Fee + Treasury */}

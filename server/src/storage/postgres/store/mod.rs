@@ -17,11 +17,12 @@ use super::parsers::{
     parse_dlq_webhook, parse_email, parse_faq, parse_fulfillment, parse_gift_card,
     parse_idempotency_response, parse_inventory_adjustment, parse_inventory_reservation,
     parse_order, parse_order_history, parse_payment_transaction, parse_refund_quote,
-    parse_return_request, parse_shipping_profile, parse_shipping_rate,
-    parse_stripe_refund_request, parse_subscription, parse_tax_rate, parse_webhook,
+    parse_return_request, parse_shipping_profile, parse_shipping_rate, parse_stripe_refund_request,
+    parse_subscription, parse_tax_rate, parse_webhook,
 };
 use super::queries;
 use crate::config::SchemaMapping;
+use crate::models::compliance::{ComplianceAction, TokenHolder};
 use crate::models::{
     AdminAuditEntry, AssetRedemption, CartQuote, ChatMessage, ChatSession, Collection, Customer,
     DisputeRecord, Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment,
@@ -41,6 +42,7 @@ mod auth;
 mod cart;
 mod catalog;
 mod chat;
+mod compliance;
 mod inventory;
 mod orders;
 mod payments;
@@ -261,6 +263,9 @@ impl Store for PostgresStore {
         limit: i32,
     ) -> StorageResult<Vec<RefundQuote>> {
         refunds::list_pending_refunds(self, tenant_id, limit).await
+    }
+    async fn count_pending_refunds(&self, tenant_id: &str) -> StorageResult<i64> {
+        refunds::count_pending_refunds(self, tenant_id).await
     }
     async fn list_credits_refund_requests(
         &self,
@@ -526,6 +531,22 @@ impl Store for PostgresStore {
         )
         .await
     }
+    async fn get_active_inventory_reservation_quantities_excluding_cart(
+        &self,
+        tenant_id: &str,
+        items: &[(String, Option<String>)],
+        exclude_cart_id: &str,
+        now: DateTime<Utc>,
+    ) -> StorageResult<std::collections::HashMap<(String, Option<String>), i64>> {
+        inventory::get_active_inventory_reservation_quantities_excluding_cart(
+            self,
+            tenant_id,
+            items,
+            exclude_cart_id,
+            now,
+        )
+        .await
+    }
     async fn list_active_reservations_for_cart(
         &self,
         tenant_id: &str,
@@ -601,7 +622,16 @@ impl Store for PostgresStore {
         limit: i32,
         offset: i32,
     ) -> StorageResult<Vec<AdminAuditEntry>> {
-        admin_audit::list_admin_audit(self, tenant_id, resource_type, resource_id, actor, limit, offset).await
+        admin_audit::list_admin_audit(
+            self,
+            tenant_id,
+            resource_type,
+            resource_id,
+            actor,
+            limit,
+            offset,
+        )
+        .await
     }
 
     // ─── Catalog (shipping, tax, customers, disputes, gift cards, collections)
@@ -1326,6 +1356,84 @@ impl Store for PostgresStore {
         offset: i32,
     ) -> StorageResult<(Vec<Faq>, i64)> {
         chat::list_public_faqs(self, tenant_id, limit, offset).await
+    }
+
+    // ─── Compliance ───────────────────────────────────────────────────────
+    async fn record_token_holder(&self, holder: TokenHolder) -> StorageResult<()> {
+        compliance::record_token_holder(self, holder).await
+    }
+    async fn list_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        wallet: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        compliance::list_token_holders(self, tenant_id, status, wallet, collection_id, limit, offset)
+            .await
+    }
+    async fn list_unfrozen_token_holders(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        compliance::list_unfrozen_token_holders(self, tenant_id, limit, offset).await
+    }
+    async fn count_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+    ) -> StorageResult<i64> {
+        compliance::count_token_holders(self, tenant_id, status).await
+    }
+    async fn update_token_holder_status(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+        status: &str,
+        frozen_at: Option<DateTime<Utc>>,
+        freeze_tx: Option<&str>,
+        thaw_tx: Option<&str>,
+    ) -> StorageResult<()> {
+        compliance::update_token_holder_status(
+            self, tenant_id, holder_id, status, frozen_at, freeze_tx, thaw_tx,
+        )
+        .await
+    }
+    async fn get_token_holder(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+    ) -> StorageResult<Option<TokenHolder>> {
+        compliance::get_token_holder(self, tenant_id, holder_id).await
+    }
+    async fn record_compliance_action(&self, action: ComplianceAction) -> StorageResult<()> {
+        compliance::record_compliance_action(self, action).await
+    }
+    async fn list_compliance_actions(
+        &self,
+        tenant_id: &str,
+        action_type: Option<&str>,
+        wallet: Option<&str>,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<ComplianceAction>> {
+        compliance::list_compliance_actions(
+            self,
+            tenant_id,
+            action_type,
+            wallet,
+            from,
+            to,
+            limit,
+            offset,
+        )
+        .await
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

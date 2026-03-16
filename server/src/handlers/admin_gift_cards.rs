@@ -194,7 +194,15 @@ pub async fn create_gift_card(
 
     match state.store.create_gift_card(card.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "gift_card", &card.code, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "gift_card",
+                &card.code,
+                "create",
+                None,
+            )
+            .await;
             json_ok(card)
         }
         Err(e) => {

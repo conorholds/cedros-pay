@@ -1,6 +1,6 @@
 //! Related Products handler - finds related products using AI analysis.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use axum::{extract::State, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{error_response, ErrorCode};
 use crate::handlers::response::json_error;
 use crate::middleware::TenantContext;
-use crate::models::Product;
 use crate::observability::record_ai_rate_limit_rejection;
-use crate::repositories::ProductRepositoryError;
+use crate::repositories::{AiCatalogProduct, ProductRepositoryError};
 use crate::services::{
     parse_json_response, RelatedProductsResult, DEFAULT_RELATED_PRODUCTS_PROMPT,
 };
@@ -50,7 +49,7 @@ pub struct RelatedProductsResponse {
 // ============================================================================
 
 /// Format a product for AI context
-fn format_product_for_ai(product: &Product) -> String {
+fn format_product_for_ai(product: &AiCatalogProduct) -> String {
     let title = product.title.as_deref().unwrap_or(&product.id);
     let desc = if product.description.len() > 200 {
         format!("{}...", &product.description[..200])
@@ -75,22 +74,12 @@ fn format_product_for_ai(product: &Product) -> String {
 }
 
 /// Format product catalog for AI context (excludes the current product)
-fn format_catalog_for_ai(
-    products: &[Product],
-    exclude_id: Option<&str>,
-    max_products: usize,
-) -> String {
-    let filtered: Vec<_> = products
-        .iter()
-        .filter(|p| p.active && exclude_id.map_or(true, |id| p.id != id))
-        .take(max_products)
-        .collect();
-
-    if filtered.is_empty() {
+fn format_catalog_for_ai(products: &[AiCatalogProduct]) -> String {
+    if products.is_empty() {
         return "No other products available.".to_string();
     }
 
-    filtered
+    products
         .iter()
         .map(|p| format_product_for_ai(p))
         .collect::<Vec<_>>()
@@ -181,9 +170,12 @@ pub async fn related_products(
         }
     };
 
-    // Load all products for catalog context
-    let all_products = match state.product_repo.list_products(&tenant.tenant_id).await {
-        Ok(products) => products,
+    let active_product_ids: HashSet<String> = match state
+        .product_repo
+        .list_active_product_ids(&tenant.tenant_id)
+        .await
+    {
+        Ok(product_ids) => product_ids.into_iter().collect(),
         Err(e) => {
             tracing::error!(error = %e, "Failed to load products");
             let (status, body) = error_response(
@@ -195,8 +187,8 @@ pub async fn related_products(
         }
     };
 
-    // Need at least 2 products (current + at least one other)
-    if all_products.len() < 2 {
+    // Need at least 2 active products (current + at least one other)
+    if active_product_ids.len() < 2 {
         return Json(RelatedProductsResponse {
             related_product_ids: vec![],
             reasoning: "Not enough products in catalog to find related items.".to_string(),
@@ -204,8 +196,33 @@ pub async fn related_products(
         .into_response();
     }
 
-    // Format catalog for AI (max 50 products to stay within token limits)
-    let catalog_context = format_catalog_for_ai(&all_products, product_id.as_deref(), 50);
+    let catalog_products = match state
+        .product_repo
+        .list_related_products_candidates(&tenant.tenant_id, product_id.as_deref(), 50)
+        .await
+    {
+        Ok(products) => products,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to load related product candidates");
+            let (status, body) = error_response(
+                ErrorCode::InternalError,
+                Some("Failed to load product catalog".into()),
+                None,
+            );
+            return json_error(status, body).into_response();
+        }
+    };
+
+    if catalog_products.is_empty() {
+        return Json(RelatedProductsResponse {
+            related_product_ids: vec![],
+            reasoning: "Not enough products in catalog to find related items.".to_string(),
+        })
+        .into_response();
+    }
+
+    // Format catalog for AI using only the limited candidate set.
+    let catalog_context = format_catalog_for_ai(&catalog_products);
 
     // Format current product info
     let current_product = format!(
@@ -263,7 +280,7 @@ pub async fn related_products(
                 let valid_ids: Vec<String> = result
                     .related_product_ids
                     .into_iter()
-                    .filter(|id| all_products.iter().any(|p| &p.id == id && p.active))
+                    .filter(|id| active_product_ids.contains(id))
                     .collect();
                 (valid_ids, result.reasoning)
             }
@@ -283,4 +300,43 @@ pub async fn related_products(
         reasoning,
     })
     .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_catalog_for_ai_uses_supplied_candidates() {
+        let catalog = vec![
+            AiCatalogProduct {
+                id: "product-1".to_string(),
+                title: Some("Starter".to_string()),
+                description: "Starter kit".to_string(),
+                tags: vec!["starter".to_string()],
+                category_ids: vec!["kits".to_string()],
+            },
+            AiCatalogProduct {
+                id: "product-2".to_string(),
+                title: Some("Pro".to_string()),
+                description: "Pro kit".to_string(),
+                tags: vec!["pro".to_string()],
+                category_ids: vec!["kits".to_string()],
+            },
+        ];
+
+        let formatted = format_catalog_for_ai(&catalog);
+        assert!(formatted.contains("product-1"));
+        assert!(formatted.contains("Starter"));
+        assert!(formatted.contains("product-2"));
+        assert!(formatted.contains("Pro"));
+    }
+
+    #[test]
+    fn test_format_catalog_for_ai_handles_empty_catalog() {
+        assert_eq!(
+            format_catalog_for_ai(&[]),
+            "No other products available.".to_string()
+        );
+    }
 }

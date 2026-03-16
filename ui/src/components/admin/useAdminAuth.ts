@@ -34,7 +34,7 @@ export interface UseAdminAuthResult {
   walletConnected: boolean;
   /** Connected wallet address (truncated for display) */
   walletAddress: string | null;
-  /** Whether cedros-login is available and user is admin */
+  /** Whether cedros-login admin auth is explicitly available */
   cedrosLoginAvailable: boolean;
   /** Admin auth manager instance */
   authManager: IAdminAuthManager;
@@ -45,7 +45,8 @@ export interface UseAdminAuthResult {
 /**
  * Hook for admin authentication
  *
- * Automatically uses wallet signing if available, falls back to cedros-login JWT.
+ * Automatically uses wallet signing if available, falls back to explicitly
+ * confirmed cedros-login admin JWT access.
  *
  * @example
  * ```tsx
@@ -98,7 +99,7 @@ export function useAdminAuth({
   const authMethod = authManager.getAuthMethod();
   const isAuthenticated = authManager.isAuthenticated();
   const walletConnected = !!(wallet.publicKey && wallet.signMessage);
-  const cedrosLoginAvailable = !!cedrosLoginToken;
+  const cedrosLoginAvailable = !!(cedrosLoginToken && isAdmin);
 
   // Get truncated wallet address for display
   const walletAddress = useMemo(() => {

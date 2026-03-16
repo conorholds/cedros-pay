@@ -57,6 +57,8 @@ pub struct BuiltServices<S: Store> {
     pub(crate) token22_service: Option<Arc<services::token22::Token22Service>>,
     /// Asset fulfillment service — available for admin-side token burn.
     pub(crate) asset_fulfillment: Option<Arc<services::AssetFulfillmentService>>,
+    /// Dynamic sanctions list service — shared by compliance checker and workers.
+    pub(crate) sanctions_list_service: Option<Arc<services::SanctionsListService>>,
     /// Email worker handle — kept alive so panics are logged instead of silently lost.
     /// Not read directly; held to keep the worker alive for the server's lifetime.
     #[allow(dead_code)]
@@ -191,18 +193,22 @@ async fn build_services_internal<S: Store + 'static>(
 
     // Metaplex Core service for non-fungible asset NFTs
     let built_metaplex_core = if !cfg.x402.rpc_url.is_empty() {
-        services::MetaplexCoreService::new_from_config(
-            &cfg.x402,
-            cfg.server.public_url.clone(),
-        )
-        .ok()
-        .map(Arc::new)
+        services::MetaplexCoreService::new_from_config(&cfg.x402, cfg.server.public_url.clone())
+            .ok()
+            .map(Arc::new)
     } else {
         None
     };
 
+    // Dynamic sanctions list service
+    let sanctions_list_service = Some(Arc::new(services::SanctionsListService::new(
+        100,
+        Duration::from_secs(3600),
+    )));
+
     // Wire fulfillment services when cedros-login is available
     let mut built_asset_fulfillment: Option<Arc<services::AssetFulfillmentService>> = None;
+    let mut compliance_checker: Option<Arc<services::ComplianceChecker>> = None;
     if let Some(ref cl) = cedros_login_client {
         let gc_fulfillment = Arc::new(services::GiftCardFulfillmentService::new(
             cl.clone(),
@@ -211,10 +217,16 @@ async fn build_services_internal<S: Store + 'static>(
         ));
         paywall_service = paywall_service.with_gift_card_fulfillment(gc_fulfillment);
 
+        // Build compliance checker if sanctions list service is available
+        compliance_checker = sanctions_list_service
+            .as_ref()
+            .map(|sls| Arc::new(services::ComplianceChecker::new(sls.clone(), cl.clone())));
+
         let asset_fulfillment = Arc::new(services::AssetFulfillmentService::new(
             cl.clone(),
             built_token22_service.clone(),
             built_metaplex_core.clone(),
+            compliance_checker.clone(),
             store.clone() as Arc<dyn Store>,
             product_repo.clone(),
         ));
@@ -222,12 +234,21 @@ async fn build_services_internal<S: Store + 'static>(
         built_asset_fulfillment = Some(asset_fulfillment);
     }
 
+    // Wire compliance checker to paywall service (gates all X402 product purchases)
+    if let Some(ref checker) = compliance_checker {
+        paywall_service = paywall_service.with_compliance_checker(checker.clone());
+    }
+
     let paywall_service = Arc::new(paywall_service);
 
     let mut subscription_service =
         SubscriptionService::new(Arc::new(cfg.clone()), store.clone(), notifier.clone());
+    subscription_service = subscription_service.with_products(product_repo.clone());
     if let Some(ref client) = cedros_login_client {
         subscription_service = subscription_service.with_cedros_login(client.clone());
+    }
+    if let Some(ref checker) = compliance_checker {
+        subscription_service = subscription_service.with_compliance_checker(checker.clone());
     }
     if let Some(ref cb) = callback {
         subscription_service = subscription_service.with_payment_callback(cb.clone());
@@ -302,6 +323,7 @@ async fn build_services_internal<S: Store + 'static>(
         email_worker_handle,
         token22_service: built_token22_service,
         asset_fulfillment: built_asset_fulfillment,
+        sanctions_list_service,
     })
 }
 
@@ -486,6 +508,7 @@ pub(crate) fn paywall_resource_to_product(resource: &PaywallResource) -> Product
         subscription: None,
         gift_card_config: None,
         tokenized_asset_config: None,
+        compliance_requirements: None,
         created_at: None,
         updated_at: None,
     }

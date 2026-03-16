@@ -234,7 +234,11 @@ impl GiftCardFulfillmentService {
             };
 
         // Get recipient's embedded wallet
-        let wallet_address = match self.cedros_login.get_embedded_wallet(recipient_user_id).await {
+        let wallet_address = match self
+            .cedros_login
+            .get_embedded_wallet(recipient_user_id)
+            .await
+        {
             Ok(Some(addr)) => addr,
             Ok(None) => {
                 warn!(
@@ -269,7 +273,14 @@ impl GiftCardFulfillmentService {
         // Convert face value cents to token amount using configured decimals
         let amount = face_value_cents as u64;
 
-        match crate::services::token22::mint_tokens(token22, &mint_pubkey, &recipient_pubkey, amount).await {
+        match crate::services::token22::mint_tokens(
+            token22,
+            &mint_pubkey,
+            &recipient_pubkey,
+            amount,
+        )
+        .await
+        {
             Ok(sig) => {
                 info!(
                     tenant_id = %tenant_id,

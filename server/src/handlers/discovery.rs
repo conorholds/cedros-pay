@@ -157,7 +157,11 @@ pub async fn payment_options(
     State(state): State<Arc<DiscoveryState>>,
     tenant: TenantContext,
 ) -> impl IntoResponse {
-    let products = match state.product_repo.list_products(&tenant.tenant_id).await {
+    let products = match state
+        .product_repo
+        .list_discovery_products(&tenant.tenant_id)
+        .await
+    {
         Ok(products) => products,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load products for payment discovery");
@@ -296,7 +300,11 @@ pub async fn mcp_resources_list(
         return (StatusCode::OK, Json(resp));
     }
 
-    let products = match state.product_repo.list_products(&tenant.tenant_id).await {
+    let products = match state
+        .product_repo
+        .list_discovery_products(&tenant.tenant_id)
+        .await
+    {
         Ok(products) => products,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load products for MCP discovery");
@@ -391,6 +399,7 @@ mod tests {
     use axum::response::IntoResponse;
     use http_body_util::BodyExt;
 
+    use crate::models::{get_asset, Money, Product};
     use crate::repositories::InMemoryProductRepository;
 
     #[tokio::test]
@@ -416,5 +425,85 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).expect("parse json");
 
         assert_eq!(json["service_endpoint"], "https://pay.example.com");
+    }
+
+    #[tokio::test]
+    async fn test_payment_options_uses_discovery_product_listing() {
+        let asset = get_asset("USDC").expect("asset");
+        let state = Arc::new(DiscoveryState {
+            product_repo: Arc::new(InMemoryProductRepository::new(vec![Product {
+                id: "prod-1".to_string(),
+                tenant_id: "default".to_string(),
+                description: "Discovery product".to_string(),
+                fiat_price: Some(Money::new(asset.clone(), 25_000_000)),
+                crypto_price: Some(Money::new(asset, 1_000_000)),
+                metadata: std::collections::HashMap::from([(
+                    "audience".to_string(),
+                    "agents".to_string(),
+                )]),
+                active: true,
+                ..Product::default()
+            }])),
+            network: "mainnet-beta".to_string(),
+            payment_address: "pay-addr".to_string(),
+            token_mint: "mint-addr".to_string(),
+            service_endpoint: "https://pay.example.com".to_string(),
+            stripe_enabled: true,
+            x402_enabled: true,
+            credits_enabled: true,
+        });
+
+        let response = payment_options(State(state), TenantContext::default())
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json["resources"][0]["id"], "prod-1");
+        assert_eq!(json["resources"][0]["price"]["fiat"]["amount"], 25.0);
+        assert_eq!(json["resources"][0]["metadata"]["audience"], "agents");
+    }
+
+    #[tokio::test]
+    async fn test_mcp_resources_list_uses_discovery_product_listing() {
+        let state = Arc::new(DiscoveryState {
+            product_repo: Arc::new(InMemoryProductRepository::new(vec![Product {
+                id: "prod-1".to_string(),
+                tenant_id: "default".to_string(),
+                description: "Discovery product".to_string(),
+                active: true,
+                ..Product::default()
+            }])),
+            network: "mainnet-beta".to_string(),
+            payment_address: "pay-addr".to_string(),
+            token_mint: "mint-addr".to_string(),
+            service_endpoint: "https://pay.example.com".to_string(),
+            stripe_enabled: true,
+            x402_enabled: true,
+            credits_enabled: false,
+        });
+
+        let response = mcp_resources_list(
+            State(state),
+            TenantContext::default(),
+            Json(McpRequest {
+                jsonrpc: "2.0".to_string(),
+                method: "resources/list".to_string(),
+                id: serde_json::json!(1),
+                params: serde_json::json!({}),
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            json["result"]["resources"][0]["uri"],
+            "cedros-pay://paywall/prod-1"
+        );
+        assert_eq!(json["result"]["resources"][0]["name"], "Discovery product");
     }
 }

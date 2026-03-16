@@ -36,10 +36,6 @@ export interface SubscriptionSessionRequest {
   trialDays?: number;
   /** Customer email (pre-fills Stripe checkout) */
   customerEmail?: string;
-  /** Metadata for tracking */
-  metadata?: Record<string, string>;
-  /** Coupon code for discount */
-  couponCode?: string;
   /** URL to redirect on success */
   successUrl?: string;
   /** URL to redirect on cancel */
@@ -139,12 +135,10 @@ export interface SubscriptionPaymentResult extends PaymentResult {
  * Request to cancel a subscription
  */
 export interface CancelSubscriptionRequest {
-  /** Resource/plan ID */
-  resource: string;
-  /** User identifier (wallet address for crypto, email/customer ID for Stripe) */
-  userId: string;
-  /** Whether to cancel immediately or at period end (default: at period end) */
-  immediate?: boolean;
+  /** Subscription ID */
+  subscriptionId: string;
+  /** Whether to keep access until the period end (default: true) */
+  atPeriodEnd?: boolean;
 }
 
 /**
@@ -153,10 +147,8 @@ export interface CancelSubscriptionRequest {
 export interface CancelSubscriptionResponse {
   /** Whether cancellation was successful */
   success: boolean;
-  /** Updated subscription status */
-  status: SubscriptionStatus;
-  /** When the subscription will end (ISO 8601) */
-  endsAt?: string;
+  /** Whether the subscription is set to cancel at period end */
+  atPeriodEnd: boolean;
   /** Error message if cancellation failed */
   error?: string;
 }
@@ -165,8 +157,8 @@ export interface CancelSubscriptionResponse {
  * Request for Stripe billing portal
  */
 export interface BillingPortalRequest {
-  /** User identifier (email or Stripe customer ID) */
-  userId: string;
+  /** Stripe customer ID */
+  customerId: string;
   /** URL to return to after portal session */
   returnUrl?: string;
 }
@@ -223,18 +215,12 @@ export type ProrationBehavior =
  * Request to change subscription plan (upgrade/downgrade)
  */
 export interface ChangeSubscriptionRequest {
-  /** Current resource/plan ID */
-  currentResource: string;
+  /** Subscription ID */
+  subscriptionId: string;
   /** New resource/plan ID to change to */
   newResource: string;
-  /** User identifier (wallet address for crypto, email/customer ID for Stripe) */
-  userId: string;
-  /** New billing interval (if changing interval) */
-  newInterval?: BillingInterval;
   /** How to handle proration (Stripe only) */
   prorationBehavior?: ProrationBehavior;
-  /** Whether to apply change immediately or at period end */
-  immediate?: boolean;
 }
 
 /**
@@ -243,18 +229,18 @@ export interface ChangeSubscriptionRequest {
 export interface ChangeSubscriptionResponse {
   /** Whether change was successful */
   success: boolean;
+  /** Subscription ID */
+  subscriptionId: string;
+  /** Previous resource/plan ID */
+  previousResource: string;
   /** Updated subscription status */
   status: SubscriptionStatus;
   /** New resource/plan ID */
   newResource: string;
-  /** New billing interval */
-  newInterval: BillingInterval;
-  /** Amount credited/debited for proration (in cents) */
-  prorationAmount?: number;
-  /** Next billing date (ISO 8601) */
-  nextBillingDate?: string;
-  /** When the new plan becomes effective (ISO 8601) */
-  effectiveDate: string;
+  /** Current billing period end (ISO 8601) */
+  currentPeriodEnd: string;
+  /** Stripe proration behavior applied to the change */
+  prorationBehavior: ProrationBehavior;
   /** Error message if change failed */
   error?: string;
 }
@@ -329,7 +315,9 @@ export interface SubscriptionDetails {
   /** When subscription was created (ISO 8601) */
   createdAt: string;
   /** Payment method type */
-  paymentMethod: 'stripe' | 'x402';
+  paymentMethod: 'stripe' | 'x402' | 'credits';
+  /** Stripe customer ID when present */
+  customerId?: string;
   /** Trial end date if in trial (ISO 8601) */
   trialEnd?: string;
 }

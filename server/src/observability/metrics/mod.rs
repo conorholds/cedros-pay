@@ -11,8 +11,8 @@
 //! cause startup failure rather than silent degradation. We also use a private
 //! registry to avoid collisions with other libraries using the global registry.
 
-use std::sync::LazyLock;
 use prometheus::Registry;
+use std::sync::LazyLock;
 
 static REGISTRY: LazyLock<Registry> = LazyLock::new(Registry::new);
 

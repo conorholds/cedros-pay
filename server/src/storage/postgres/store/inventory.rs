@@ -1,6 +1,14 @@
 //! Inventory reservation and adjustment storage methods
 
 use super::*;
+use std::collections::{HashMap, HashSet};
+
+#[derive(sqlx::FromRow)]
+struct ReservationTotalRow {
+    product_id: String,
+    variant_id: Option<String>,
+    reserved_quantity: i64,
+}
 
 pub(super) async fn reserve_inventory(
     store: &PostgresStore,
@@ -116,6 +124,53 @@ pub(super) async fn get_active_inventory_reservation_quantity_excluding_cart(
         .await
         .map_err(|e| StorageError::internal("sum active reservations excluding cart", e))?;
     Ok(reserved)
+}
+
+pub(super) async fn get_active_inventory_reservation_quantities_excluding_cart(
+    store: &PostgresStore,
+    tenant_id: &str,
+    items: &[(String, Option<String>)],
+    exclude_cart_id: &str,
+    now: DateTime<Utc>,
+) -> StorageResult<HashMap<(String, Option<String>), i64>> {
+    if items.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut unique_items = Vec::with_capacity(items.len());
+    let mut seen = HashSet::with_capacity(items.len());
+    for (product_id, variant_id) in items {
+        let key = (product_id.clone(), variant_id.clone());
+        if seen.insert(key.clone()) {
+            unique_items.push(key);
+        }
+    }
+
+    let product_ids: Vec<String> = unique_items
+        .iter()
+        .map(|(product_id, _)| product_id.clone())
+        .collect();
+    let variant_ids: Vec<Option<String>> = unique_items
+        .iter()
+        .map(|(_, variant_id)| variant_id.clone())
+        .collect();
+
+    let query =
+        store.orders_query(queries::inventory_reservations::SUM_ACTIVE_BY_PRODUCTS_EXCLUDING_CART);
+    let rows: Vec<ReservationTotalRow> = sqlx::query_as(&query)
+        .bind(tenant_id)
+        .bind(&product_ids)
+        .bind(&variant_ids)
+        .bind(now)
+        .bind(exclude_cart_id)
+        .fetch_all(store.pool.inner())
+        .await
+        .map_err(|e| StorageError::internal("sum active reservations excluding cart batch", e))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| ((row.product_id, row.variant_id), row.reserved_quantity))
+        .collect())
 }
 
 pub(super) async fn list_active_reservations_for_cart(
@@ -401,5 +456,25 @@ pub(super) async fn adjust_inventory_atomic(
                 )),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::SchemaMapping;
+    use sqlx::PgPool;
+
+    #[tokio::test]
+    async fn test_batch_reservation_query_uses_single_grouped_lookup() {
+        let pool = PgPool::connect_lazy("postgres://postgres:postgres@localhost/postgres")
+            .expect("valid pool config");
+        let store = PostgresStore::from_pool(pool, SchemaMapping::default());
+        let query = store
+            .orders_query(queries::inventory_reservations::SUM_ACTIVE_BY_PRODUCTS_EXCLUDING_CART);
+
+        assert!(query.contains("UNNEST($2::text[], $3::text[])"));
+        assert!(query.contains("LEFT JOIN inventory_reservations r"));
+        assert!(query.contains("GROUP BY requested.product_id, requested.variant_id"));
     }
 }

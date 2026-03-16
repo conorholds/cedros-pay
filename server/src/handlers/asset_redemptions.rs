@@ -61,11 +61,18 @@ pub async fn get_redemption_form(
         return json_error(status, body).into_response();
     }
 
-    let product = match state.products.get_product(&tenant.tenant_id, &product_id).await {
+    let product = match state
+        .products
+        .get_product(&tenant.tenant_id, &product_id)
+        .await
+    {
         Ok(p) => p,
         Err(ProductRepositoryError::NotFound) => {
-            let (status, body) =
-                error_response(ErrorCode::ProductNotFound, Some("product not found".into()), None);
+            let (status, body) = error_response(
+                ErrorCode::ProductNotFound,
+                Some("product not found".into()),
+                None,
+            );
             return json_error(status, body).into_response();
         }
         Err(e) => {
@@ -227,11 +234,7 @@ pub async fn submit_redemption(
 
     match state
         .store
-        .update_asset_redemption_form_data(
-            &tenant.tenant_id,
-            &redemption.id,
-            &req.form_data,
-        )
+        .update_asset_redemption_form_data(&tenant.tenant_id, &redemption.id, &req.form_data)
         .await
     {
         Ok(()) => json_ok(serde_json::json!({
@@ -368,7 +371,10 @@ fn validate_form_data(data: &serde_json::Value) -> Result<(), String> {
 
     for (key, value) in obj {
         if key.is_empty() || key.len() > 200 {
-            return Err(format!("field key must be 1-200 characters, got {}", key.len()));
+            return Err(format!(
+                "field key must be 1-200 characters, got {}",
+                key.len()
+            ));
         }
 
         match value {

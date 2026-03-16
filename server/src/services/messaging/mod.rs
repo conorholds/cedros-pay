@@ -13,8 +13,8 @@ use sha2::Sha256;
 
 use crate::config::MessagingConfig;
 use crate::models::Order;
-use crate::x402::utils::hex_encode;
 use crate::storage::{PendingEmail, Store};
+use crate::x402::utils::hex_encode;
 
 type HmacSha256 = Hmac<Sha256>;
 

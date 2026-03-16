@@ -21,7 +21,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
   // Credits refunds state
   const [creditsRefunds, setCreditsRefunds] = useState<CreditsRefundRequest[]>([]);
   const [creditsLoading, setCreditsLoading] = useState(true);
-  const [creditsProcessingId, setCreditsProcessingId] = useState<string | null>(null);
   const [creditsSortConfig, setCreditsSortConfig] = useState<{ key: 'id' | 'original' | 'user' | 'amount' | 'reason' | 'status' | 'date'; direction: 'asc' | 'desc' } | null>(null);
 
   // Stripe refunds state
@@ -30,9 +29,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [stripeSortConfig, setStripeSortConfig] = useState<{ key: 'id' | 'stripe' | 'charge' | 'amount' | 'reason' | 'status' | 'date'; direction: 'asc' | 'desc' } | null>(null);
 
-  // Reject modal state
-  const [rejectModalRequest, setRejectModalRequest] = useState<CreditsRefundRequest | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Fetch x402 refunds
@@ -105,76 +101,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
   useEffect(() => {
     fetchCreditsRefunds();
   }, [fetchCreditsRefunds]);
-
-  const processCreditsRefund = async (request: CreditsRefundRequest) => {
-    setCreditsProcessingId(request.id);
-    try {
-      const path = `/admin/credits/refund-requests/${request.id}/process`;
-      const body = JSON.stringify({ amountLamports: request.amountLamports, reason: request.reason });
-
-      if (authManager?.isAuthenticated()) {
-        await authManager.fetchWithAuth(path, { method: 'POST', body });
-      } else {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (apiKey) headers['X-API-Key'] = apiKey;
-        const res = await fetch(`${serverUrl}${path}`, { method: 'POST', headers, body });
-        if (!res.ok) throw new Error(`Failed to process credits refund: ${res.status}`);
-      }
-
-      await fetchCreditsRefunds();
-    } catch (error) {
-      getLogger().error('[RefundsSection] Failed to process credits refund:', error, {
-        serverUrl: serverUrl.slice(0, 20) + '...',
-        hasApiKey: !!apiKey,
-        requestId: request.id,
-      });
-      setFetchError('Failed to process credits refund');
-    } finally {
-      setCreditsProcessingId(null);
-    }
-  };
-
-  const openRejectModal = (request: CreditsRefundRequest) => {
-    setRejectReason(request.reason ?? '');
-    setRejectModalRequest(request);
-  };
-
-  const closeRejectModal = () => {
-    setRejectModalRequest(null);
-    setRejectReason('');
-  };
-
-  const handleRejectConfirm = async () => {
-    if (!rejectModalRequest) return;
-    const request = rejectModalRequest;
-    const reason = rejectReason;
-    closeRejectModal();
-    setCreditsProcessingId(request.id);
-    try {
-      const path = `/admin/credits/refund-requests/${request.id}/reject`;
-      const body = JSON.stringify({ reason });
-
-      if (authManager?.isAuthenticated()) {
-        await authManager.fetchWithAuth(path, { method: 'POST', body });
-      } else {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (apiKey) headers['X-API-Key'] = apiKey;
-        const res = await fetch(`${serverUrl}${path}`, { method: 'POST', headers, body });
-        if (!res.ok) throw new Error(`Failed to reject credits refund: ${res.status}`);
-      }
-
-      await fetchCreditsRefunds();
-    } catch (error) {
-      getLogger().error('[RefundsSection] Failed to reject credits refund:', error, {
-        serverUrl: serverUrl.slice(0, 20) + '...',
-        hasApiKey: !!apiKey,
-        requestId: request.id,
-      });
-      setFetchError('Failed to reject credits refund');
-    } finally {
-      setCreditsProcessingId(null);
-    }
-  };
 
   // Fetch Stripe refunds
   const fetchStripeRefunds = useCallback(async () => {
@@ -540,6 +466,9 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
       <div className="cedros-admin__section-header" style={{ marginTop: '2rem' }}>
         <h3 className="cedros-admin__section-title">Credits Refund Requests</h3>
       </div>
+      <p className="cedros-admin__hint" style={{ marginBottom: '0.75rem' }}>
+        Credits refund requests are read-only in this admin surface.
+      </p>
 
       {creditsLoading ? (
         <div className="cedros-admin__loading">{Icons.loading} Loading credits refunds...</div>
@@ -592,7 +521,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
                     {getSortIcon(creditsSortConfig?.key === 'date', creditsSortConfig?.direction)}
                   </button>
                 </th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -609,26 +537,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
                     </span>
                   </td>
                   <td>{formatDateTime(req.createdAt)}</td>
-                  <td>
-                    {req.status === 'pending' ? (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          className="cedros-admin__button cedros-admin__button--primary cedros-admin__button--sm"
-                          onClick={() => processCreditsRefund(req)}
-                          disabled={creditsProcessingId === req.id}
-                        >
-                          {creditsProcessingId === req.id ? 'Processing...' : 'Process'}
-                        </button>
-                        <button
-                          className="cedros-admin__button cedros-admin__button--outline cedros-admin__button--danger cedros-admin__button--sm"
-                          onClick={() => openRejectModal(req)}
-                          disabled={creditsProcessingId === req.id}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : null}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -640,6 +548,9 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
       <div className="cedros-admin__section-header" style={{ marginTop: '2rem' }}>
         <h3 className="cedros-admin__section-title">x402 Refund Requests</h3>
       </div>
+      <p className="cedros-admin__hint" style={{ marginBottom: '0.75rem' }}>
+        x402 refund approvals use the signed refund workflow, not this dashboard table.
+      </p>
 
       {x402Loading ? (
         <div className="cedros-admin__loading">{Icons.loading} Loading x402 refunds...</div>
@@ -686,7 +597,6 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
                     {getSortIcon(x402SortConfig?.key === 'date', x402SortConfig?.direction)}
                   </button>
                 </th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -702,65 +612,10 @@ export function RefundsSection({ serverUrl, apiKey, pageSize = 20, authManager }
                     </span>
                   </td>
                   <td>{formatDateTime(refund.createdAt)}</td>
-                  <td></td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {rejectModalRequest && (
-        <div className="cedros-admin__modal-overlay" onClick={closeRejectModal}>
-          <div
-            className="cedros-admin__modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="cedros-admin__modal-header">
-              <h3 className="cedros-admin__modal-title">Reject Refund Request</h3>
-              <button
-                type="button"
-                className="cedros-admin__modal-close"
-                onClick={closeRejectModal}
-                aria-label="Close"
-              >
-                {Icons.close}
-              </button>
-            </div>
-            <div className="cedros-admin__modal-body">
-              <p style={{ marginBottom: '1rem', color: 'var(--admin-muted)' }}>
-                Rejecting refund request <code>{rejectModalRequest.id}</code> for {formatCreditsAmount(rejectModalRequest.amountLamports, rejectModalRequest.currency)}.
-              </p>
-              <label className="cedros-admin__form-field">
-                <span className="cedros-admin__form-label">Reason (optional)</span>
-                <textarea
-                  className="cedros-admin__input"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Enter rejection reason..."
-                  rows={3}
-                  style={{ resize: 'vertical' }}
-                />
-              </label>
-            </div>
-            <div className="cedros-admin__modal-footer">
-              <button
-                type="button"
-                className="cedros-admin__button cedros-admin__button--outline"
-                onClick={closeRejectModal}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="cedros-admin__button cedros-admin__button--primary cedros-admin__button--danger"
-                onClick={handleRejectConfirm}
-              >
-                Reject Refund
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

@@ -193,7 +193,15 @@ pub async fn create_return(
 
     match state.store.create_return_request(request.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "return", &request.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "return",
+                &request.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(request)
         }
         Err(e) => {

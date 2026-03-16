@@ -1,15 +1,19 @@
 pub mod ai;
+pub mod asset_fulfillment;
 pub mod blockhash_cache;
 pub mod cedros_login;
+pub mod compliance_checker;
+pub mod gift_card_fulfillment;
 pub mod health;
+pub mod image_storage;
 pub mod messaging;
+pub mod metaplex_core;
 pub mod paywall;
+pub mod sanctions;
+pub mod sanctions_list;
 pub mod stripe;
 pub mod stripe_webhooks;
 pub mod subscriptions;
-pub mod asset_fulfillment;
-pub mod gift_card_fulfillment;
-pub mod metaplex_core;
 pub mod token22;
 
 use async_trait::async_trait;
@@ -120,7 +124,10 @@ pub use stripe_webhooks::{StripeEventType, StripeWebhookProcessor};
 pub use subscriptions::{ChangeSubscriptionResult, StripeSubscriptionUpdate, SubscriptionService};
 
 pub use asset_fulfillment::AssetFulfillmentService;
+pub use compliance_checker::ComplianceChecker;
+pub use sanctions_list::SanctionsListService;
 pub use gift_card_fulfillment::GiftCardFulfillmentService;
+pub use image_storage::ImageStorageService;
 pub use metaplex_core::MetaplexCoreService;
 
 pub use ai::{

@@ -19,6 +19,18 @@ export function buildCartItemMetadataFromProduct(product: Product): Record<strin
 
   if (product.tokenizedAssetConfig) {
     metadata.tokenizedAsset = 'true';
+    if (product.tokenizedAssetConfig.regulatoryNotice) {
+      metadata.regulatoryNotice = product.tokenizedAssetConfig.regulatoryNotice;
+    }
+    if (product.tokenizedAssetConfig.assetClass) {
+      metadata.assetClass = product.tokenizedAssetConfig.assetClass;
+    }
+    if (product.tokenizedAssetConfig.backingValueCents != null) {
+      metadata.backingValueCents = String(product.tokenizedAssetConfig.backingValueCents);
+    }
+    if (product.tokenizedAssetConfig.backingCurrency) {
+      metadata.backingCurrency = product.tokenizedAssetConfig.backingCurrency;
+    }
   }
 
   return Object.keys(metadata).length ? metadata : undefined;

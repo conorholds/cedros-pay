@@ -140,6 +140,11 @@ impl RealIp {
     }
 }
 
+/// Extension storing the buyer's ISO 3166-1 alpha-2 country code, extracted
+/// from CDN headers (`CF-IPCountry` or `X-Country-Code`).
+#[derive(Clone, Debug)]
+pub struct CountryCode(pub String);
+
 /// Extension indicating whether this request is coming from a trusted proxy.
 ///
 /// This is derived from the peer socket address (ConnectInfo) and used by other
@@ -221,6 +226,19 @@ pub async fn real_ip_middleware(
     if let Some(ip) = real_ip {
         request.extensions_mut().insert(RealIp(ip));
     }
+
+    // Extract country code from CDN headers (CF-IPCountry or X-Country-Code)
+    let country = request
+        .headers()
+        .get("cf-ipcountry")
+        .or_else(|| request.headers().get("x-country-code"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_uppercase())
+        .filter(|s| s.len() == 2);
+    if let Some(cc) = country {
+        request.extensions_mut().insert(CountryCode(cc));
+    }
+
     next.run(request).await
 }
 

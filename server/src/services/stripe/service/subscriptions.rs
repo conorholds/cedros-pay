@@ -156,6 +156,7 @@ impl StripeClient {
         stripe_sub_id: &str,
         new_price_id: &str,
         proration_behavior: &str,
+        idempotency_key: Option<&str>,
     ) -> ServiceResult<SubscriptionChangeResult> {
         // Get current subscription
         let sub = self
@@ -196,7 +197,11 @@ impl StripeClient {
         ];
 
         let response = self
-            .stripe_post(&format!("subscriptions/{}", stripe_sub_id), &form)
+            .stripe_post_with_idempotency(
+                &format!("subscriptions/{}", stripe_sub_id),
+                &form,
+                idempotency_key,
+            )
             .await?;
 
         let status = response

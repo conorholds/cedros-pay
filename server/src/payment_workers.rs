@@ -5,12 +5,14 @@ use std::time::Duration;
 
 use futures_util::FutureExt;
 
-use crate::config::Config;
+use crate::config::{Config, PostgresConfigRepository};
 use crate::handlers;
 use crate::middleware;
+use crate::services::token22::Token22Service;
 use crate::storage::Store;
 use crate::webhooks;
-use crate::workers::{CleanupWorker, HealthChecker};
+use crate::services::SanctionsListService;
+use crate::workers::{CleanupWorker, HealthChecker, SanctionsRefreshWorker, SanctionsSweepWorker};
 
 /// OPS-01: Supervised spawn that catches worker panics and logs them at error level.
 /// Without this, a panicked worker silently disappears until shutdown.
@@ -44,6 +46,8 @@ pub struct PaymentWorkers {
     pub(crate) webhook_handle: crate::workers::WebhookWorkerHandle,
     pub(crate) health_handle: Option<crate::workers::HealthCheckerHandle>,
     pub(crate) subscription_handle: crate::workers::SubscriptionWorkerHandle,
+    pub(crate) sanctions_sweep_handle: Option<crate::workers::SanctionsSweepWorkerHandle>,
+    pub(crate) sanctions_refresh_handle: Option<crate::workers::SanctionsRefreshWorkerHandle>,
     pub(crate) rate_limiter_cleanup_handle: Option<middleware::RateLimiterCleanupHandle>,
 }
 
@@ -63,6 +67,12 @@ impl PaymentWorkers {
             handle.shutdown();
         }
         self.subscription_handle.shutdown();
+        if let Some(ref handle) = self.sanctions_sweep_handle {
+            handle.shutdown();
+        }
+        if let Some(ref handle) = self.sanctions_refresh_handle {
+            handle.shutdown();
+        }
         if let Some(ref handle) = self.rate_limiter_cleanup_handle {
             handle.shutdown();
         }
@@ -76,6 +86,12 @@ impl PaymentWorkers {
             tokio::join!(cleanup, webhook, subscription);
 
             if let Some(handle) = self.health_handle {
+                handle.wait().await;
+            }
+            if let Some(handle) = self.sanctions_sweep_handle {
+                handle.wait().await;
+            }
+            if let Some(handle) = self.sanctions_refresh_handle {
                 handle.wait().await;
             }
         })
@@ -116,7 +132,7 @@ pub fn spawn_workers<S: Store + 'static>(
         balance_monitoring_enabled: cfg.monitoring.low_balance_alert_url.is_some(),
     }));
 
-    spawn_workers_internal(store, cfg, health_state, None, notifier)
+    spawn_workers_internal(store, cfg, health_state, None, notifier, None, None, None)
 }
 
 pub(crate) fn spawn_workers_internal<S: Store + 'static>(
@@ -125,6 +141,9 @@ pub(crate) fn spawn_workers_internal<S: Store + 'static>(
     health_state: Arc<parking_lot::RwLock<handlers::health::HealthState>>,
     rate_limiter: Option<Arc<middleware::RateLimiter>>,
     notifier: Arc<dyn webhooks::Notifier>,
+    token22: Option<Arc<Token22Service>>,
+    config_repo: Option<Arc<PostgresConfigRepository>>,
+    sanctions_service: Option<Arc<SanctionsListService>>,
 ) -> anyhow::Result<PaymentWorkers> {
     let rate_limiter_cleanup_handle = rate_limiter.map(|rl| rl.start_cleanup_task());
 
@@ -206,6 +225,43 @@ pub(crate) fn spawn_workers_internal<S: Store + 'static>(
     });
     let subscription_handle = subscription_handle.with_join_handle(subscription_join);
 
+    // Sanctions sweep worker (only when Token22Service is available)
+    let sanctions_sweep_handle = if let Some(t22) = token22 {
+        let sweep_interval = Duration::from_secs(3600); // 1 hour
+        let (sweep_worker, sweep_handle) = SanctionsSweepWorker::with_shutdown(
+            store.clone(),
+            t22,
+            sweep_interval,
+            config_repo.clone(),
+            sanctions_service.clone(),
+        );
+        let sweep_join = spawn_supervised("sanctions_sweep", async move {
+            sweep_worker.run().await;
+        });
+        tracing::info!("Sanctions sweep worker spawned");
+        Some(sweep_handle.with_join_handle(sweep_join))
+    } else {
+        None
+    };
+
+    // Sanctions refresh worker (fetches dynamic lists per tenant)
+    let sanctions_refresh_handle = if let Some(ref svc) = sanctions_service {
+        let refresh_interval = Duration::from_secs(3600); // 1 hour
+        let (refresh_worker, refresh_handle) = SanctionsRefreshWorker::with_shutdown(
+            store.clone(),
+            svc.clone(),
+            refresh_interval,
+            config_repo,
+        );
+        let refresh_join = spawn_supervised("sanctions_refresh", async move {
+            refresh_worker.run().await;
+        });
+        tracing::info!("Sanctions refresh worker spawned");
+        Some(refresh_handle.with_join_handle(refresh_join))
+    } else {
+        None
+    };
+
     tracing::info!("Background workers spawned");
 
     Ok(PaymentWorkers {
@@ -213,6 +269,8 @@ pub(crate) fn spawn_workers_internal<S: Store + 'static>(
         webhook_handle,
         health_handle,
         subscription_handle,
+        sanctions_sweep_handle,
+        sanctions_refresh_handle,
         rate_limiter_cleanup_handle,
     })
 }

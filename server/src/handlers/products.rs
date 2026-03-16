@@ -98,6 +98,8 @@ pub struct ProductInfo {
     pub inventory_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<crate::models::ProductVariant>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenized_asset_config: Option<crate::models::tokenization::TokenizedAssetConfig>,
     pub metadata: serde_json::Value,
 }
 
@@ -223,6 +225,7 @@ fn product_to_info(p: &crate::models::Product) -> ProductInfo {
         inventory_quantity: p.inventory_quantity,
         inventory_policy: p.inventory_policy.clone(),
         variants: p.variants.clone(),
+        tokenized_asset_config: p.tokenized_asset_config.clone(),
         metadata: serde_json::to_value(&p.metadata).unwrap_or_default(),
     }
 }
@@ -259,51 +262,15 @@ pub async fn list_products(
                 if !collection.active {
                     Ok(Vec::new())
                 } else {
-                    let result: Result<Vec<crate::models::Product>, ProductRepositoryError> =
-                        async {
-                            let mut ordered_active: Vec<crate::models::Product> = Vec::new();
-                            let target_len = offset + limit;
-                            let mut start = 0usize;
-                            // Performance: fetch larger ID batches to reduce round trips on
-                            // deep pagination while preserving existing ordering/filters.
-                            let chunk_size = (limit.max(1) * 4).min(200);
-
-                            while start < collection.product_ids.len()
-                                && ordered_active.len() < target_len
-                            {
-                                let end = (start + chunk_size).min(collection.product_ids.len());
-                                let batch_ids = &collection.product_ids[start..end];
-                                let items = state
-                                    .product_repo
-                                    .get_products_by_ids(&tenant.tenant_id, batch_ids)
-                                    .await
-                                    .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
-                                let mut by_id = std::collections::HashMap::new();
-                                for product in items {
-                                    if product.active {
-                                        by_id.insert(product.id.clone(), product);
-                                    }
-                                }
-                                for id in batch_ids {
-                                    if let Some(product) = by_id.remove(id) {
-                                        ordered_active.push(product);
-                                        if ordered_active.len() >= target_len {
-                                            break;
-                                        }
-                                    }
-                                }
-                                start = end;
-                            }
-
-                            if offset >= ordered_active.len() {
-                                Ok(Vec::new())
-                            } else {
-                                let end = (offset + limit).min(ordered_active.len());
-                                Ok(ordered_active[offset..end].to_vec())
-                            }
-                        }
-                        .await;
-                    result
+                    state
+                        .product_repo
+                        .list_collection_products_paginated(
+                            &tenant.tenant_id,
+                            &collection.product_ids,
+                            limit,
+                            offset,
+                        )
+                        .await
                 }
             }
             Ok(None) => Ok(Vec::new()),
@@ -528,8 +495,11 @@ pub async fn products_txt(
     State(state): State<Arc<ProductsAppState>>,
     tenant: TenantContext,
 ) -> impl IntoResponse {
-    // Fetch all active products
-    let products = match state.product_repo.list_products(&tenant.tenant_id).await {
+    let products = match state
+        .product_repo
+        .list_products_txt_products(&tenant.tenant_id)
+        .await
+    {
         Ok(products) => products,
         Err(e) => {
             tracing::error!(error = %e, "Failed to fetch products for products.txt");
@@ -641,15 +611,13 @@ pub async fn products_txt(
         }
 
         // Subscription info
-        if product.is_subscription() {
-            if let Some(ref sub) = product.subscription {
-                output.push_str(&format!(
-                    "- Subscription: {} {}\n",
-                    sub.billing_interval, sub.billing_period
-                ));
-                if sub.trial_days > 0 {
-                    output.push_str(&format!("- Trial: {} days\n", sub.trial_days));
-                }
+        if let Some(ref sub) = product.subscription {
+            output.push_str(&format!(
+                "- Subscription: {} {}\n",
+                sub.billing_interval, sub.billing_period
+            ));
+            if sub.trial_days > 0 {
+                output.push_str(&format!("- Trial: {} days\n", sub.trial_days));
             }
         }
 

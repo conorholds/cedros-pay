@@ -145,6 +145,24 @@ pub async fn create_product(
             (None, req.stripe_price_id)
         };
 
+    // Denormalize regulatory notice from collection onto product config
+    let tokenized_asset_config = if let Some(mut tac) = req.tokenized_asset_config {
+        if tac.regulatory_notice.is_none() {
+            if let Ok(Some(coll)) = state
+                .store
+                .get_collection(&tenant.tenant_id, &tac.asset_class_collection_id)
+                .await
+            {
+                if let Some(tc) = &coll.tokenization_config {
+                    tac.regulatory_notice = tc.regulatory_notice.clone();
+                }
+            }
+        }
+        Some(tac)
+    } else {
+        None
+    };
+
     let product = Product {
         id: req.id.clone(),
         tenant_id: tenant.tenant_id.clone(),
@@ -178,7 +196,8 @@ pub async fn create_product(
         active: req.active,
         subscription: None,
         gift_card_config: req.gift_card_config,
-        tokenized_asset_config: req.tokenized_asset_config,
+        tokenized_asset_config,
+        compliance_requirements: req.compliance_requirements,
         created_at: Some(Utc::now()),
         updated_at: Some(Utc::now()),
     };
@@ -277,6 +296,27 @@ pub async fn update_product(
         )
     };
 
+    // Denormalize regulatory notice from collection onto product config
+    let tokenized_asset_config = if let Some(mut tac) = req
+        .tokenized_asset_config
+        .or(existing.tokenized_asset_config)
+    {
+        if tac.regulatory_notice.is_none() {
+            if let Ok(Some(coll)) = state
+                .store
+                .get_collection(&tenant.tenant_id, &tac.asset_class_collection_id)
+                .await
+            {
+                if let Some(tc) = &coll.tokenization_config {
+                    tac.regulatory_notice = tc.regulatory_notice.clone();
+                }
+            }
+        }
+        Some(tac)
+    } else {
+        None
+    };
+
     let product = Product {
         id: id.clone(),
         tenant_id: tenant.tenant_id.clone(),
@@ -310,7 +350,8 @@ pub async fn update_product(
         active: req.active,
         subscription: existing.subscription,
         gift_card_config: req.gift_card_config.or(existing.gift_card_config),
-        tokenized_asset_config: req.tokenized_asset_config.or(existing.tokenized_asset_config),
+        tokenized_asset_config,
+        compliance_requirements: req.compliance_requirements.or(existing.compliance_requirements),
         created_at: existing.created_at,
         updated_at: Some(Utc::now()),
     };

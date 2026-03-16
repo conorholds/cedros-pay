@@ -759,7 +759,15 @@ pub async fn create_fulfillment(
         return json_error(status_code, body);
     }
 
-    audit(&*state.store, &tenant, "fulfillment", &order_id, "create", None).await;
+    audit(
+        &*state.store,
+        &tenant,
+        "fulfillment",
+        &order_id,
+        "create",
+        None,
+    )
+    .await;
 
     json_ok(FulfillmentResponse { fulfillment })
 }

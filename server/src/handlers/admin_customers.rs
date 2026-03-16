@@ -137,7 +137,15 @@ pub async fn create_customer(
 
     match state.store.create_customer(customer.clone()).await {
         Ok(()) => {
-            audit(&*state.store, &tenant, "customer", &customer.id, "create", None).await;
+            audit(
+                &*state.store,
+                &tenant,
+                "customer",
+                &customer.id,
+                "create",
+                None,
+            )
+            .await;
             json_ok(customer)
         }
         Err(e) => {

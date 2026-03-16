@@ -16,11 +16,12 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 
+use crate::models::compliance::{ComplianceAction, TokenHolder};
 use crate::models::StripeRefundRequest;
 use crate::models::{
-    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord,
-    Faq, Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation,
-    Order, OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, Subscription,
+    AdminAuditEntry, CartQuote, ChatMessage, ChatSession, Collection, Customer, DisputeRecord, Faq,
+    Fulfillment, GiftCard, GiftCardRedemption, InventoryAdjustment, InventoryReservation, Order,
+    OrderHistoryEntry, PaymentTransaction, RefundQuote, ReturnRequest, Subscription,
     SubscriptionStatus, TaxRate, TenantToken22Mint,
 };
 use crate::storage::{
@@ -35,6 +36,7 @@ mod admin;
 mod cart;
 mod catalog;
 mod chat;
+mod compliance;
 mod customers;
 mod faqs;
 mod inventory;
@@ -91,6 +93,8 @@ pub struct InMemoryStore {
     pub(super) gift_card_redemptions: Arc<Mutex<HashMap<String, GiftCardRedemption>>>,
     pub(super) tenant_token22_mints: Arc<Mutex<HashMap<String, TenantToken22Mint>>>,
     pub(super) asset_redemptions: Arc<Mutex<HashMap<String, crate::models::AssetRedemption>>>,
+    pub(super) token_holders: Arc<Mutex<HashMap<String, TokenHolder>>>,
+    pub(super) compliance_actions: Arc<Mutex<HashMap<String, ComplianceAction>>>,
     #[cfg(test)]
     pub(super) fail_try_store_order: Arc<AtomicBool>,
     #[cfg(test)]
@@ -150,6 +154,8 @@ impl InMemoryStore {
             gift_card_redemptions: Arc::new(Mutex::new(HashMap::new())),
             tenant_token22_mints: Arc::new(Mutex::new(HashMap::new())),
             asset_redemptions: Arc::new(Mutex::new(HashMap::new())),
+            token_holders: Arc::new(Mutex::new(HashMap::new())),
+            compliance_actions: Arc::new(Mutex::new(HashMap::new())),
             #[cfg(test)]
             fail_try_store_order: Arc::new(AtomicBool::new(false)),
             #[cfg(test)]
@@ -901,8 +907,7 @@ impl Store for InMemoryStore {
         limit: i32,
         offset: i32,
     ) -> StorageResult<Vec<crate::models::AssetRedemption>> {
-        catalog::list_asset_redemptions(self, tenant_id, status, collection_id, limit, offset)
-            .await
+        catalog::list_asset_redemptions(self, tenant_id, status, collection_id, limit, offset).await
     }
     async fn update_asset_redemption_status(
         &self,
@@ -1351,6 +1356,84 @@ impl Store for InMemoryStore {
         offset: i32,
     ) -> StorageResult<(Vec<Faq>, i64)> {
         faqs::list_public_faqs(self, tenant_id, limit, offset).await
+    }
+
+    // ─── Compliance ───────────────────────────────────────────────────────
+    async fn record_token_holder(&self, holder: TokenHolder) -> StorageResult<()> {
+        compliance::record_token_holder(self, holder).await
+    }
+    async fn list_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+        wallet: Option<&str>,
+        collection_id: Option<&str>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        compliance::list_token_holders(self, tenant_id, status, wallet, collection_id, limit, offset)
+            .await
+    }
+    async fn list_unfrozen_token_holders(
+        &self,
+        tenant_id: &str,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<TokenHolder>> {
+        compliance::list_unfrozen_token_holders(self, tenant_id, limit, offset).await
+    }
+    async fn count_token_holders(
+        &self,
+        tenant_id: &str,
+        status: Option<&str>,
+    ) -> StorageResult<i64> {
+        compliance::count_token_holders(self, tenant_id, status).await
+    }
+    async fn update_token_holder_status(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+        status: &str,
+        frozen_at: Option<DateTime<Utc>>,
+        freeze_tx: Option<&str>,
+        thaw_tx: Option<&str>,
+    ) -> StorageResult<()> {
+        compliance::update_token_holder_status(
+            self, tenant_id, holder_id, status, frozen_at, freeze_tx, thaw_tx,
+        )
+        .await
+    }
+    async fn get_token_holder(
+        &self,
+        tenant_id: &str,
+        holder_id: &str,
+    ) -> StorageResult<Option<TokenHolder>> {
+        compliance::get_token_holder(self, tenant_id, holder_id).await
+    }
+    async fn record_compliance_action(&self, action: ComplianceAction) -> StorageResult<()> {
+        compliance::record_compliance_action(self, action).await
+    }
+    async fn list_compliance_actions(
+        &self,
+        tenant_id: &str,
+        action_type: Option<&str>,
+        wallet: Option<&str>,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        limit: i32,
+        offset: i32,
+    ) -> StorageResult<Vec<ComplianceAction>> {
+        compliance::list_compliance_actions(
+            self,
+            tenant_id,
+            action_type,
+            wallet,
+            from,
+            to,
+            limit,
+            offset,
+        )
+        .await
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
