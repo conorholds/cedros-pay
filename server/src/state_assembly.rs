@@ -141,6 +141,7 @@ impl<S: Store + 'static> BuiltServices<S> {
             asset_fulfillment: self.asset_fulfillment,
             admin_images_state,
             sanctions_list_service: self.sanctions_list_service,
+            cedros_login_client: self.cedros_login_client,
         }
     }
 }

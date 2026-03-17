@@ -346,50 +346,10 @@ pub async fn mcp_resources_list(
 
 /// GET /openapi.json - OpenAPI specification
 pub async fn openapi_spec() -> impl IntoResponse {
-    // Return a minimal OpenAPI spec
-    // In production, this would be generated from route definitions
-    let spec = serde_json::json!({
-        "openapi": "3.0.3",
-        "info": {
-            "title": "Cedros Pay API",
-            "version": "1.0.0",
-            "description": "Unified payment gateway for Stripe and x402 crypto payments"
-        },
-        "servers": [
-            { "url": "/", "description": "Current server" }
-        ],
-        "paths": {
-            "/cedros-health": {
-                "get": {
-                    "summary": "Health check",
-                    "responses": {
-                        "200": { "description": "Server is healthy" }
-                    }
-                }
-            },
-            "/paywall/v1/quote": {
-                "post": {
-                    "summary": "Get payment quote",
-                    "responses": {
-                        "402": { "description": "Payment required with quote" }
-                    }
-                }
-            },
-            "/paywall/v1/verify": {
-                "post": {
-                    "summary": "Verify x402 payment",
-                    "responses": {
-                        "200": { "description": "Payment verified" }
-                    }
-                }
-            }
-        }
-    });
-
     (
         StatusCode::OK,
         [("Content-Type", "application/json")],
-        Json(spec),
+        super::openapi_spec::OPENAPI_SPEC,
     )
 }
 

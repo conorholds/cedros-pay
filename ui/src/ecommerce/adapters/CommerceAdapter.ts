@@ -157,6 +157,12 @@ export interface CommerceAdapter {
    * Requires AI to be configured in admin settings (OpenAI or Gemini).
    */
   getAIRelatedProducts?(params: AIRelatedProductsParams): Promise<AIRelatedProductsResult>;
+
+  /**
+   * Optional: send a message to the AI shop chat assistant.
+   * Returns assistant reply with optional product/FAQ matches.
+   */
+  sendChatMessage?(params: ChatMessageParams): Promise<ChatMessageResult>;
 }
 
 /** Payment methods enabled configuration from admin */
@@ -229,4 +235,39 @@ export type AIRelatedProductsResult = {
   relatedProductIds: string[];
   /** AI's reasoning for the recommendations */
   reasoning: string;
+};
+
+/** Parameters for sending a chat message */
+export type ChatMessageParams = {
+  /** Session ID for continuing a conversation (omit for new session) */
+  sessionId?: string;
+  /** User's message text */
+  message: string;
+};
+
+/** A product match from the chat assistant's tool calls */
+export type ChatProductMatch = {
+  id: string;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  priceCents?: number | null;
+  slug?: string | null;
+  relevance: string;
+};
+
+/** An FAQ match from the chat assistant's tool calls */
+export type ChatFaqMatch = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
+/** Result from the chat endpoint */
+export type ChatMessageResult = {
+  sessionId: string;
+  message: string;
+  products?: ChatProductMatch[];
+  faqs?: ChatFaqMatch[];
+  actions?: string[];
 };

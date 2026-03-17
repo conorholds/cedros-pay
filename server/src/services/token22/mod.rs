@@ -14,9 +14,11 @@ use crate::services::BlockhashCache;
 use crate::x402::ServerWallet;
 
 mod mint;
+pub mod nft;
 mod operations;
 
 pub use mint::{create_mint_with_transfer_fee, MintCreationResult};
+pub use nft::{burn_nft, create_nft_mint, NftMintResult, NftTransferFee};
 pub use operations::{
     burn_tokens, freeze_account, get_associated_token_address_2022, harvest_fees, mint_tokens,
     thaw_account,

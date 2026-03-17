@@ -2,7 +2,7 @@
 
 use axum::response::IntoResponse;
 
-use super::content::{get_public_skills, get_skills, SERVICE_DESCRIPTION, SERVICE_NAME};
+use super::content::{get_llms_full_content, get_public_skills, SERVICE_DESCRIPTION, SERVICE_NAME};
 
 /// GET /ai.txt - AI crawler permissions
 pub async fn ai_txt() -> impl IntoResponse {
@@ -26,7 +26,7 @@ Agent-Guide: /agent.md
 
 # Authentication
 # Public endpoints: No authentication required
-# Admin endpoints: Require Authorization header with Bearer token
+# Admin endpoints: Require Ed25519 signature (X-Signer + X-Message + X-Signature)
 # See /agent.md for complete authentication guide
 
 # Rate Limits
@@ -59,10 +59,10 @@ Cedros Pay is an e-commerce payment API supporting Stripe, crypto (x402/Solana),
 
 ## Quick Start
 
-1. Browse products: `GET /products`
-2. Create cart: `POST /cart` with items
-3. Get quote: `POST /cart/:cartId/quote`
-4. Checkout: `POST /cart/:cartId/checkout/stripe`
+1. Browse products: `GET /paywall/v1/products`
+2. Get cart quote: `POST /paywall/v1/cart/quote` with items
+3. Checkout (Stripe): `POST /paywall/v1/cart/checkout`
+4. Or verify (x402): `POST /paywall/v1/cart/{{cartId}}/verify`
 
 ## Docs
 
@@ -90,136 +90,7 @@ Cedros Pay is an e-commerce payment API supporting Stripe, crypto (x402/Solana),
 
 /// GET /llms-full.txt - Complete documentation
 pub async fn llms_full_txt() -> impl IntoResponse {
-    let skills: Vec<String> = get_skills()
-        .iter()
-        .map(|s| format!("- [{}]({}): {}", s.path, s.path, s.description))
-        .collect();
-
-    let content = format!(
-        r#"# {name} API
-
-> {description}
-
-All endpoints are relative to the API base URL.
-
-## Authentication for AI Agents
-
-### Public Endpoints (No Auth Required)
-
-Most read operations and the chat endpoint are public:
-- `GET /products` - List products
-- `GET /categories` - List categories
-- `POST /cart` - Create/manage cart
-- `POST /chat` - AI chat assistant
-
-### Authenticated Endpoints
-
-Admin operations require a Bearer token:
-```
-Authorization: Bearer <api-key-or-jwt>
-```
-
-## Core Endpoints
-
-### Products
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /products | List products (paginated) |
-| GET | /products/:id | Get product details |
-| GET | /categories | List categories |
-| GET | /collections | List collections |
-
-### Cart & Checkout
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /cart | Create cart |
-| GET | /cart/:id | Get cart |
-| PUT | /cart/:id | Update cart |
-| POST | /cart/:id/quote | Get payment quote |
-| POST | /cart/:id/checkout/stripe | Stripe checkout |
-| POST | /cart/:id/verify | Verify crypto payment |
-| POST | /cart/:id/coupon | Apply coupon |
-| POST | /cart/:id/gift-card | Apply gift card |
-
-### Chat (AI Assistant)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /chat | Send message to AI assistant |
-
-Request:
-```json
-{{
-  "sessionId": "optional-session-id",
-  "message": "Do you have any blue shirts?"
-}}
-```
-
-Response:
-```json
-{{
-  "sessionId": "sess_123",
-  "message": "Yes! I found these blue shirts:",
-  "products": [...],
-  "faqs": []
-}}
-```
-
-### Subscriptions
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /subscriptions | List user subscriptions |
-| POST | /subscriptions | Create subscription |
-| DELETE | /subscriptions/:id | Cancel subscription |
-
-## Error Format
-
-```json
-{{
-  "code": "error_code",
-  "message": "Human-readable description",
-  "details": {{}}
-}}
-```
-
-Common error codes:
-- `invalid_field` - Validation error
-- `not_found` - Resource not found
-- `rate_limited` - Too many requests
-- `unauthorized` - Authentication required
-- `forbidden` - Insufficient permissions
-
-## Rate Limits
-
-| Category | Limit |
-|----------|-------|
-| Public endpoints | 100 req/min per IP |
-| Admin endpoints | 60 req/min per key |
-| Chat endpoint | 20 req/min per session |
-
-## Docs
-
-- [/agent.md](/agent.md): Integration guide
-- [/llms.txt](/llms.txt): Brief summary
-- [/llms-admin.txt](/llms-admin.txt): Admin operations
-
-## Skills
-
-{skills}
-
-## API
-
-- [/openapi.json](/openapi.json): Full OpenAPI spec
-- [/skill.json](/skill.json): Skill metadata
-- [/.well-known/ai-discovery.json](/.well-known/ai-discovery.json): Discovery index
-"#,
-        name = SERVICE_NAME,
-        description = SERVICE_DESCRIPTION,
-        skills = skills.join("\n")
-    );
+    let content = get_llms_full_content("");
 
     ([("Content-Type", "text/plain; charset=utf-8")], content)
 }
@@ -229,31 +100,40 @@ pub async fn llms_admin_txt() -> impl IntoResponse {
     let content = format!(
         r#"# {name} Admin API
 
-> Administrative operations for store management. Requires valid authentication plus admin role.
+> Administrative operations for store management.
 
-## Prerequisites
+## Authentication
 
-Admin operations require:
-1. Valid authentication (API key or JWT)
-2. Admin role or tenant owner permissions
+All admin endpoints require **Ed25519 signature** authentication:
 
-Header: `Authorization: Bearer <admin-token>`
+```
+X-Signer: <base58-public-key>
+X-Message: <message-string>
+X-Signature: <base58-signature>
+```
+
+Alternatively, a Bearer JWT with admin role:
+```
+Authorization: Bearer <admin-jwt>
+```
 
 ## Products
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /admin/products | List all products |
+| GET | /admin/products/{{id}} | Get product |
 | POST | /admin/products | Create product |
-| GET | /admin/products/:id | Get product |
-| PUT | /admin/products/:id | Update product |
-| DELETE | /admin/products/:id | Delete product |
+| PUT | /admin/products/{{id}} | Update product |
+| DELETE | /admin/products/{{id}} | Delete product |
 
 ### Create Product Example
 
 ```
 POST /admin/products
-Authorization: Bearer <admin-token>
+X-Signer: <key>
+X-Message: <msg>
+X-Signature: <sig>
 Content-Type: application/json
 
 {{
@@ -264,54 +144,99 @@ Content-Type: application/json
 }}
 ```
 
-## Categories
+## Product Variations
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /admin/categories | List categories |
-| POST | /admin/categories | Create category |
-| PUT | /admin/categories/:id | Update category |
-| DELETE | /admin/categories/:id | Delete category |
+| GET | /admin/products/{{id}}/variations | Get variations |
+| PUT | /admin/products/{{id}}/variations | Update variations |
+| PUT | /admin/products/{{id}}/variants/inventory | Bulk update inventory |
+
+## Inventory
+
+| Method | Path | Description |
+|--------|------|-------------|
+| PUT | /admin/products/{{id}}/inventory | Set inventory level |
+| POST | /admin/products/{{id}}/inventory/adjust | Adjust inventory |
+| GET | /admin/products/{{id}}/inventory/adjustments | List adjustments |
+
+## Images
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /admin/images/upload | Upload image |
+| DELETE | /admin/images | Delete image |
+
+## Collections
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/collections | List collections |
+| POST | /admin/collections | Create collection |
+| GET | /admin/collections/{{id}} | Get collection |
+| PUT | /admin/collections/{{id}} | Update collection |
+| DELETE | /admin/collections/{{id}} | Delete collection |
 
 ## Orders
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /admin/orders | List orders |
-| GET | /admin/orders/:id | Get order details |
-| PATCH | /admin/orders/:id | Update order status |
+| GET | /admin/orders/{{id}} | Get order details |
+| POST | /admin/orders/{{id}}/status | Update order status |
+| POST | /admin/orders/{{id}}/fulfillments | Create fulfillment |
+| POST | /admin/fulfillments/{{id}}/status | Update fulfillment status |
 
 ## Customers
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /admin/customers | List customers |
-| GET | /admin/customers/:id | Get customer details |
+| GET | /admin/customers/{{id}} | Get customer details |
+| POST | /admin/customers | Create customer |
+| PUT | /admin/customers/{{id}} | Update customer |
 
-## Chat Sessions (CRM)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/chats | List chat sessions |
-| GET | /admin/chats/:sessionId | Get full chat history |
-
-## FAQ Management
+## Returns
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /admin/faqs | List FAQ entries |
-| POST | /admin/faqs | Create FAQ entry |
-| PUT | /admin/faqs/:id | Update FAQ entry |
-| DELETE | /admin/faqs/:id | Delete FAQ entry |
+| GET | /admin/returns | List returns |
+| GET | /admin/returns/{{id}} | Get return details |
+| POST | /admin/returns | Create return |
+| POST | /admin/returns/{{id}}/status | Update return status |
 
-## AI Configuration
+## Disputes
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /admin/ai/config | Get AI settings |
-| PUT | /admin/ai/config | Update AI settings |
-| POST | /admin/ai/assistant | AI product assistant |
-| POST | /admin/ai/related | Find related products |
+| GET | /admin/disputes | List disputes |
+| POST | /admin/disputes | Create dispute |
+| GET | /admin/disputes/{{id}} | Get dispute details |
+| POST | /admin/disputes/{{id}}/status | Update dispute status |
+
+## Shipping
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/shipping/profiles | List shipping profiles |
+| POST | /admin/shipping/profiles | Create profile |
+| GET | /admin/shipping/profiles/{{id}} | Get profile |
+| PUT | /admin/shipping/profiles/{{id}} | Update profile |
+| DELETE | /admin/shipping/profiles/{{id}} | Delete profile |
+| GET | /admin/shipping/profiles/{{id}}/rates | List rates |
+| POST | /admin/shipping/profiles/{{id}}/rates | Create rate |
+| PUT | /admin/shipping/rates/{{id}} | Update rate |
+| DELETE | /admin/shipping/rates/{{id}} | Delete rate |
+
+## Taxes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/taxes | List tax rates |
+| POST | /admin/taxes | Create tax rate |
+| GET | /admin/taxes/{{id}} | Get tax rate |
+| PUT | /admin/taxes/{{id}} | Update tax rate |
+| DELETE | /admin/taxes/{{id}} | Delete tax rate |
 
 ## Coupons
 
@@ -319,8 +244,8 @@ Content-Type: application/json
 |--------|------|-------------|
 | GET | /admin/coupons | List coupons |
 | POST | /admin/coupons | Create coupon |
-| PUT | /admin/coupons/:id | Update coupon |
-| DELETE | /admin/coupons/:id | Delete coupon |
+| PUT | /admin/coupons/{{id}} | Update coupon |
+| DELETE | /admin/coupons/{{id}} | Delete coupon |
 
 ## Gift Cards
 
@@ -328,22 +253,132 @@ Content-Type: application/json
 |--------|------|-------------|
 | GET | /admin/gift-cards | List gift cards |
 | POST | /admin/gift-cards | Create gift card |
-| GET | /admin/gift-cards/:id | Get gift card |
-| PUT | /admin/gift-cards/:id | Update gift card |
+| GET | /admin/gift-cards/{{code}} | Get gift card |
+| PUT | /admin/gift-cards/{{code}} | Update gift card |
+| POST | /admin/gift-cards/{{code}}/adjust | Adjust balance |
 
-## Settings
+## FAQ Management
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /admin/config/:category | Get config category |
-| PUT | /admin/config/:category | Update config category |
+| GET | /admin/faqs | List FAQ entries |
+| POST | /admin/faqs | Create FAQ |
+| GET | /admin/faqs/{{id}} | Get FAQ |
+| PUT | /admin/faqs/{{id}} | Update FAQ |
+| DELETE | /admin/faqs/{{id}} | Delete FAQ |
+
+## Chat Sessions (CRM)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/chats | List chat sessions |
+| GET | /admin/chats/{{sessionId}} | Get chat history |
+| GET | /admin/users/{{userId}}/chats | List user's chats |
+
+## Webhooks & Dead-Letter Queue
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/webhooks | List webhooks |
+| GET | /admin/webhooks/{{id}} | Get webhook details |
+| POST | /admin/webhooks/{{id}}/retry | Retry webhook |
+| DELETE | /admin/webhooks/{{id}} | Delete webhook |
+| GET | /admin/webhooks/dlq | List dead-letter queue |
+| POST | /admin/webhooks/dlq/{{id}}/retry | Retry from DLQ |
+| DELETE | /admin/webhooks/dlq/{{id}} | Delete from DLQ |
+
+## Config
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/config | List config categories |
+| GET | /admin/config/{{category}} | Get config |
+| PUT | /admin/config/{{category}} | Update config (full) |
+| PATCH | /admin/config/{{category}} | Update config (partial) |
+| POST | /admin/config/batch | Batch update |
+| POST | /admin/config/validate | Validate config |
+| GET | /admin/config/history | Config change history |
+
+## AI Configuration
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/config/ai | Get AI settings |
+| PUT | /admin/config/ai/api-key | Save AI API key |
+| DELETE | /admin/config/ai/api-key/{{provider}} | Delete AI API key |
+| PUT | /admin/config/ai/assignment | Save AI assignment |
+| PUT | /admin/config/ai/prompt | Save AI prompt |
+
+## AI Assistants
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /admin/ai/product-assistant | Product assistant |
+| POST | /admin/ai/related-products | Find related products |
+| POST | /admin/ai/product-search | AI product search |
+
+## Subscription Settings
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/subscriptions/settings | Get settings |
+| PUT | /admin/subscriptions/settings | Update settings |
+
+## Compliance
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/compliance/holders | List holders |
+| GET | /admin/compliance/actions | List actions |
+| POST | /admin/compliance/freeze | Freeze holder |
+| POST | /admin/compliance/thaw | Thaw holder |
+| GET | /admin/compliance/report | Generate report |
+| GET | /admin/compliance/sweep-settings | Get sweep settings |
+| PUT | /admin/compliance/sweep-settings | Update sweep settings |
+| GET | /admin/compliance/sanctions-api | Get sanctions settings |
+| PUT | /admin/compliance/sanctions-api | Update sanctions settings |
+| POST | /admin/compliance/sanctions-api/refresh | Refresh sanctions |
+| GET | /admin/compliance/user-status/{{userId}} | User compliance status |
+
+## Token-22
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /admin/token22/initialize | Initialize mint |
+| GET | /admin/token22/status | Get Token-22 status |
+| POST | /admin/token22/harvest-fees | Harvest fees |
+
+## Asset Redemptions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/asset-redemptions | List redemptions |
+| PATCH | /admin/asset-redemptions/{{id}}/status | Update status |
+| POST | /admin/asset-redemptions/{{id}}/complete | Complete redemption |
+
+## Refunds & Transactions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/refunds | List refunds |
+| GET | /admin/stripe/refunds | List Stripe refunds |
+| POST | /admin/stripe/refunds/{{id}}/process | Process Stripe refund |
+| GET | /admin/credits/refund-requests | List credit refund requests |
+| GET | /admin/transactions | List transactions |
+
+## Audit & Stats
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/audit | Audit log |
+| GET | /admin/stats | Dashboard statistics |
 
 ## Error Handling
 
 Admin-specific errors:
-- `unauthorized` (401) - Missing or invalid token
-- `forbidden` (403) - Valid token but insufficient permissions
-- `not_found` (404) - Resource doesn't exist
+- `unauthorized` (401) — Missing or invalid credentials
+- `forbidden` (403) — Valid credentials but insufficient permissions
+- `not_found` (404) — Resource doesn't exist
 
 ## API
 

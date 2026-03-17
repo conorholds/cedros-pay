@@ -25,6 +25,8 @@ export interface ComplianceGatePageProps {
   onCancel?: () => void;
   /** Optional auth token (cedros-login JWT) for authenticated checks */
   authToken?: string;
+  /** Optional Solana wallet address for token-gate checks */
+  wallet?: string;
   /** Custom content shown while checking */
   children?: React.ReactNode;
 }
@@ -45,6 +47,7 @@ export function ComplianceGatePage({
   onBlocked,
   onCancel,
   authToken,
+  wallet,
   children,
 }: ComplianceGatePageProps) {
   const theme = useCedrosTheme();
@@ -55,8 +58,8 @@ export function ComplianceGatePage({
   useEffect(() => {
     if (hasChecked.current || resources.length === 0) return;
     hasChecked.current = true;
-    checkCompliance(resources, authToken);
-  }, [resources, authToken, checkCompliance]);
+    checkCompliance(resources, authToken, wallet);
+  }, [resources, authToken, wallet, checkCompliance]);
 
   // Auto-fire callbacks when result arrives
   useEffect(() => {

@@ -8,9 +8,9 @@ pub enum AssetClass {
     Securities,
     /// Fungible — per-collection Token-22 mint, Meteora DLMM pool, CFTC regulated.
     Commodities,
-    /// Non-fungible — per-product Metaplex Core NFT, state/local regulated.
+    /// Non-fungible — per-product Token-22 NFT (supply=1), state/local regulated.
     Property,
-    /// Non-fungible — per-product Metaplex Core NFT, varies by jurisdiction.
+    /// Non-fungible — per-product Token-22 NFT (supply=1), varies by jurisdiction.
     Collectibles,
 }
 
@@ -122,7 +122,7 @@ pub struct TokenizedAssetConfig {
     /// Per-asset custody proof (supplements collection-level proof).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custody_proof_url: Option<String>,
-    /// Metaplex Core asset address (set after minting for non-fungible assets).
+    /// Token-22 mint address (set after minting for non-fungible assets).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nft_mint_address: Option<String>,
     /// Regulatory notice (denormalized from collection for API consumers).

@@ -3,7 +3,7 @@
 //! After a tokenized asset product is purchased, this service:
 //! 1. Looks up the collection's tokenization config
 //! 2. For fungible assets: mints tokens from the collection's Token-22 mint
-//! 3. For non-fungible assets: creates a Metaplex Core NFT with PermanentBurnDelegate
+//! 3. For non-fungible assets: creates a Token-22 NFT (supply=1) with PermanentDelegate
 //! 4. Records an AssetRedemption with status `pending_info`
 
 use std::sync::Arc;
@@ -12,12 +12,12 @@ use chrono::Utc;
 use solana_sdk::pubkey::Pubkey;
 use tracing::{info, warn};
 
+use crate::models::compliance::ComplianceRequirements;
+use crate::models::tokenization::TokenizationConfig;
 use crate::models::{AssetRedemption, AssetRedemptionStatus, Product, TenantToken22Mint};
 use crate::repositories::ProductRepository;
-use crate::models::compliance::ComplianceRequirements;
 use crate::services::cedros_login::CedrosLoginClient;
 use crate::services::compliance_checker::{ComplianceChecker, ComplianceResult};
-use crate::services::metaplex_core::MetaplexCoreService;
 use crate::services::token22::Token22Service;
 use crate::storage::Store;
 
@@ -25,28 +25,28 @@ use crate::storage::Store;
 pub struct AssetFulfillmentService {
     cedros_login: Arc<CedrosLoginClient>,
     token22: Option<Arc<Token22Service>>,
-    metaplex_core: Option<Arc<MetaplexCoreService>>,
     compliance_checker: Option<Arc<ComplianceChecker>>,
     store: Arc<dyn Store>,
     product_repo: Arc<dyn ProductRepository>,
+    metadata_base_url: String,
 }
 
 impl AssetFulfillmentService {
     pub fn new(
         cedros_login: Arc<CedrosLoginClient>,
         token22: Option<Arc<Token22Service>>,
-        metaplex_core: Option<Arc<MetaplexCoreService>>,
         compliance_checker: Option<Arc<ComplianceChecker>>,
         store: Arc<dyn Store>,
         product_repo: Arc<dyn ProductRepository>,
+        metadata_base_url: String,
     ) -> Self {
         Self {
             cedros_login,
             token22,
-            metaplex_core,
             compliance_checker,
             store,
             product_repo,
+            metadata_base_url,
         }
     }
 
@@ -109,8 +109,8 @@ impl AssetFulfillmentService {
             )
             .await
         } else {
-            // NFT minting: create Metaplex Core asset with PermanentBurnDelegate
-            self.try_mint_nft(tenant_id, order_id, &product.id, user_id)
+            // NFT minting: Token-22 mint with supply=1 and compliance extensions
+            self.try_mint_nft(tenant_id, order_id, &product.id, user_id, tokenization)
                 .await
         };
 
@@ -293,7 +293,7 @@ impl AssetFulfillmentService {
         }
     }
 
-    /// Create a Metaplex Core NFT asset for a non-fungible tokenized product.
+    /// Create a Token-22 NFT for a non-fungible tokenized product.
     ///
     /// Best-effort: returns `None` on any error (logged as warnings). Returns
     /// the confirming transaction signature on success.
@@ -303,11 +303,12 @@ impl AssetFulfillmentService {
         order_id: &str,
         product_id: &str,
         user_id: Option<&str>,
+        tokenization: &TokenizationConfig,
     ) -> Option<String> {
-        let metaplex = match &self.metaplex_core {
-            Some(m) => m,
+        let token22 = match &self.token22 {
+            Some(t) => t,
             None => {
-                warn!(tenant_id = %tenant_id, "MetaplexCoreService not configured; skipping NFT mint");
+                warn!(tenant_id = %tenant_id, "Token22Service not configured; skipping NFT mint");
                 return None;
             }
         };
@@ -325,64 +326,54 @@ impl AssetFulfillmentService {
             }
         };
 
-        // Compliance check: sanctions, KYC, accredited investor
         if let Some(ref checker) = self.compliance_checker {
-            let reqs = ComplianceRequirements::default(); // NFTs: sanctions-only default
+            let reqs = ComplianceRequirements::default();
             if let ComplianceResult::Blocked { reasons } = checker
-                .check_compliance(tenant_id, &wallet_address, Some(user), &reqs)
-                .await
+                .check_compliance(tenant_id, &wallet_address, Some(user), &reqs).await
             {
-                warn!(
-                    tenant_id = %tenant_id,
-                    order_id = %order_id,
-                    ?reasons,
-                    "Compliance check failed; skipping NFT mint"
-                );
+                warn!(%tenant_id, %order_id, ?reasons, "Compliance blocked NFT mint");
                 return None;
             }
         } else if crate::services::sanctions::is_sanctioned(&wallet_address) {
-            warn!(
-                tenant_id = %tenant_id,
-                order_id = %order_id,
-                "Sanctioned wallet detected; skipping NFT mint"
-            );
+            warn!(%tenant_id, %order_id, "Sanctioned wallet; skipping NFT mint");
             return None;
         }
 
         let owner_pubkey = match wallet_address.parse::<Pubkey>() {
             Ok(pk) => pk,
-            Err(e) => {
-                warn!(error = %e, wallet = %wallet_address, "Invalid wallet pubkey for NFT mint");
-                return None;
-            }
+            Err(e) => { warn!(error = %e, "Invalid wallet pubkey for NFT mint"); return None; }
         };
 
         let name = format!("Cedros Asset #{}", &product_id[..8.min(product_id.len())]);
+        let symbol = tokenization.token_symbol.as_deref().unwrap_or("ASSET");
+        let uri = if self.metadata_base_url.is_empty() { String::new() } else {
+            format!("{}/paywall/v1/products/{}/nft-metadata", self.metadata_base_url, product_id)
+        };
+        let transfer_fee = if tokenization.transfer_fee_bps > 0 {
+            Some(crate::services::token22::NftTransferFee {
+                basis_points: tokenization.transfer_fee_bps as u16,
+                max_fee: tokenization.max_transfer_fee as u64,
+            })
+        } else { None };
 
-        match crate::services::metaplex_core::create_asset(
-            metaplex,
-            &owner_pubkey,
-            name,
-            product_id,
-        )
-        .await
-        {
+        match crate::services::token22::create_nft_mint(
+            token22, &owner_pubkey, &name, symbol, &uri, transfer_fee,
+        ).await {
             Ok(result) => {
                 info!(
                     tenant_id = %tenant_id,
                     order_id = %order_id,
                     product_id = %product_id,
-                    asset = %result.asset_address,
+                    mint = %result.mint_address,
                     signature = %result.signature,
-                    "Metaplex Core NFT minted"
+                    "Token-22 NFT minted"
                 );
-                // Persist asset address on the product (best-effort)
-                self.persist_nft_mint_address(tenant_id, product_id, &result.asset_address)
+                self.persist_nft_mint_address(tenant_id, product_id, &result.mint_address)
                     .await;
                 Some(result.signature)
             }
             Err(e) => {
-                warn!(error = %e, "Failed to create Metaplex Core NFT");
+                warn!(error = %e, "Failed to create Token-22 NFT");
                 None
             }
         }
@@ -444,7 +435,7 @@ impl AssetFulfillmentService {
 
     /// Burn tokens for a completed redemption.
     ///
-    /// Dispatches based on NFT mint address (Core burn) or fungible Token-22 burn.
+    /// Dispatches based on NFT mint address (Token-22 NFT burn) or fungible Token-22 burn.
     /// Best-effort — returns `None` on any error (logged as warnings).
     pub async fn burn_redemption_tokens(
         &self,
@@ -457,7 +448,7 @@ impl AssetFulfillmentService {
         if let Ok(product) = self.product_repo.get_product(tenant_id, product_id).await {
             if let Some(ref tac) = product.tokenized_asset_config {
                 if let Some(ref nft_addr) = tac.nft_mint_address {
-                    return self.burn_nft_asset(nft_addr).await;
+                    return self.burn_nft_asset(nft_addr, user_id).await;
                 }
             }
         }
@@ -465,15 +456,24 @@ impl AssetFulfillmentService {
             .await
     }
 
-    async fn burn_nft_asset(&self, asset_address: &str) -> Option<String> {
-        let metaplex = self.metaplex_core.as_ref()?;
-        let asset_pubkey = match asset_address.parse::<Pubkey>() {
+    async fn burn_nft_asset(&self, mint_address: &str, user_id: &str) -> Option<String> {
+        let token22 = self.token22.as_ref()?;
+        let mint_pubkey = match mint_address.parse::<Pubkey>() {
             Ok(pk) => pk,
-            Err(e) => { warn!(error = %e, "Invalid asset pubkey for NFT burn"); return None; }
+            Err(e) => { warn!(error = %e, "Invalid mint pubkey for NFT burn"); return None; }
         };
-        match crate::services::metaplex_core::burn_asset(metaplex, &asset_pubkey).await {
+        let wallet_address = match self.cedros_login.get_embedded_wallet(user_id).await {
+            Ok(Some(a)) => a,
+            Ok(None) => { warn!(user_id = %user_id, "No embedded wallet; skipping NFT burn"); return None; }
+            Err(e) => { warn!(error = %e, "Failed to get wallet for NFT burn"); return None; }
+        };
+        let owner_pubkey = match wallet_address.parse::<Pubkey>() {
+            Ok(pk) => pk,
+            Err(e) => { warn!(error = %e, "Invalid wallet pubkey for NFT burn"); return None; }
+        };
+        match crate::services::token22::burn_nft(token22, &mint_pubkey, &owner_pubkey).await {
             Ok(sig) => Some(sig),
-            Err(e) => { warn!(error = %e, "Failed to burn Metaplex Core NFT"); None }
+            Err(e) => { warn!(error = %e, "Failed to burn Token-22 NFT"); None }
         }
     }
 

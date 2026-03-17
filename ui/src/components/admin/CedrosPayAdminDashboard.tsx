@@ -65,6 +65,33 @@ const LazyOrdersSection = lazy(() =>
 const LazyComplianceSection = lazy(() =>
   import('./ComplianceSection').then((module) => ({ default: module.ComplianceSection }))
 );
+const LazyChatLogsSection = lazy(() =>
+  import('./ChatLogsSection').then((module) => ({ default: module.ChatLogsSection }))
+);
+const LazyCustomersSection = lazy(() =>
+  import('./CustomersSection').then((module) => ({ default: module.CustomersSection }))
+);
+const LazyDisputesSection = lazy(() =>
+  import('./DisputesSection').then((module) => ({ default: module.DisputesSection }))
+);
+const LazyWebhooksSection = lazy(() =>
+  import('./WebhooksSection').then((module) => ({ default: module.WebhooksSection }))
+);
+const LazyShippingSection = lazy(() =>
+  import('./ShippingSection').then((module) => ({ default: module.ShippingSection }))
+);
+const LazyTaxSection = lazy(() =>
+  import('./TaxSection').then((module) => ({ default: module.TaxSection }))
+);
+const LazyReturnsSection = lazy(() =>
+  import('./ReturnsSection').then((module) => ({ default: module.ReturnsSection }))
+);
+const LazyImagesSection = lazy(() =>
+  import('./ImagesSection').then((module) => ({ default: module.ImagesSection }))
+);
+const LazyInventorySection = lazy(() =>
+  import('./InventorySection').then((module) => ({ default: module.InventorySection }))
+);
 
 /** Available dashboard sections */
 export type DashboardSection =
@@ -81,6 +108,15 @@ export type DashboardSection =
   | 'messaging'
   | 'token22'
   | 'compliance'
+  | 'chat-logs'
+  | 'customers'
+  | 'disputes'
+  | 'webhooks'
+  | 'shipping'
+  | 'tax'
+  | 'returns'
+  | 'images'
+  | 'inventory'
   | 'settings';
 
 /** Theme mode for the dashboard */
@@ -144,6 +180,12 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'coupons', label: 'Coupons', icon: Icons.coupons },
       { id: 'refunds', label: 'Refunds', icon: Icons.refunds },
       { id: 'compliance', label: 'Compliance', icon: Icons.shield },
+      { id: 'chat-logs', label: 'Chat Logs', icon: Icons.chat },
+      { id: 'customers', label: 'Customers', icon: Icons.user },
+      { id: 'disputes', label: 'Disputes', icon: Icons.shield },
+      { id: 'returns', label: 'Returns', icon: Icons.refunds },
+      { id: 'images', label: 'Images', icon: Icons.eye },
+      { id: 'inventory', label: 'Inventory', icon: Icons.products },
     ],
   },
   {
@@ -156,6 +198,9 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: 'payment-settings', label: 'Payment Options', icon: Icons.creditCard },
       { id: 'token22', label: 'Gift Cards & Token-22', icon: Icons.wallet },
       { id: 'messaging', label: 'Store Messages', icon: Icons.mail },
+      { id: 'webhooks', label: 'Webhooks', icon: Icons.globe },
+      { id: 'shipping', label: 'Shipping', icon: Icons.products },
+      { id: 'tax', label: 'Tax Rates', icon: Icons.transactions },
       { id: 'settings', label: 'Store Server', icon: Icons.server },
     ],
   },
@@ -208,6 +253,60 @@ function useResolvedTheme(
   }
   // Fall back to system preference
   return systemTheme;
+}
+
+/** Section component registry — maps section IDs to their lazy/eager components */
+type SectionComponent = React.ComponentType<{ serverUrl: string; apiKey?: string; pageSize?: number; authManager?: ReturnType<typeof useAdminAuth>['authManager'] }>;
+
+const LAZY_SECTIONS: Record<string, SectionComponent> = {
+  products: ProductsSection,
+  transactions: TransactionsSection,
+  coupons: CouponsSection,
+  refunds: RefundsSection,
+  settings: SettingsSection,
+  subscriptions: LazySubscriptionsSection as SectionComponent,
+  storefront: LazyStorefrontSection as SectionComponent,
+  'ai-settings': LazyAISettingsSection as SectionComponent,
+  'payment-settings': LazyPaymentSettingsSection as SectionComponent,
+  messaging: LazyMessagingSection as SectionComponent,
+  faqs: LazyFAQSection as SectionComponent,
+  token22: LazyToken22Section as SectionComponent,
+  orders: LazyOrdersSection as SectionComponent,
+  compliance: LazyComplianceSection as SectionComponent,
+  'chat-logs': LazyChatLogsSection as SectionComponent,
+  customers: LazyCustomersSection as SectionComponent,
+  disputes: LazyDisputesSection as SectionComponent,
+  webhooks: LazyWebhooksSection as SectionComponent,
+  shipping: LazyShippingSection as SectionComponent,
+  tax: LazyTaxSection as SectionComponent,
+  returns: LazyReturnsSection as SectionComponent,
+  images: LazyImagesSection as SectionComponent,
+  inventory: LazyInventorySection as SectionComponent,
+};
+
+/** Eagerly-loaded sections that don't need Suspense */
+const EAGER_SECTIONS = new Set(['products', 'transactions', 'coupons', 'refunds', 'settings']);
+
+function SectionRenderer({ activeSection, serverUrl, apiKey, pageSize, authManager }: {
+  activeSection: DashboardSection;
+  serverUrl: string;
+  apiKey?: string;
+  pageSize: number;
+  authManager?: ReturnType<typeof useAdminAuth>['authManager'];
+}) {
+  const Component = LAZY_SECTIONS[activeSection];
+  if (!Component) return null;
+
+  const props = { serverUrl, apiKey, pageSize, authManager };
+
+  if (EAGER_SECTIONS.has(activeSection)) {
+    return <Component {...props} />;
+  }
+  return (
+    <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
+      <Component {...props} />
+    </Suspense>
+  );
 }
 
 export function CedrosPayAdminDashboard({
@@ -348,129 +447,13 @@ export function CedrosPayAdminDashboard({
         </header>
 
         <div className="cedros-admin__content">
-          {activeSection === 'products' && (
-            <ProductsSection
-              serverUrl={serverUrl}
-              apiKey={apiKey}
-              pageSize={pageSize}
-              authManager={authManager}
-            />
-          )}
-          {activeSection === 'subscriptions' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazySubscriptionsSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'transactions' && (
-            <TransactionsSection
-              serverUrl={serverUrl}
-              apiKey={apiKey}
-              pageSize={pageSize}
-              authManager={authManager}
-            />
-          )}
-          {activeSection === 'orders' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyOrdersSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                pageSize={pageSize}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'coupons' && (
-            <CouponsSection
-              serverUrl={serverUrl}
-              apiKey={apiKey}
-              pageSize={pageSize}
-              authManager={authManager}
-            />
-          )}
-          {activeSection === 'refunds' && (
-            <RefundsSection
-              serverUrl={serverUrl}
-              apiKey={apiKey}
-              pageSize={pageSize}
-              authManager={authManager}
-            />
-          )}
-          {activeSection === 'storefront' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyStorefrontSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'ai-settings' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyAISettingsSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'faqs' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyFAQSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                pageSize={pageSize}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'payment-settings' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyPaymentSettingsSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'messaging' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyMessagingSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'compliance' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyComplianceSection
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                pageSize={pageSize}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'token22' && (
-            <Suspense fallback={<div className="cedros-admin__loading-text">Loading section...</div>}>
-              <LazyToken22Section
-                serverUrl={serverUrl}
-                apiKey={apiKey}
-                authManager={authManager}
-              />
-            </Suspense>
-          )}
-          {activeSection === 'settings' && (
-            <SettingsSection
-              serverUrl={serverUrl}
-              apiKey={apiKey}
-              authManager={authManager}
-            />
-          )}
+          <SectionRenderer
+            activeSection={activeSection}
+            serverUrl={serverUrl}
+            apiKey={apiKey}
+            pageSize={pageSize}
+            authManager={authManager}
+          />
         </div>
       </main>
     </div>

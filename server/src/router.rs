@@ -43,6 +43,8 @@ pub(crate) struct RouterStates<S: Store> {
     pub admin_images_state: Option<Arc<handlers::admin_images::ImageUploadState>>,
     /// Dynamic sanctions list service — for admin compliance policy routes.
     pub sanctions_list_service: Option<Arc<crate::services::SanctionsListService>>,
+    /// Cedros-login client — for admin KYC/compliance user lookups.
+    pub cedros_login_client: Option<Arc<crate::services::CedrosLoginClient>>,
 }
 
 pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Router {

@@ -15,6 +15,7 @@ import { formatDateTime } from '../../utils/dateHelpers';
 import type { TokenHolder, ComplianceAction, ComplianceReport, ComplianceTab, SanctionsSweepSettings } from './complianceTypes';
 import { truncateAddress, statusBadge, actionBadge, SOLANA_EXPLORER } from './complianceTypes';
 import { ComplianceSanctionsApi } from './ComplianceSanctionsApi';
+import { ComplianceKycTab } from './ComplianceKycTab';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -200,12 +201,13 @@ export function ComplianceSection({ serverUrl, apiKey, pageSize = 50, authManage
 
       {/* Tab navigation */}
       <div className="cedros-admin__tabs" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        {(['holders', 'actions', 'reports', 'sweep-settings', 'sanctions-api'] as ComplianceTab[]).map(tab => {
+        {(['holders', 'actions', 'reports', 'sweep-settings', 'sanctions-api', 'kyc'] as ComplianceTab[]).map(tab => {
           const label = tab === 'holders' ? 'Token Holders'
             : tab === 'actions' ? 'Actions Log'
             : tab === 'reports' ? 'Reports'
             : tab === 'sweep-settings' ? 'Sweep Settings'
-            : 'Sanctions API';
+            : tab === 'sanctions-api' ? 'Sanctions API'
+            : 'KYC & Accreditation';
           return (
             <button
               key={tab}
@@ -481,6 +483,11 @@ export function ComplianceSection({ serverUrl, apiKey, pageSize = 50, authManage
       {/* ─── Sanctions API Tab ──────────────────────────────────────── */}
       {activeTab === 'sanctions-api' && (
         <ComplianceSanctionsApi serverUrl={serverUrl} apiKey={apiKey} authManager={authManager} />
+      )}
+
+      {/* ─── KYC & Accreditation Tab ────────────────────────────────── */}
+      {activeTab === 'kyc' && (
+        <ComplianceKycTab serverUrl={serverUrl} apiKey={apiKey} authManager={authManager} />
       )}
 
       {/* ─── Freeze/Thaw Modal ─────────────────────────────────────────── */}

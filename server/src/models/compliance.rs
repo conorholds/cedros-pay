@@ -90,6 +90,27 @@ fn default_refresh_interval() -> u64 {
     3600
 }
 
+/// Type of token gate: fungible SPL token balance or NFT collection count.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenGateType {
+    FungibleToken,
+    NftCollection,
+}
+
+/// A token-gating requirement: the buyer's wallet must hold a minimum amount
+/// of a fungible SPL token or a minimum count of NFTs from a Metaplex collection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenGate {
+    /// Mint address (fungible) or verified collection address (NFT).
+    pub address: String,
+    /// Whether this gate checks a fungible balance or NFT collection count.
+    pub gate_type: TokenGateType,
+    /// Minimum amount: atomic units for fungible tokens, count for NFTs.
+    pub min_amount: u64,
+}
+
 /// Per-collection compliance gate requirements.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -103,6 +124,9 @@ pub struct ComplianceRequirements {
     /// Require accredited investor status via cedros-login.
     #[serde(default)]
     pub require_accredited_investor: bool,
+    /// Optional token-gating requirements (Solana wallet holdings).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_gates: Option<Vec<TokenGate>>,
 }
 
 impl Default for ComplianceRequirements {
@@ -111,6 +135,7 @@ impl Default for ComplianceRequirements {
             require_sanctions_clear: true,
             require_kyc: false,
             require_accredited_investor: false,
+            token_gates: None,
         }
     }
 }

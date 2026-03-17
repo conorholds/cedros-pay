@@ -35,7 +35,7 @@ export function useComplianceCheck() {
   const [error, setError] = useState<string | null>(null);
 
   const checkCompliance = useCallback(
-    async (resources: string[], authToken?: string): Promise<ComplianceCheckResult> => {
+    async (resources: string[], authToken?: string, wallet?: string): Promise<ComplianceCheckResult> => {
       setLoading(true);
       setError(null);
       setResult(null);
@@ -52,7 +52,7 @@ export function useComplianceCheck() {
         const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ resources }),
+          body: JSON.stringify({ resources, ...(wallet ? { wallet } : {}) }),
         });
 
         if (!response.ok) {

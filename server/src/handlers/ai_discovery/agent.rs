@@ -23,17 +23,17 @@ recommendedAuth: api-key
 This guide helps AI agents integrate with the Cedros Pay API for:
 - Browsing and searching products
 - Managing shopping carts
-- Processing payments
+- Processing payments (Stripe, x402 crypto, credits)
 - Using the AI chat assistant
-- Administrative operations (with auth)
+- Administrative operations (with Ed25519 auth)
 
 ## Why This API is Agent-Friendly
 
-1. **Public endpoints** - Most read operations require no authentication
-2. **AI chat assistant** - Natural language product search and FAQ
-3. **Structured responses** - Consistent JSON with camelCase fields
-4. **Rate limiting info** - Clear limits in headers
-5. **Multiple formats** - llms.txt, OpenAPI, MCP, A2A support
+1. **Public endpoints** — Most read operations require no authentication
+2. **AI chat assistant** — Natural language product search and FAQ
+3. **Structured responses** — Consistent JSON with camelCase fields
+4. **Rate limiting info** — Clear limits in headers
+5. **Multiple formats** — llms.txt, OpenAPI, MCP, A2A support
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ This guide helps AI agents integrate with the Cedros Pay API for:
 ```python
 import requests
 
-response = requests.get("https://your-store.cedros.io/products")
+response = requests.get("https://your-store.cedros.io/paywall/v1/products")
 products = response.json()["products"]
 
 for p in products:
@@ -53,7 +53,7 @@ for p in products:
 
 ```python
 response = requests.post(
-    "https://your-store.cedros.io/chat",
+    "https://your-store.cedros.io/paywall/v1/chat",
     json={{"message": "Do you have any blue shirts under $50?"}}
 )
 
@@ -67,9 +67,9 @@ for product in result.get("products", []):
 ### 3. Create Cart and Checkout
 
 ```python
-# Create cart
+# Create cart quote
 cart = requests.post(
-    "https://your-store.cedros.io/cart",
+    "https://your-store.cedros.io/paywall/v1/cart/quote",
     json={{
         "items": [
             {{"productId": "prod_123", "quantity": 1}}
@@ -77,12 +77,13 @@ cart = requests.post(
     }}
 ).json()
 
-cart_id = cart["id"]
+cart_id = cart["cartId"]
 
-# Get Stripe checkout URL
+# Checkout via Stripe
 checkout = requests.post(
-    f"https://your-store.cedros.io/cart/{{cart_id}}/checkout/stripe",
+    "https://your-store.cedros.io/paywall/v1/cart/checkout",
     json={{
+        "cartId": cart_id,
         "successUrl": "https://example.com/success",
         "cancelUrl": "https://example.com/cancel"
     }}
@@ -97,7 +98,6 @@ print(f"Checkout URL: {{checkout['url']}}")
 
 ```python
 import requests
-import time
 
 class CedrosPayClient:
     def __init__(self, base_url, api_key=None):
@@ -109,7 +109,7 @@ class CedrosPayClient:
     def search_products(self, query):
         \"\"\"Use AI assistant to search products.\"\"\"
         resp = self.session.post(
-            f"{{self.base_url}}/chat",
+            f"{{self.base_url}}/paywall/v1/chat",
             json={{"message": query}}
         )
         return resp.json()
@@ -117,35 +117,39 @@ class CedrosPayClient:
     def list_products(self, limit=20, offset=0):
         \"\"\"List products with pagination.\"\"\"
         resp = self.session.get(
-            f"{{self.base_url}}/products",
+            f"{{self.base_url}}/paywall/v1/products",
             params={{"limit": limit, "offset": offset}}
         )
         return resp.json()
 
-    def create_cart(self, items):
-        \"\"\"Create a cart with items.\"\"\"
+    def create_cart(self, items, coupon_code=None):
+        \"\"\"Create a cart quote with items.\"\"\"
+        body = {{"items": items}}
+        if coupon_code:
+            body["couponCode"] = coupon_code
         resp = self.session.post(
-            f"{{self.base_url}}/cart",
-            json={{"items": items}}
-        )
-        return resp.json()
-
-    def get_quote(self, cart_id, payment_method="stripe"):
-        \"\"\"Get payment quote for cart.\"\"\"
-        resp = self.session.post(
-            f"{{self.base_url}}/cart/{{cart_id}}/quote",
-            json={{"paymentMethod": payment_method}}
+            f"{{self.base_url}}/paywall/v1/cart/quote",
+            json=body
         )
         return resp.json()
 
     def checkout_stripe(self, cart_id, success_url, cancel_url):
         \"\"\"Get Stripe checkout URL.\"\"\"
         resp = self.session.post(
-            f"{{self.base_url}}/cart/{{cart_id}}/checkout/stripe",
+            f"{{self.base_url}}/paywall/v1/cart/checkout",
             json={{
+                "cartId": cart_id,
                 "successUrl": success_url,
                 "cancelUrl": cancel_url
             }}
+        )
+        return resp.json()
+
+    def verify_x402(self, cart_id, signature):
+        \"\"\"Verify x402 crypto payment.\"\"\"
+        resp = self.session.post(
+            f"{{self.base_url}}/paywall/v1/cart/{{cart_id}}/verify",
+            json={{"signature": signature}}
         )
         return resp.json()
 
@@ -161,7 +165,7 @@ cart = client.create_cart([
     {{"productId": results["products"][0]["id"], "quantity": 1}}
 ])
 checkout = client.checkout_stripe(
-    cart["id"],
+    cart["cartId"],
     "https://example.com/success",
     "https://example.com/cancel"
 )
@@ -181,7 +185,7 @@ class CedrosPayClient {{
   }}
 
   async searchProducts(query) {{
-    const resp = await fetch(`${{this.baseUrl}}/chat`, {{
+    const resp = await fetch(`${{this.baseUrl}}/paywall/v1/chat`, {{
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({{ message: query }})
@@ -189,20 +193,39 @@ class CedrosPayClient {{
     return resp.json();
   }}
 
-  async createCart(items) {{
-    const resp = await fetch(`${{this.baseUrl}}/cart`, {{
+  async listProducts(limit = 20, offset = 0) {{
+    const resp = await fetch(
+      `${{this.baseUrl}}/paywall/v1/products?limit=${{limit}}&offset=${{offset}}`,
+      {{ headers: this.headers }}
+    );
+    return resp.json();
+  }}
+
+  async createCart(items, couponCode = null) {{
+    const body = {{ items }};
+    if (couponCode) body.couponCode = couponCode;
+    const resp = await fetch(`${{this.baseUrl}}/paywall/v1/cart/quote`, {{
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({{ items }})
+      body: JSON.stringify(body)
     }});
     return resp.json();
   }}
 
   async checkoutStripe(cartId, successUrl, cancelUrl) {{
-    const resp = await fetch(`${{this.baseUrl}}/cart/${{cartId}}/checkout/stripe`, {{
+    const resp = await fetch(`${{this.baseUrl}}/paywall/v1/cart/checkout`, {{
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify({{ successUrl, cancelUrl }})
+      body: JSON.stringify({{ cartId, successUrl, cancelUrl }})
+    }});
+    return resp.json();
+  }}
+
+  async verifyX402(cartId, signature) {{
+    const resp = await fetch(`${{this.baseUrl}}/paywall/v1/cart/${{cartId}}/verify`, {{
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({{ signature }})
     }});
     return resp.json();
   }}
@@ -219,7 +242,7 @@ if (results.products.length > 0) {{
     {{ productId: results.products[0].id, quantity: 1 }}
   ]);
   const checkout = await client.checkoutStripe(
-    cart.id,
+    cart.cartId,
     'https://example.com/success',
     'https://example.com/cancel'
   );
@@ -232,6 +255,8 @@ if (results.products.length > 0) {{
 ### 1. Handle Rate Limits
 
 ```python
+import time
+
 def api_call_with_retry(url, method="GET", **kwargs):
     max_retries = 3
     for attempt in range(max_retries):
@@ -246,7 +271,7 @@ def api_call_with_retry(url, method="GET", **kwargs):
 
 ### 2. Use the Chat Endpoint for Search
 
-The `/chat` endpoint provides AI-powered search that understands natural language:
+The `/paywall/v1/chat` endpoint provides AI-powered search that understands natural language:
 - "red shoes under $100"
 - "comfortable office chairs"
 - "gifts for a 5 year old"
@@ -265,10 +290,10 @@ All errors return consistent JSON:
 ```
 
 Handle these codes:
-- `invalid_field` - Fix request parameters
-- `not_found` - Resource doesn't exist
-- `rate_limited` - Wait and retry
-- `cart_expired` - Create new cart
+- `invalid_field` — Fix request parameters
+- `not_found` — Resource doesn't exist
+- `rate_limited` — Wait and retry
+- `cart_expired` — Create new cart
 
 ## Discovery Endpoints
 
@@ -283,16 +308,20 @@ Handle these codes:
 
 ## Authentication (Admin Operations)
 
-For admin operations, include API key in header:
+Admin endpoints use Ed25519 signature verification:
+
 ```
-Authorization: Bearer sk_your_api_key
+X-Signer: <base58-public-key>
+X-Message: <message-string>
+X-Signature: <base58-signature>
 ```
 
 Admin endpoints include:
-- `GET /admin/products` - List all products
-- `POST /admin/products` - Create product
-- `GET /admin/orders` - List orders
-- `GET /admin/chats` - List chat sessions (CRM)
+- `GET /admin/products` — Manage products
+- `GET /admin/orders` — Manage orders
+- `GET /admin/chats` — CRM chat sessions
+- `GET /admin/config/{{category}}` — Store settings
+- See `/llms-admin.txt` for the complete list
 "#,
         name = SERVICE_NAME,
         version = VERSION,

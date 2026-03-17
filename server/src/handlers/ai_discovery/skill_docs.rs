@@ -1,10 +1,12 @@
 //! Static skill documentation content (markdown with YAML frontmatter).
 
+pub use super::skill_docs_admin::SKILL_ADMIN;
+
 pub const SKILL_PRODUCTS: &str = r#"---
 skill: products
 name: Products
 version: "1.0.0"
-description: Browse products, categories, collections, and search catalog
+description: Browse products, collections, FAQs, and search catalog
 requiresAuth: false
 ---
 
@@ -15,7 +17,7 @@ Browse and search the product catalog.
 ## List Products
 
 ```
-GET /products
+GET /paywall/v1/products
 ```
 
 Query parameters:
@@ -45,137 +47,108 @@ Response:
 ## Get Product
 
 ```
-GET /products/:id
+GET /paywall/v1/products/{id}
 ```
 
 Returns single product with full details including variants.
 
-## List Categories
+## Get Product by Slug
 
 ```
-GET /categories
+GET /paywall/v1/products/by-slug/{slug}
 ```
 
-Returns hierarchical category tree.
+Look up a product by its URL-friendly slug.
+
+## NFT Metadata
+
+```
+GET /paywall/v1/products/{id}/nft-metadata
+```
+
+Returns Metaplex-compatible NFT metadata JSON for a product.
 
 ## List Collections
 
 ```
-GET /collections
+GET /paywall/v1/collections
 ```
 
 Returns product collections with metadata.
 
+## Get Collection
+
+```
+GET /paywall/v1/collections/{id}
+```
+
+Returns collection details with associated products.
+
+## List FAQs
+
+```
+GET /paywall/v1/faqs
+```
+
+Returns published FAQ entries.
+
 ## Search Products
 
-Use the `/chat` endpoint with a product query - the AI will search and return relevant products.
+Use the `/paywall/v1/chat` endpoint with a product query — the AI will search and return relevant products.
 "#;
 
 pub const SKILL_CART: &str = r#"---
 skill: cart
 name: Cart
 version: "1.0.0"
-description: Shopping cart management
+description: Shopping cart — quote, checkout, and verify
 requiresAuth: false
 ---
 
 # Cart Skill
 
-Manage shopping cart items and prepare for checkout.
+Create a cart quote and proceed to checkout.
 
-## Create Cart
+## Create Cart Quote
 
 ```
-POST /cart
+POST /paywall/v1/cart/quote
 Content-Type: application/json
 
 {
   "items": [
     {"productId": "prod_123", "variantId": "var_456", "quantity": 1}
-  ]
+  ],
+  "couponCode": "SAVE10"
 }
 ```
 
-Response includes `cartId` for subsequent operations.
+Response includes `cartId`, line items, subtotal, total, and payment options.
 
 ## Get Cart
 
 ```
-GET /cart/:cartId
+GET /paywall/v1/cart/{cartId}
 ```
 
-Returns cart with items, subtotal, and applied discounts.
+Returns cart with items, totals, and applied discounts.
 
-## Update Cart
+## Check Inventory
 
 ```
-PUT /cart/:cartId
+GET /paywall/v1/cart/{cartId}/inventory-status
+```
+
+Returns per-item inventory availability.
+
+## Checkout via Stripe
+
+```
+POST /paywall/v1/cart/checkout
 Content-Type: application/json
 
 {
-  "items": [
-    {"productId": "prod_123", "variantId": "var_456", "quantity": 2}
-  ]
-}
-```
-
-## Apply Coupon
-
-```
-POST /cart/:cartId/coupon
-Content-Type: application/json
-
-{"code": "SAVE10"}
-```
-
-## Apply Gift Card
-
-```
-POST /cart/:cartId/gift-card
-Content-Type: application/json
-
-{"code": "GIFT-XXXX-XXXX"}
-```
-
-## Get Quote
-
-```
-POST /cart/:cartId/quote
-Content-Type: application/json
-
-{
-  "paymentMethod": "stripe"
-}
-```
-
-Returns payment quote with total, tax, and payment details.
-"#;
-
-pub const SKILL_CHECKOUT: &str = r#"---
-skill: checkout
-name: Checkout
-version: "1.0.0"
-description: Payment processing
-requiresAuth: false
----
-
-# Checkout Skill
-
-Process payments via multiple methods.
-
-## Payment Methods
-
-1. **Stripe** - Credit/debit cards
-2. **x402** - Crypto payments (USDC on Solana)
-3. **Credits** - cedros-login credit balance
-
-## Stripe Checkout
-
-```
-POST /cart/:cartId/checkout/stripe
-Content-Type: application/json
-
-{
+  "cartId": "cart_abc",
   "successUrl": "https://example.com/success",
   "cancelUrl": "https://example.com/cancel"
 }
@@ -183,38 +156,127 @@ Content-Type: application/json
 
 Returns Stripe checkout session URL.
 
-## x402 Crypto Payment
+## Checkout via x402 (Crypto)
+
+1. Quote already returned in `POST /paywall/v1/cart/quote` response.
+2. Submit on-chain payment, then verify:
 
 ```
-POST /cart/:cartId/quote
-Content-Type: application/json
-
-{"paymentMethod": "x402"}
-```
-
-Returns payment details including wallet address and amount.
-
-After payment:
-```
-POST /cart/:cartId/verify
+POST /paywall/v1/cart/{cartId}/verify
 Content-Type: application/json
 
 {"signature": "tx_signature_here"}
 ```
 
-## Credits Payment
+## Checkout via Credits
 
-Requires cedros-login authentication.
+Requires Bearer JWT from cedros-login:
 
 ```
-POST /cart/:cartId/checkout/credits
-Authorization: Bearer <cedros-login-token>
+POST /paywall/v1/cart/{cartId}/credits/authorize
+Authorization: Bearer <token>
+```
+
+Or place a hold first:
+
+```
+POST /paywall/v1/cart/{cartId}/credits/hold
+Authorization: Bearer <token>
+```
+"#;
+
+pub const SKILL_CHECKOUT: &str = r#"---
+skill: checkout
+name: Checkout
+version: "1.0.0"
+description: Payment processing — Stripe, x402 crypto, and credits
+requiresAuth: false
+---
+
+# Checkout Skill
+
+Process payments via three methods.
+
+## Payment Methods
+
+1. **Stripe** — Credit/debit cards
+2. **x402** — Crypto payments (USDC on Solana)
+3. **Credits** — cedros-login credit balance
+
+## Cart Checkout (Multi-item)
+
+### Stripe
+
+```
+POST /paywall/v1/cart/checkout
+{ "cartId": "cart_abc", "successUrl": "...", "cancelUrl": "..." }
+```
+
+Returns `{ "url": "https://checkout.stripe.com/..." }`.
+
+### x402 (Crypto)
+
+```
+POST /paywall/v1/cart/quote
+{ "items": [...] }
+```
+→ Returns cart with x402 payment details (address, amount, mint).
+
+After on-chain payment:
+```
+POST /paywall/v1/cart/{cartId}/verify
+{ "signature": "tx_signature" }
+```
+
+### Credits
+
+```
+POST /paywall/v1/cart/{cartId}/credits/authorize
+Authorization: Bearer <token>
+```
+
+## Single-Resource Checkout
+
+For paywall-protected individual resources:
+
+### x402
+
+```
+POST /paywall/v1/quote
+```
+→ Returns HTTP 402 with x402 payment header.
+
+After payment:
+```
+POST /paywall/v1/verify
+```
+
+### Stripe
+
+```
+POST /paywall/v1/stripe-session
+{ "productId": "prod_123", "successUrl": "...", "cancelUrl": "..." }
+```
+
+### Credits
+
+```
+POST /paywall/v1/credits/authorize
+Authorization: Bearer <token>
+{ "productId": "prod_123" }
+```
+
+## Verification
+
+```
+GET /paywall/v1/stripe-session/verify?sessionId=cs_xxx
+GET /paywall/v1/x402-transaction/verify?signature=xxx
 ```
 
 ## Order Status
 
-After successful payment, order is created automatically.
-Webhook notifications sent to configured endpoints.
+After successful payment, an order is created automatically.
+Webhook notifications are sent to configured endpoints.
 "#;
 
 pub const SKILL_CHAT: &str = r#"---
@@ -232,11 +294,11 @@ AI-powered conversational shopping assistant.
 ## Send Message
 
 ```
-POST /chat
+POST /paywall/v1/chat
 Content-Type: application/json
 
 {
-  "sessionId": "sess_123",  // Optional, creates new if omitted
+  "sessionId": "sess_123",
   "message": "Do you have any red shoes under $100?"
 }
 ```
@@ -284,139 +346,91 @@ requiresAuth: true
 
 # Subscriptions Skill
 
-Manage recurring payment subscriptions via Stripe.
-
-## Authentication Required
-
-All subscription endpoints require authentication via:
-- cedros-login JWT token
-- Or Stripe customer session
-
-## List Subscriptions
-
-```
-GET /subscriptions
-Authorization: Bearer <token>
-```
-
-Returns active subscriptions for the authenticated user.
-
-## Create Subscription
-
-```
-POST /subscriptions
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "priceId": "price_123",
-  "successUrl": "https://example.com/success",
-  "cancelUrl": "https://example.com/cancel"
-}
-```
-
-Returns Stripe checkout session for subscription.
-
-## Cancel Subscription
-
-```
-DELETE /subscriptions/:subscriptionId
-Authorization: Bearer <token>
-```
-
-Cancels subscription at end of current billing period.
-
-## Update Payment Method
-
-```
-POST /subscriptions/:subscriptionId/payment-method
-Authorization: Bearer <token>
-```
-
-Returns Stripe portal URL to update payment details.
-"#;
-
-pub const SKILL_ADMIN: &str = r#"---
-skill: admin
-name: Admin
-version: "1.0.0"
-description: Administrative operations
-requiresAuth: true
-requiresAdmin: true
----
-
-# Admin Skill
-
-Administrative operations for store management.
+Manage recurring payment subscriptions via Stripe, x402, or credits.
 
 ## Authentication
 
-All admin endpoints require:
-1. Valid authentication (API key or JWT)
-2. Admin role or tenant owner permissions
+Most subscription endpoints require a Bearer JWT.
 
-Header: `Authorization: Bearer <admin-token>`
+## Check Status
 
-## Products Management
+```
+GET /paywall/v1/subscription/status
+Authorization: Bearer <token>
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/products | List all products |
-| POST | /admin/products | Create product |
-| PUT | /admin/products/:id | Update product |
-| DELETE | /admin/products/:id | Delete product |
+## Get Details
 
-## Categories
+```
+GET /paywall/v1/subscription/details
+Authorization: Bearer <token>
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/categories | List categories |
-| POST | /admin/categories | Create category |
-| PUT | /admin/categories/:id | Update category |
+## Subscribe via Stripe
 
-## Orders
+```
+POST /paywall/v1/subscription/stripe-session
+{ "productId": "prod_123", "successUrl": "...", "cancelUrl": "..." }
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/orders | List orders |
-| GET | /admin/orders/:id | Get order details |
-| PATCH | /admin/orders/:id | Update order status |
+Returns Stripe checkout session URL.
 
-## Customers
+## Subscribe via x402
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/customers | List customers |
-| GET | /admin/customers/:id | Get customer details |
+```
+POST /paywall/v1/subscription/quote
+```
+→ Returns HTTP 402 with payment quote.
 
-## Chat Sessions (CRM)
+After on-chain payment:
+```
+POST /paywall/v1/subscription/x402/activate
+{ "signature": "tx_signature" }
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/chats | List chat sessions |
-| GET | /admin/chats/:sessionId | Get chat history |
+## Subscribe via Credits
 
-## FAQ Management
+```
+POST /paywall/v1/subscription/credits/activate
+Authorization: Bearer <token>
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/faqs | List FAQ entries |
-| POST | /admin/faqs | Create FAQ |
-| PUT | /admin/faqs/:id | Update FAQ |
-| DELETE | /admin/faqs/:id | Delete FAQ |
+## Cancel
 
-## AI Configuration
+```
+POST /paywall/v1/subscription/cancel
+Authorization: Bearer <token>
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/ai/config | Get AI settings |
-| PUT | /admin/ai/config | Update AI settings |
-| POST | /admin/ai/assistant | AI product assistant |
+## Billing Portal
 
-## Settings
+```
+POST /paywall/v1/subscription/portal
+Authorization: Bearer <token>
+```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /admin/config/:category | Get config |
-| PUT | /admin/config/:category | Update config |
+Returns Stripe portal URL to manage payment methods.
+
+## Change Plan
+
+Preview proration:
+```
+POST /paywall/v1/subscription/change/preview
+Authorization: Bearer <token>
+{ "newProductId": "prod_456" }
+```
+
+Confirm change:
+```
+POST /paywall/v1/subscription/change
+Authorization: Bearer <token>
+{ "newProductId": "prod_456" }
+```
+
+## Reactivate
+
+```
+POST /paywall/v1/subscription/reactivate
+Authorization: Bearer <token>
+```
 "#;

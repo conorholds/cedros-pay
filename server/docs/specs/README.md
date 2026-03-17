@@ -2,7 +2,7 @@
 
 **Purpose:** These specification documents provide comprehensive requirements for implementing Cedros Pay Server in any language (Rust, TypeScript, Python, etc.) with full feature parity to the Go reference implementation.
 
-**Reference Implementation:** Go (this repository)
+**Reference Implementation:** Rust (this repository)
 
 ---
 
@@ -34,6 +34,12 @@
 | 22 | [22-x402-verifier.md](./22-x402-verifier.md) | x402 verifier: SolanaVerifier, TransactionQueue, WalletHealthChecker, gasless | ~400 |
 | 23 | [23-repositories.md](./23-repositories.md) | Product & coupon repositories: models, backends, caching, selection logic | ~350 |
 | 24 | [24-orders-fulfillment.md](./24-orders-fulfillment.md) | Orders, fulfillment, inventory reservations (Phase 1 plan) | ~230 |
+| 25 | [25-cedros-login.md](./25-cedros-login.md) | Cedros-Login integration: JWT, wallets, credits, compliance | ~320 |
+| 26 | [26-credits-gift-cards.md](./26-credits-gift-cards.md) | Credits payments, holds, gift cards, fulfillment | ~360 |
+| 27 | [27-collections-tokenization.md](./27-collections-tokenization.md) | Collections, asset classes, Token-22 minting (fungible + NFT) | ~285 |
+| 28 | [28-compliance.md](./28-compliance.md) | Compliance gates: sanctions, KYC, accredited investor, token gates | ~460 |
+| 29 | [29-ai-chat.md](./29-ai-chat.md) | AI services: storefront chat, product search, SEO, tool calling | ~375 |
+| 30 | [30-faqs-messaging-images.md](./30-faqs-messaging-images.md) | FAQs, email/SMS messaging, image storage (S3/local) | ~335 |
 
 ---
 
@@ -41,14 +47,17 @@
 
 | Category | Count |
 |----------|-------|
-| HTTP Endpoints | 33 registered + 4 optional admin + 2 internal |
-| Data Models | 75+ structs/types |
-| Database Tables | 9 core tables |
-| Configuration Options | 52 env vars + YAML-only settings |
+| HTTP Endpoints | 50+ registered (33 core + admin/AI/compliance/chat) |
+| Data Models | 100+ structs/types |
+| Database Tables | 15+ tables (core + collections, compliance, chat, FAQs) |
+| Configuration Options | 60+ env vars + YAML-only settings |
 | Error Codes | 49 error codes (47 exported + 3 internal) |
 | Middleware Components | 11 (9 global + 2 route-specific) |
 | Background Workers | 6 |
 | Storage Backends | 4 (PostgreSQL, MongoDB, File, Memory) |
+| External Integrations | Stripe, Solana, Cedros-Login, Gemini/OpenAI, S3, SMTP |
+| Compliance Gates | Sanctions, KYC, accredited investor, token gates |
+| Spec Documents | 30 |
 
 ---
 
@@ -72,6 +81,12 @@ For a minimum viable implementation, focus on these documents in order:
 14. **[13-security.md](./13-security.md)** - Security features
 15. **[11-background-workers.md](./11-background-workers.md)** - Background jobs
 16. **[14-observability.md](./14-observability.md)** - Monitoring
+17. **[25-cedros-login.md](./25-cedros-login.md)** - Cedros-Login integration (JWT, wallets, credits)
+18. **[26-credits-gift-cards.md](./26-credits-gift-cards.md)** - Credits & gift card system
+19. **[27-collections-tokenization.md](./27-collections-tokenization.md)** - Collections & asset tokenization
+20. **[28-compliance.md](./28-compliance.md)** - Compliance gates
+21. **[29-ai-chat.md](./29-ai-chat.md)** - AI services & storefront chat
+22. **[30-faqs-messaging-images.md](./30-faqs-messaging-images.md)** - FAQs, messaging, images
 
 ---
 
@@ -133,6 +148,7 @@ The `resourceType` field in x402 payloads determines routing:
 | 2.13 | 2025-12-02 | Comprehensive audit fixes: corrected /refunds/deny response format, fixed /nonce expiresAt to Unix timestamp, added PreviewProration() method, PersistentCallbackClient Close() method, corrected return types (ResourceDefinition, GetPayment), clarified RefundQuote status inference, documented internal error codes (server_insufficient_funds, send_failed, send_failed_after_account_creation). |
 | 2.14 | 2025-12-02 | **Cross-language implementation support:** Added Solana transaction format spec (bincode, instruction order, signer arrangement, TransferChecked parsing), amount conversion algorithms (FromMajor/ToMajor with ceiling rounding), ATA derivation with validation rules, memo interpolation edge cases (max length, truncation), subscription period calculation examples (month-end handling), nonce purpose enforcement rules, Stripe webhook timestamp validation (5-min tolerance), idempotency store interface. These additions enable complete Rust/TypeScript/Python implementations without consulting Go source. |
 | 2.15 | 2025-12-02 | **Complete implementation spec (final):** Cart quote expiration behavior (checked at verification, not lookup), coupon usage increment race condition handling (post-payment, non-fatal), server wallet selection algorithm (round-robin with health awareness, fallback behavior), transaction retry policy (by error type with backoffs), amount tolerance semantics (1e-9 single, 1e-6 cart, exact refund), x402 subscription renewal workflow (manual, no auto-renewal), grace period scope (x402 only), webhook consumer requirements (timeout, idempotency), cart metadata structure (exact format), commitment level behavior (processed/confirmed/finalized), cache invalidation policy (TTL-based only), Stripe cart coupon application rules, rate limit algorithm (token bucket with pseudocode), RPC error message parsing (string patterns, SPL error codes, JSON-RPC format), admin key configuration. All gaps from comprehensive audit addressed. |
+| 3.0 | 2026-03-17 | **Feature expansion:** Added specs 25-30 covering Cedros-Login integration, credits & gift cards, collections & Token-22 asset tokenization, compliance gates (sanctions, KYC, accredited investor, token gates), AI services & storefront chat, FAQs, messaging, and image storage. Updated quick stats and implementation priority. |
 | 2.16 | 2025-12-02 | **Comprehensive audit v2:** Health response format (features array clarification, wallet truncation, summary structure), Stripe webhook event types and handler documentation, success/cancel redirect behavior, gasless transaction structure and client flow, resourceType validation rules and routing, subscription status state machine with transition rules, new error codes (subscription_not_found, nonce_not_found, mixed_tokens_in_cart, invalid_resource_type, nonce_expired, nonce_already_used, invalid_nonce_purpose), refund quote full x402 format, nonce purpose enum values, metrics API key authentication, webhook HMAC signature verification algorithm. 52 gaps from audit systematically addressed. |
 
 ---

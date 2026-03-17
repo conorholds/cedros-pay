@@ -6,9 +6,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::models::compliance::{ComplianceRequirements, KycStatus, UserComplianceStatus};
+use crate::models::compliance::{ComplianceRequirements, KycStatus, TokenGate, UserComplianceStatus};
 use crate::services::cedros_login::CedrosLoginClient;
 use crate::services::sanctions_list::SanctionsListService;
+use crate::services::token_gate::TokenGateChecker;
 use crate::ttl_cache::TtlCache;
 
 /// User compliance cache TTL (5 minutes).
@@ -30,6 +31,7 @@ pub enum ComplianceResult {
 pub struct ComplianceChecker {
     sanctions_service: Arc<SanctionsListService>,
     cedros_login: Arc<CedrosLoginClient>,
+    token_gate_checker: Option<Arc<TokenGateChecker>>,
     user_cache: TtlCache<UserComplianceStatus>,
 }
 
@@ -37,10 +39,12 @@ impl ComplianceChecker {
     pub fn new(
         sanctions_service: Arc<SanctionsListService>,
         cedros_login: Arc<CedrosLoginClient>,
+        token_gate_checker: Option<Arc<TokenGateChecker>>,
     ) -> Self {
         Self {
             sanctions_service,
             cedros_login,
+            token_gate_checker,
             user_cache: TtlCache::new(USER_CACHE_CAP),
         }
     }
@@ -55,6 +59,20 @@ impl ComplianceChecker {
             merged.require_sanctions_clear |= r.require_sanctions_clear;
             merged.require_kyc |= r.require_kyc;
             merged.require_accredited_investor |= r.require_accredited_investor;
+            if let Some(gates) = &r.token_gates {
+                let merged_gates = merged.token_gates.get_or_insert_with(Vec::new);
+                for gate in gates {
+                    // Dedup by (address, gate_type), taking max(min_amount)
+                    if let Some(existing) = merged_gates
+                        .iter_mut()
+                        .find(|g: &&mut TokenGate| g.address == gate.address && g.gate_type == gate.gate_type)
+                    {
+                        existing.min_amount = existing.min_amount.max(gate.min_amount);
+                    } else {
+                        merged_gates.push(gate.clone());
+                    }
+                }
+            }
         }
         merged
     }
@@ -79,7 +97,21 @@ impl ComplianceChecker {
             reasons.push("wallet is on sanctions list".to_string());
         }
 
-        // 2. KYC + accredited investor checks (require user_id)
+        // 2. Token gate checks (require wallet)
+        if let Some(gates) = &requirements.token_gates {
+            if !gates.is_empty() {
+                if wallet.is_empty() {
+                    reasons.push("token gate requires a wallet address".to_string());
+                } else if let Some(tgc) = &self.token_gate_checker {
+                    let gate_reasons = tgc.check_gates(wallet, gates).await;
+                    reasons.extend(gate_reasons);
+                } else {
+                    reasons.push("token gate checker not configured".to_string());
+                }
+            }
+        }
+
+        // 3. KYC + accredited investor checks (require user_id)
         if requirements.require_kyc || requirements.require_accredited_investor {
             match user_id {
                 Some(uid) => {
@@ -171,7 +203,7 @@ impl std::fmt::Debug for ComplianceChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::compliance::ComplianceRequirements;
+    use crate::models::compliance::{ComplianceRequirements, TokenGate, TokenGateType};
 
     // Basic unit test verifying ComplianceResult construction
     #[test]
@@ -208,16 +240,73 @@ mod tests {
             require_sanctions_clear: true,
             require_kyc: false,
             require_accredited_investor: false,
+            token_gates: None,
         };
         let b = ComplianceRequirements {
             require_sanctions_clear: false,
             require_kyc: true,
             require_accredited_investor: false,
+            token_gates: None,
         };
         let merged = ComplianceChecker::merge_requirements(&[&a, &b]);
         assert!(merged.require_sanctions_clear);
         assert!(merged.require_kyc);
         assert!(!merged.require_accredited_investor);
+    }
+
+    #[test]
+    fn merge_requirements_deduplicates_token_gates() {
+        let a = ComplianceRequirements {
+            token_gates: Some(vec![TokenGate {
+                address: "mint1".into(),
+                gate_type: TokenGateType::FungibleToken,
+                min_amount: 100,
+            }]),
+            ..Default::default()
+        };
+        let b = ComplianceRequirements {
+            token_gates: Some(vec![TokenGate {
+                address: "mint1".into(),
+                gate_type: TokenGateType::FungibleToken,
+                min_amount: 500,
+            }]),
+            ..Default::default()
+        };
+        let merged = ComplianceChecker::merge_requirements(&[&a, &b]);
+        let gates = merged.token_gates.unwrap();
+        assert_eq!(gates.len(), 1);
+        assert_eq!(gates[0].min_amount, 500); // max of 100, 500
+    }
+
+    #[test]
+    fn merge_requirements_unions_different_gates() {
+        let a = ComplianceRequirements {
+            token_gates: Some(vec![TokenGate {
+                address: "mint1".into(),
+                gate_type: TokenGateType::FungibleToken,
+                min_amount: 100,
+            }]),
+            ..Default::default()
+        };
+        let b = ComplianceRequirements {
+            token_gates: Some(vec![TokenGate {
+                address: "coll1".into(),
+                gate_type: TokenGateType::NftCollection,
+                min_amount: 1,
+            }]),
+            ..Default::default()
+        };
+        let merged = ComplianceChecker::merge_requirements(&[&a, &b]);
+        let gates = merged.token_gates.unwrap();
+        assert_eq!(gates.len(), 2);
+    }
+
+    #[test]
+    fn merge_requirements_no_gates_stays_none() {
+        let a = ComplianceRequirements::default();
+        let b = ComplianceRequirements::default();
+        let merged = ComplianceChecker::merge_requirements(&[&a, &b]);
+        assert!(merged.token_gates.is_none());
     }
 
     #[test]

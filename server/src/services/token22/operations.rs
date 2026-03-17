@@ -36,7 +36,7 @@ pub fn get_associated_token_address_2022(owner: &Pubkey, mint: &Pubkey) -> Pubke
 ///   5. []                 Token program (Token-22)
 ///
 /// Discriminator 1 = CreateIdempotent (no-op if account already exists).
-fn build_create_ata_idempotent_ix(payer: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> Instruction {
+pub(super) fn build_create_ata_idempotent_ix(payer: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> Instruction {
     let ata = get_associated_token_address_2022(owner, mint);
     Instruction {
         program_id: spl_associated_token_account::id(),
@@ -56,7 +56,7 @@ fn build_create_ata_idempotent_ix(payer: &Pubkey, owner: &Pubkey, mint: &Pubkey)
 ///
 /// Instruction data: discriminator 8 (Burn) + amount as u64 LE.
 /// Accounts: token_account (writable), mint (writable), authority (signer).
-fn build_burn_ix(
+pub(super) fn build_burn_ix(
     token_account: &Pubkey,
     mint: &Pubkey,
     authority: &Pubkey,
@@ -80,7 +80,7 @@ fn build_burn_ix(
 /// Build MintTo instruction for Token-22.
 ///
 /// Instruction data: discriminator 7 (MintTo) + amount as u64 LE.
-fn build_mint_to_ix(
+pub(super) fn build_mint_to_ix(
     mint: &Pubkey,
     destination: &Pubkey,
     authority: &Pubkey,

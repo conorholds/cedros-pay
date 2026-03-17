@@ -28,6 +28,10 @@ export type {
   PaymentMethodsConfig,
   AIRelatedProductsParams,
   AIRelatedProductsResult,
+  ChatMessageParams,
+  ChatMessageResult,
+  ChatProductMatch,
+  ChatFaqMatch,
 } from './adapters/CommerceAdapter';
 
 export { createMockCommerceAdapter } from './adapters/mock/mockAdapter';
@@ -200,6 +204,6 @@ export { SubscriptionTemplate } from './templates/SubscriptionTemplate';
 // Integrations
 export { useCedrosPayCheckoutAdapter } from './integrations/cedros-pay/useCedrosPayCheckoutAdapter';
 
-// Experimental — not ready for production
-/** @experimental No backend integration; stub only. API will change without notice. */
+// Chat
 export { ShopChatPanel } from './components/chat/ShopChatPanel';
+export type { ShopChatPanelProps } from './components/chat/ShopChatPanel';

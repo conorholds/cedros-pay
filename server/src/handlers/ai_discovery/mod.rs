@@ -50,6 +50,7 @@ mod heartbeat;
 mod llms;
 mod manifests;
 mod skill_docs;
+mod skill_docs_admin;
 mod skills;
 pub mod types;
 

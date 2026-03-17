@@ -1,4 +1,4 @@
-import type { CommerceAdapter, ProductListParams, CheckoutSessionPayload, CheckoutSessionResult, StorefrontConfig, PaymentMethodsConfig, AIRelatedProductsParams, AIRelatedProductsResult } from '../CommerceAdapter';
+import type { CommerceAdapter, ProductListParams, CheckoutSessionPayload, CheckoutSessionResult, StorefrontConfig, PaymentMethodsConfig, AIRelatedProductsParams, AIRelatedProductsResult, ChatMessageParams, ChatMessageResult } from '../CommerceAdapter';
 import type { Category, ListResult, Product } from '../../types';
 import { retryWithBackoff } from '../../../utils/exponentialBackoff';
 import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
@@ -496,6 +496,22 @@ export function createPaywallCommerceAdapter(opts: {
     ) as Promise<AIRelatedProductsResult>;
   };
 
+  const sendChatMessage = async (params: ChatMessageParams): Promise<ChatMessageResult> => {
+    const body: Record<string, unknown> = { message: params.message };
+    if (params.sessionId) body.sessionId = params.sessionId;
+    return fetchJson(
+      opts.serverUrl,
+      '/paywall/v1/chat',
+      opts.apiKey,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+        retryableRead: false,
+      }
+    ) as Promise<ChatMessageResult>;
+  };
+
   return {
     listProducts,
     getProductBySlug,
@@ -506,5 +522,6 @@ export function createPaywallCommerceAdapter(opts: {
     getStorefrontSettings,
     getPaymentMethodsConfig,
     getAIRelatedProducts,
+    sendChatMessage,
   };
 }

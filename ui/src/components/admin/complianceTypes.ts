@@ -55,13 +55,29 @@ export interface SanctionsApiSettings {
   enabled: boolean;
 }
 
+export interface TokenGate {
+  address: string;
+  gateType: 'fungible_token' | 'nft_collection';
+  minAmount: number;
+}
+
 export interface ComplianceRequirements {
   requireSanctionsClear: boolean;
   requireKyc: boolean;
   requireAccreditedInvestor: boolean;
+  tokenGates?: TokenGate[];
 }
 
-export type ComplianceTab = 'holders' | 'actions' | 'reports' | 'sweep-settings' | 'sanctions-api';
+export type KycStatus = 'none' | 'pending' | 'verified' | 'expired';
+
+export interface UserComplianceStatus {
+  userId: string;
+  kycStatus: KycStatus;
+  accreditedInvestor: boolean;
+  accreditedVerifiedAt?: string;
+}
+
+export type ComplianceTab = 'holders' | 'actions' | 'reports' | 'sweep-settings' | 'sanctions-api' | 'kyc';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -84,6 +100,15 @@ export const actionBadge = (type: string): string => {
     case 'sweep_freeze': return 'failed';
     case 'report_generated': return 'muted';
     default: return 'muted';
+  }
+};
+
+export const kycBadge = (status: KycStatus): string => {
+  switch (status) {
+    case 'verified': return 'success';
+    case 'pending': return 'pending';
+    case 'expired': return 'failed';
+    case 'none': default: return 'muted';
   }
 };
 

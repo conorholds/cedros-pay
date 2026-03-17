@@ -26,6 +26,9 @@ use crate::storage::Store;
 #[derive(Debug, Deserialize)]
 pub struct ComplianceCheckRequest {
     pub resources: Vec<String>,
+    /// Optional Solana wallet address for token-gate checks.
+    #[serde(default)]
+    pub wallet: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,12 +86,12 @@ pub async fn check<S: Store + 'static>(
         .extract_user_id_from_auth_header(auth)
         .await;
 
-    // Stripe users typically have no wallet — pass empty string.
-    // Sanctions wallet-check will be a no-op; KYC/accredited work via user_id.
+    // Use provided wallet for token-gate checks; default to empty for Stripe-only.
+    let wallet = req.wallet.as_deref().unwrap_or("");
     let result = checker
         .check_compliance(
             &tenant.tenant_id,
-            "",
+            wallet,
             user_id.as_deref(),
             &merged,
         )

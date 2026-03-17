@@ -7,7 +7,6 @@ pub mod gift_card_fulfillment;
 pub mod health;
 pub mod image_storage;
 pub mod messaging;
-pub mod metaplex_core;
 pub mod paywall;
 pub mod sanctions;
 pub mod sanctions_list;
@@ -15,6 +14,7 @@ pub mod stripe;
 pub mod stripe_webhooks;
 pub mod subscriptions;
 pub mod token22;
+pub mod token_gate;
 
 use async_trait::async_trait;
 
@@ -126,9 +126,9 @@ pub use subscriptions::{ChangeSubscriptionResult, StripeSubscriptionUpdate, Subs
 pub use asset_fulfillment::AssetFulfillmentService;
 pub use compliance_checker::ComplianceChecker;
 pub use sanctions_list::SanctionsListService;
+pub use token_gate::TokenGateChecker;
 pub use gift_card_fulfillment::GiftCardFulfillmentService;
 pub use image_storage::ImageStorageService;
-pub use metaplex_core::MetaplexCoreService;
 
 pub use ai::{
     parse_json_response, slugify, AiError, AiService, CategoriesResult, ChatOrchestrator,

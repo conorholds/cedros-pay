@@ -191,20 +191,24 @@ async fn build_services_internal<S: Store + 'static>(
         None
     };
 
-    // Metaplex Core service for non-fungible asset NFTs
-    let built_metaplex_core = if !cfg.x402.rpc_url.is_empty() {
-        services::MetaplexCoreService::new_from_config(&cfg.x402, cfg.server.public_url.clone())
-            .ok()
-            .map(Arc::new)
-    } else {
-        None
-    };
-
     // Dynamic sanctions list service
     let sanctions_list_service = Some(Arc::new(services::SanctionsListService::new(
         100,
         Duration::from_secs(3600),
     )));
+
+    // Token gate checker — uses the same RPC as Token22
+    let token_gate_checker: Option<Arc<services::TokenGateChecker>> =
+        if !cfg.x402.rpc_url.is_empty() {
+            let rpc = Arc::new(
+                solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+                    cfg.x402.rpc_url.clone(),
+                ),
+            );
+            Some(Arc::new(services::TokenGateChecker::new(rpc)))
+        } else {
+            None
+        };
 
     // Wire fulfillment services when cedros-login is available
     let mut built_asset_fulfillment: Option<Arc<services::AssetFulfillmentService>> = None;
@@ -218,17 +222,21 @@ async fn build_services_internal<S: Store + 'static>(
         paywall_service = paywall_service.with_gift_card_fulfillment(gc_fulfillment);
 
         // Build compliance checker if sanctions list service is available
-        compliance_checker = sanctions_list_service
-            .as_ref()
-            .map(|sls| Arc::new(services::ComplianceChecker::new(sls.clone(), cl.clone())));
+        compliance_checker = sanctions_list_service.as_ref().map(|sls| {
+            Arc::new(services::ComplianceChecker::new(
+                sls.clone(),
+                cl.clone(),
+                token_gate_checker.clone(),
+            ))
+        });
 
         let asset_fulfillment = Arc::new(services::AssetFulfillmentService::new(
             cl.clone(),
             built_token22_service.clone(),
-            built_metaplex_core.clone(),
             compliance_checker.clone(),
             store.clone() as Arc<dyn Store>,
             product_repo.clone(),
+            cfg.server.public_url.clone(),
         ));
         paywall_service = paywall_service.with_asset_fulfillment(asset_fulfillment.clone());
         built_asset_fulfillment = Some(asset_fulfillment);

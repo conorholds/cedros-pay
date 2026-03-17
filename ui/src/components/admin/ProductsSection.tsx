@@ -10,7 +10,10 @@ import { ErrorBanner } from './ErrorBanner';
 import { StatsBar } from './StatsBar';
 import type { SectionProps, Product } from './types';
 import { ProductVariationsEditor } from './ProductVariationsEditor';
+import { ComplianceRequirementsEditor } from './ComplianceRequirementsEditor';
+import { NftMetadataPreview } from './NftMetadataPreview';
 import { FormDropdown } from './Dropdown';
+import type { ComplianceRequirements } from './complianceTypes';
 
 export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,6 +22,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [addProductError, setAddProductError] = useState<string | null>(null);
   const [editingVariationsProduct, setEditingVariationsProduct] = useState<Product | null>(null);
+  const [nftPreviewProduct, setNftPreviewProduct] = useState<Product | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'id' | 'product' | 'type' | 'price' | 'status'; direction: 'asc' | 'desc' } | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState({
@@ -46,6 +50,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     inventoryQuantity: '' as '' | number,
     giftCardConfig: null as null | { faceValueCents: number; currency: string; secondaryMarket: boolean; expiresInDays: number | null },
     tokenizedAssetConfig: null as null | { assetClassCollectionId: string; backingValueCents: number; backingCurrency: string; assetIdentifier: string; tokensPerUnit: number; custodyProofUrl: string | null },
+    complianceRequirements: null as ComplianceRequirements | null,
   });
 
   const buildCatalogMetadata = (p: typeof newProduct) => {
@@ -202,6 +207,10 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         payload.tokenizedAssetConfig = newProduct.tokenizedAssetConfig;
       }
 
+      if (newProduct.complianceRequirements) {
+        payload.complianceRequirements = newProduct.complianceRequirements;
+      }
+
       if (authManager?.isAuthenticated()) {
         await authManager.fetchWithAuth('/admin/products', {
           method: 'POST',
@@ -244,6 +253,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         inventoryQuantity: '',
         giftCardConfig: null,
         tokenizedAssetConfig: null,
+        complianceRequirements: null,
       });
       setShowAddForm(false);
       fetchProducts();
@@ -842,6 +852,11 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
             </div>
           </div>
           )}
+          <ComplianceRequirementsEditor
+            value={newProduct.complianceRequirements}
+            onChange={(val) => setNewProduct(p => ({ ...p, complianceRequirements: val }))}
+          />
+
           <div className="cedros-admin__form-actions">
             <button type="submit" className="cedros-admin__button cedros-admin__button--primary" disabled={isSubmitting}>
               {isSubmitting ? 'Creating...' : 'Create Product'}
@@ -926,6 +941,14 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
                       >
                         Variations
                       </button>
+                      {product.metadata?.product_type === 'tokenized_asset' && (
+                        <button
+                          className="cedros-admin__button cedros-admin__button--ghost"
+                          onClick={() => setNftPreviewProduct(product)}
+                        >
+                          NFT
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -950,6 +973,25 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
               apiKey={apiKey}
               authManager={authManager}
               onClose={() => setEditingVariationsProduct(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* NFT Metadata Preview Modal */}
+      {nftPreviewProduct && (
+        <div className="cedros-admin__modal-overlay" onClick={() => setNftPreviewProduct(null)}>
+          <div
+            className="cedros-admin__modal cedros-admin__modal--lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NftMetadataPreview
+              serverUrl={serverUrl}
+              productId={nftPreviewProduct.id}
+              productTitle={getProductTitle(nftPreviewProduct)}
+              apiKey={apiKey}
+              authManager={authManager}
+              onClose={() => setNftPreviewProduct(null)}
             />
           </div>
         </div>

@@ -40,6 +40,7 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         sweep_settings_state,
         compliance_policy_state,
         admin_images_state,
+        compliance_kyc_state,
         paywall_prefix,
         store,
     } = states;
@@ -134,6 +135,12 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
         router = router.nest("/admin", sweep_routes);
     }
 
+    // Compliance KYC/accredited investor lookup (requires cedros-login)
+    if let Some(kyc_state) = compliance_kyc_state {
+        let kyc_routes = build_compliance_kyc_routes(kyc_state, admin_auth_state.clone());
+        router = router.nest("/admin", kyc_routes);
+    }
+
     // Image upload/delete routes (PostgreSQL only, with increased body size limit)
     if let Some(images_state) = admin_images_state {
         let image_routes = build_image_routes(images_state, admin_auth_state.clone());
@@ -214,6 +221,8 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub compliance_policy_state:
         Option<Arc<handlers::admin_compliance_policy::CompliancePolicyState>>,
     pub admin_images_state: Option<Arc<handlers::admin_images::ImageUploadState>>,
+    pub compliance_kyc_state:
+        Option<Arc<handlers::admin_compliance_kyc::ComplianceKycState>>,
     pub paywall_prefix: String,
     pub store: Arc<S>,
 }
@@ -271,6 +280,12 @@ impl<S: Store + 'static> AdminRouteStates<S> {
                     asset_fulfillment: states.asset_fulfillment.clone(),
                 },
             )),
+            compliance_kyc_state: states.cedros_login_client.as_ref().map(|cl| {
+                Arc::new(handlers::admin_compliance_kyc::ComplianceKycState {
+                    cedros_login: cl.clone(),
+                    store: states.store.clone() as Arc<dyn Store>,
+                })
+            }),
             paywall_prefix,
             store: states.store.clone(),
         }
@@ -712,6 +727,22 @@ fn build_compliance_policy_routes<S: Store + 'static>(
             post(handlers::admin_compliance_policy::force_refresh),
         )
         .with_state(policy_state)
+        .layer(axum::middleware::from_fn_with_state(
+            admin_auth_state,
+            middleware::admin_middleware,
+        ))
+}
+
+fn build_compliance_kyc_routes<S: Store + 'static>(
+    kyc_state: Arc<handlers::admin_compliance_kyc::ComplianceKycState>,
+    admin_auth_state: Arc<middleware::AdminAuthState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/compliance/user-status/{user_id}",
+            get(handlers::admin_compliance_kyc::get_user_compliance_status),
+        )
+        .with_state(kyc_state)
         .layer(axum::middleware::from_fn_with_state(
             admin_auth_state,
             middleware::admin_middleware,

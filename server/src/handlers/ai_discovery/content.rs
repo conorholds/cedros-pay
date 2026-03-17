@@ -44,7 +44,7 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "products".to_string(),
             name: "Products".to_string(),
             path: format!("{}/skills/products.md", prefix),
-            description: "Browse products, categories, collections, and search catalog".to_string(),
+            description: "Browse products, collections, FAQs, and search catalog".to_string(),
             requires_auth: Some(false),
             requires_admin: None,
         },
@@ -52,8 +52,7 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "cart".to_string(),
             name: "Cart".to_string(),
             path: format!("{}/skills/cart.md", prefix),
-            description: "Shopping cart management - add items, update quantities, apply coupons"
-                .to_string(),
+            description: "Shopping cart — quote, checkout, and verify".to_string(),
             requires_auth: Some(false),
             requires_admin: None,
         },
@@ -61,7 +60,7 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "checkout".to_string(),
             name: "Checkout".to_string(),
             path: format!("{}/skills/checkout.md", prefix),
-            description: "Payment processing via Stripe, crypto (x402), or credits".to_string(),
+            description: "Payment processing — Stripe, x402 crypto, and credits".to_string(),
             requires_auth: Some(false),
             requires_admin: None,
         },
@@ -77,7 +76,8 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "subscriptions".to_string(),
             name: "Subscriptions".to_string(),
             path: format!("{}/skills/subscriptions.md", prefix),
-            description: "Recurring payment subscriptions via Stripe".to_string(),
+            description: "Recurring payment subscriptions via Stripe, x402, or credits"
+                .to_string(),
             requires_auth: Some(true),
             requires_admin: None,
         },
@@ -85,8 +85,9 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "admin".to_string(),
             name: "Admin".to_string(),
             path: format!("{}/skills/admin.md", prefix),
-            description: "Administrative operations - products, orders, customers, settings"
-                .to_string(),
+            description:
+                "Administrative operations — products, orders, customers, shipping, compliance"
+                    .to_string(),
             requires_auth: Some(true),
             requires_admin: Some(true),
         },
@@ -172,10 +173,10 @@ Cedros Pay is an e-commerce payment API supporting Stripe, crypto (x402/Solana),
 
 ## Quick Start
 
-1. Browse products: `GET {prefix}/products`
-2. Create cart: `POST {prefix}/cart` with items
-3. Get quote: `POST {prefix}/cart/:cartId/quote`
-4. Checkout: `POST {prefix}/cart/:cartId/checkout/stripe`
+1. Browse products: `GET {prefix}/paywall/v1/products`
+2. Get cart quote: `POST {prefix}/paywall/v1/cart/quote` with items
+3. Checkout (Stripe): `POST {prefix}/paywall/v1/cart/checkout`
+4. Or verify (x402): `POST {prefix}/paywall/v1/cart/{{cartId}}/verify`
 
 ## Docs
 
@@ -222,90 +223,147 @@ All endpoints are relative to the API base URL: {prefix}
 ### Public Endpoints (No Auth Required)
 
 Most read operations and the chat endpoint are public:
-- `GET {prefix}/products` - List products
-- `GET {prefix}/categories` - List categories
-- `POST {prefix}/cart` - Create/manage cart
-- `POST {prefix}/chat` - AI chat assistant
+- `GET {prefix}/paywall/v1/products` — List products
+- `GET {prefix}/paywall/v1/collections` — List collections
+- `GET {prefix}/paywall/v1/faqs` — List FAQs
+- `POST {prefix}/paywall/v1/cart/quote` — Create cart quote
+- `POST {prefix}/paywall/v1/chat` — AI chat assistant
 
 ### Authenticated Endpoints
 
-Admin operations require a Bearer token:
+Subscription and credits endpoints require a Bearer JWT:
 ```
-Authorization: Bearer <api-key-or-jwt>
+Authorization: Bearer <jwt-token>
+```
+
+Admin operations require Ed25519 signature:
+```
+X-Signer: <base58-public-key>
+X-Message: <message>
+X-Signature: <base58-signature>
 ```
 
 ## Core Endpoints
 
-### Products
+### Products & Catalog
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | {prefix}/products | List products (paginated) |
-| GET | {prefix}/products/:id | Get product details |
-| GET | {prefix}/categories | List categories |
-| GET | {prefix}/collections | List collections |
+| GET | {prefix}/paywall/v1/products | List products (paginated) |
+| GET | {prefix}/paywall/v1/products/{{id}} | Get product details |
+| GET | {prefix}/paywall/v1/products/by-slug/{{slug}} | Get product by slug |
+| GET | {prefix}/paywall/v1/products/{{id}}/nft-metadata | NFT metadata |
+| GET | {prefix}/paywall/v1/products.txt | Products as plain text |
+| GET | {prefix}/paywall/v1/collections | List collections |
+| GET | {prefix}/paywall/v1/collections/{{id}} | Get collection |
+| GET | {prefix}/paywall/v1/faqs | List FAQs |
 
 ### Cart & Checkout
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | {prefix}/cart | Create cart |
-| GET | {prefix}/cart/:id | Get cart |
-| PUT | {prefix}/cart/:id | Update cart |
-| POST | {prefix}/cart/:id/quote | Get payment quote |
-| POST | {prefix}/cart/:id/checkout/stripe | Stripe checkout |
-| POST | {prefix}/cart/:id/verify | Verify crypto payment |
-| POST | {prefix}/cart/:id/coupon | Apply coupon |
-| POST | {prefix}/cart/:id/gift-card | Apply gift card |
+| POST | {prefix}/paywall/v1/cart/quote | Create cart and get quote |
+| POST | {prefix}/paywall/v1/cart/checkout | Stripe checkout |
+| GET | {prefix}/paywall/v1/cart/{{cartId}} | Get cart details |
+| POST | {prefix}/paywall/v1/cart/{{cartId}}/verify | Verify x402 payment |
+| GET | {prefix}/paywall/v1/cart/{{cartId}}/inventory-status | Check inventory |
+| POST | {prefix}/paywall/v1/cart/{{cartId}}/credits/authorize | Pay with credits |
+| POST | {prefix}/paywall/v1/cart/{{cartId}}/credits/hold | Place credits hold |
+| POST | {prefix}/paywall/v1/coupons/validate | Validate coupon |
 
-### Chat (AI Assistant)
+### Single-Resource Payment
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | {prefix}/chat | Send message to AI assistant |
+| POST | {prefix}/paywall/v1/quote | Get x402 quote (HTTP 402) |
+| POST | {prefix}/paywall/v1/verify | Verify x402 payment |
+| POST | {prefix}/paywall/v1/stripe-session | Create Stripe session |
+| GET | {prefix}/paywall/v1/stripe-session/verify | Verify Stripe session |
+| GET | {prefix}/paywall/v1/x402-transaction/verify | Verify x402 tx |
 
-Request:
-```json
-{{
-  "sessionId": "optional-session-id",
-  "message": "Do you have any blue shirts?"
-}}
-```
+### Credits
 
-Response:
-```json
-{{
-  "sessionId": "sess_123",
-  "message": "Yes! I found these blue shirts:",
-  "products": [...],
-  "faqs": []
-}}
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | {prefix}/paywall/v1/credits/balance | Get balance |
+| POST | {prefix}/paywall/v1/credits/authorize | Authorize payment |
+| POST | {prefix}/paywall/v1/credits/hold | Place hold |
+| POST | {prefix}/paywall/v1/credits/hold/{{holdId}}/release | Release hold |
+
+### Purchases & Refunds
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | {prefix}/paywall/v1/purchases | List purchases |
+| POST | {prefix}/paywall/v1/refunds/request | Request refund |
+| POST | {prefix}/paywall/v1/refunds/approve | Approve refund |
+| POST | {prefix}/paywall/v1/refunds/deny | Deny refund |
+| POST | {prefix}/paywall/v1/refunds/pending | List pending |
+| GET | {prefix}/paywall/v1/refunds/{{refundId}} | Get refund details |
+| POST | {prefix}/paywall/v1/nonce | Create refund nonce |
 
 ### Subscriptions
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | {prefix}/subscriptions | List user subscriptions |
-| POST | {prefix}/subscriptions | Create subscription |
-| DELETE | {prefix}/subscriptions/:id | Cancel subscription |
+| GET | {prefix}/paywall/v1/subscription/status | Get status |
+| GET | {prefix}/paywall/v1/subscription/details | Get details |
+| POST | {prefix}/paywall/v1/subscription/stripe-session | Stripe subscribe |
+| POST | {prefix}/paywall/v1/subscription/quote | x402 quote |
+| POST | {prefix}/paywall/v1/subscription/x402/activate | x402 activate |
+| POST | {prefix}/paywall/v1/subscription/credits/activate | Credits activate |
+| POST | {prefix}/paywall/v1/subscription/cancel | Cancel |
+| POST | {prefix}/paywall/v1/subscription/portal | Billing portal |
+| POST | {prefix}/paywall/v1/subscription/change/preview | Preview change |
+| POST | {prefix}/paywall/v1/subscription/change | Change plan |
+| POST | {prefix}/paywall/v1/subscription/reactivate | Reactivate |
+
+### Gift Cards
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | {prefix}/paywall/v1/gift-card/claim/{{token}} | Get claim info |
+| POST | {prefix}/paywall/v1/gift-card/claim/{{token}} | Claim gift card |
+| GET | {prefix}/paywall/v1/gift-card/balance/{{code}} | Check balance |
+
+### Asset Redemptions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | {prefix}/paywall/v1/asset-redemption/{{productId}}/form | Get form |
+| POST | {prefix}/paywall/v1/asset-redemption/{{productId}}/submit | Submit |
+| GET | {prefix}/paywall/v1/asset-redemption/{{productId}}/status | Status |
+
+### Chat (AI Assistant)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | {prefix}/paywall/v1/chat | Send message |
+
+### Compliance & Storefront
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | {prefix}/paywall/v1/compliance-check | Check wallet compliance |
+| GET | {prefix}/paywall/v1/shop | Get shop config |
+| GET | {prefix}/paywall/v1/storefront | Get storefront config |
 
 ## Error Format
 
 ```json
-{{
+{{{{
   "code": "error_code",
   "message": "Human-readable description",
-  "details": {{}}
-}}
+  "details": {{{{}}}}
+}}}}
 ```
 
 Common error codes:
-- `invalid_field` - Validation error
-- `not_found` - Resource not found
-- `rate_limited` - Too many requests
-- `unauthorized` - Authentication required
-- `forbidden` - Insufficient permissions
+- `invalid_field` — Validation error
+- `not_found` — Resource not found
+- `rate_limited` — Too many requests
+- `unauthorized` — Authentication required
+- `forbidden` — Insufficient permissions
 
 ## Rate Limits
 
