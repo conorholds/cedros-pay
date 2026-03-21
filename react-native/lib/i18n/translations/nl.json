@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Vertaalbronbestand (Nederlands)",
+  "version": "1.0.0",
+  "locale": "nl",
+  "ui": {
+    "pay_with_card": "Betalen met kaart",
+    "pay_with_crypto": "Betalen met USDC",
+    "pay_with_usdc": "Betalen met USDC",
+    "purchase": "Aankoop",
+    "card": "Kaart",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Crypto",
+    "connect_wallet": "Wallet verbinden",
+    "connecting": "Verbinden...",
+    "processing": "Verwerken...",
+    "loading": "Laden...",
+    "close": "Sluiten",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "retry": "Opnieuw proberen",
+    "go_back": "Ga terug",
+    "contact_support": "Neem contact op met de ondersteuning"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Verificatie van betaling mislukt",
+      "action": "Probeer uw betaling opnieuw. Neem contact op met de ondersteuning als dit blijft gebeuren."
+    },
+    "invalid_signature": {
+      "message": "Transactiehandtekening is ongeldig",
+      "action": "Keur de transactie in uw wallet goed en probeer het opnieuw."
+    },
+    "invalid_transaction": {
+      "message": "Transactie-indeling is ongeldig",
+      "action": "Probeer uw betaling opnieuw. Als dit blijft gebeuren, werk dan uw wallet-app bij."
+    },
+    "transaction_not_found": {
+      "message": "Transactie niet gevonden op de blockchain",
+      "action": "Uw transactie kan nog worden verwerkt. Wacht even en controleer uw wallet, of probeer het opnieuw."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transactie wordt nog verwerkt",
+      "action": "Wacht even tot de blockchain uw transactie bevestigt en probeer het dan opnieuw."
+    },
+    "transaction_failed": {
+      "message": "Transactie is mislukt op de blockchain",
+      "action": "Controleer uw wallet voor details. Mogelijk moet u uw transactiesettings aanpassen of meer SOL toevoegen voor kosten."
+    },
+    "transaction_expired": {
+      "message": "Het verwerken van de transactie duurde te lang",
+      "action": "Probeer uw betaling opnieuw. Overweeg de transactieprioriteit te verhogen als uw wallet dit ondersteunt."
+    },
+    "invalid_recipient": {
+      "message": "Betaling is naar het verkeerde adres verzonden",
+      "action": "Probeer opnieuw en zorg dat u de juiste transactie in uw wallet goedkeurt."
+    },
+    "invalid_sender": {
+      "message": "Wallet van betaler is ongeldig",
+      "action": "Verbind uw wallet opnieuw en probeer het opnieuw."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "U bent niet gemachtigd om terugbetalingen uit te voeren",
+      "action": "Alleen geautoriseerde accounts kunnen terugbetalingen verwerken. Neem contact op met de ondersteuning als dit onjuist is."
+    },
+    "amount_below_minimum": {
+      "message": "Betalingsbedrag is te laag",
+      "action": "Controleer het vereiste bedrag en probeer opnieuw."
+    },
+    "amount_mismatch": {
+      "message": "Betalingsbedrag komt niet overeen met de offerte",
+      "action": "De prijs kan zijn gewijzigd. Vernieuw de pagina en probeer uw betaling opnieuw."
+    },
+    "insufficient_funds_sol": {
+      "message": "Onvoldoende SOL voor transactiekosten",
+      "action": "Voeg minimaal 0,001 SOL toe aan uw wallet om netwerkkosten te dekken en probeer opnieuw."
+    },
+    "insufficient_funds_token": {
+      "message": "Onvoldoende saldo in uw wallet",
+      "action": "Voeg meer tegoeden toe aan uw wallet en probeer opnieuw."
+    },
+    "invalid_token_mint": {
+      "message": "Onjuiste betalingstoken",
+      "action": "Betaal met de juiste token zoals aangegeven in de betalingsdetails."
+    },
+    "not_spl_transfer": {
+      "message": "Transactie is geen geldige tokentransfer",
+      "action": "Zorg dat u het juiste tokentype vanuit uw wallet verzendt."
+    },
+    "missing_token_account": {
+      "message": "Tokenaccount niet gevonden",
+      "action": "Uw wallet moet mogelijk eerst een tokenaccount aanmaken. Probeer opnieuw of gebruik een andere wallet."
+    },
+    "invalid_token_program": {
+      "message": "Ongeldig tokenprogramma",
+      "action": "Probeer uw betaling opnieuw. Probeer anders een andere wallet."
+    },
+    "missing_memo": {
+      "message": "Betalingsmemo is vereist maar ontbrak",
+      "action": "Probeer uw betaling opnieuw en zorg dat u de transactiedetails in uw wallet goedkeurt."
+    },
+    "invalid_memo": {
+      "message": "Indeling van betalingsmemo is ongeldig",
+      "action": "Probeer uw betaling opnieuw."
+    },
+    "payment_already_used": {
+      "message": "Deze betaling is al verwerkt",
+      "action": "Controleer uw transactiegeschiedenis. Als u opnieuw wilt betalen, start dan een nieuwe transactie."
+    },
+    "signature_reused": {
+      "message": "Transactiehandtekening is al gebruikt",
+      "action": "Maak een nieuwe betalingstransactie."
+    },
+    "quote_expired": {
+      "message": "Betalingsofferte is verlopen",
+      "action": "Prijzen worden vaak bijgewerkt. Vernieuw en probeer opnieuw."
+    },
+    "missing_field": {
+      "message": "Vereiste informatie ontbreekt",
+      "action": "Controleer alle vereiste velden en probeer opnieuw."
+    },
+    "invalid_field": {
+      "message": "Sommige informatie is ongeldig",
+      "action": "Controleer uw invoer en probeer opnieuw."
+    },
+    "invalid_amount": {
+      "message": "Betalingsbedrag is ongeldig",
+      "action": "Controleer het bedrag en probeer opnieuw."
+    },
+    "invalid_wallet": {
+      "message": "Walletadres is ongeldig",
+      "action": "Verbind uw wallet opnieuw en probeer het opnieuw."
+    },
+    "invalid_resource": {
+      "message": "Ongeldige itemselectie",
+      "action": "Ververs de pagina en probeer opnieuw."
+    },
+    "invalid_coupon": {
+      "message": "Ongeldige couponcode",
+      "action": "Controleer de couponcode en probeer opnieuw."
+    },
+    "invalid_cart_item": {
+      "message": "Een of meer winkelwagenartikelen zijn ongeldig",
+      "action": "Controleer uw winkelwagen en probeer opnieuw."
+    },
+    "empty_cart": {
+      "message": "Uw winkelwagen is leeg",
+      "action": "Voeg items toe aan uw winkelwagen voordat u afrekent."
+    },
+    "resource_not_found": {
+      "message": "Item niet gevonden",
+      "action": "Dit item is mogelijk niet meer beschikbaar. Vernieuw en probeer opnieuw."
+    },
+    "cart_not_found": {
+      "message": "Winkelwagen niet gevonden",
+      "action": "Uw winkelwagen is mogelijk verlopen. Start een nieuwe bestelling."
+    },
+    "refund_not_found": {
+      "message": "Terugbetaling niet gevonden",
+      "action": "Controleer uw referentienummer voor de terugbetaling of neem contact op met de ondersteuning."
+    },
+    "product_not_found": {
+      "message": "Product niet beschikbaar",
+      "action": "Dit product is mogelijk niet meer beschikbaar. Bekijk onze huidige selectie."
+    },
+    "coupon_not_found": {
+      "message": "Couponcode niet gevonden",
+      "action": "Controleer de couponcode of verwijder deze om door te gaan."
+    },
+    "session_not_found": {
+      "message": "Betalingssessie verlopen",
+      "action": "Start een nieuwe betaling."
+    },
+    "cart_already_paid": {
+      "message": "Deze bestelling is al betaald",
+      "action": "Controleer uw bestelgeschiedenis. Voor een nieuwe aankoop start u een nieuwe bestelling."
+    },
+    "refund_already_processed": {
+      "message": "Deze terugbetaling is al verwerkt",
+      "action": "Controleer uw transactiegeschiedenis of neem contact op met de ondersteuning."
+    },
+    "coupon_expired": {
+      "message": "Coupon is verlopen",
+      "action": "Verwijder de couponcode of gebruik een andere code."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Limiet voor gebruik van coupon bereikt",
+      "action": "Deze coupon is volledig verzilverd. Probeer een andere code."
+    },
+    "coupon_not_applicable": {
+      "message": "Coupon kan niet op deze aankoop worden toegepast",
+      "action": "Controleer de couponentermen of verwijder deze om door te gaan."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Coupon is niet geldig voor deze betaalmethode",
+      "action": "Probeer een andere betaalmethode of verwijder de couponcode."
+    },
+    "stripe_error": {
+      "message": "Kaartbetalingsdienst tijdelijk niet beschikbaar",
+      "action": "Probeer het zo meteen opnieuw, of gebruik in plaats daarvan cryptobetalingen."
+    },
+    "rpc_error": {
+      "message": "Blockchainnetwerk tijdelijk niet beschikbaar",
+      "action": "Probeer het zo meteen opnieuw, of gebruik in plaats daarvan kaartbetaling."
+    },
+    "network_error": {
+      "message": "Netwerkverbindingsprobleem",
+      "action": "Controleer uw internetverbinding en probeer opnieuw."
+    },
+    "internal_error": {
+      "message": "Er is iets misgegaan aan onze kant",
+      "action": "Probeer opnieuw. Neem contact op met de ondersteuning als dit blijft gebeuren."
+    },
+    "database_error": {
+      "message": "Dienst tijdelijk niet beschikbaar",
+      "action": "Probeer het over een moment."
+    },
+    "config_error": {
+      "message": "Configuratiefout van de dienst",
+      "action": "Neem contact op met de ondersteuning voor hulp."
+    },
+    "unknown_error": {
+      "message": "Er is een onverwachte fout opgetreden",
+      "action": "Probeer opnieuw of neem contact op met de ondersteuning als dit blijft gebeuren."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Waarschuwing: Onbekend token mint‑adres. Controleer goed of dit de juiste token is om verlies van geld te voorkomen.",
+    "token_typo_warning": "Tokenadres komt niet overeen met bekende stablecoins (USDC, USDT, PYUSD, CASH). Controleer zorgvuldig om permanent verlies van gelden te voorkomen."
+  },
+  "wallet": {
+    "no_wallet_detected": "Geen Solana‑wallet gedetecteerd",
+    "install_wallet": "Installeer een Solana‑wallet zoals Phantom, Solflare of Backpack.",
+    "wallet_not_connected": "Wallet niet verbonden",
+    "connect_your_wallet": "Verbind uw wallet om door te gaan.",
+    "wallet_connection_failed": "Verbinden met wallet mislukt",
+    "try_again": "Probeer opnieuw verbinding te maken.",
+    "transaction_rejected": "Transactie is geweigerd",
+    "approve_in_wallet": "Keur de transactie in uw wallet goed om door te gaan."
+  }
+}

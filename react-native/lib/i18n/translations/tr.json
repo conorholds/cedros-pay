@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Çeviri Kaynak Dosyası (Türkçe)",
+  "version": "1.0.0",
+  "locale": "tr",
+  "ui": {
+    "pay_with_card": "Kart ile Öde",
+    "pay_with_crypto": "USDC ile Öde",
+    "pay_with_usdc": "USDC ile Öde",
+    "purchase": "Satın Al",
+    "card": "Kart",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Kripto",
+    "connect_wallet": "Cüzdanı Bağla",
+    "connecting": "Bağlanılıyor...",
+    "processing": "İşleniyor...",
+    "loading": "Yükleniyor...",
+    "close": "Kapat",
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "retry": "Tekrar Dene",
+    "go_back": "Geri Dön",
+    "contact_support": "Destek ile İletişime Geç"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Ödeme doğrulaması başarısız",
+      "action": "Lütfen ödemenizi yeniden deneyin. Bu devam ederse destekle iletişime geçin."
+    },
+    "invalid_signature": {
+      "message": "İşlem imzası geçersiz",
+      "action": "Lütfen işlemi cüzdanınızda onaylayıp tekrar deneyin."
+    },
+    "invalid_transaction": {
+      "message": "İşlem biçimi geçersiz",
+      "action": "Lütfen ödemenizi yeniden deneyin. Bu devam ederse cüzdan uygulamanızı güncellemeyi deneyin."
+    },
+    "transaction_not_found": {
+      "message": "İşlem blok zincirinde bulunamadı",
+      "action": "İşleminiz hâlâ işleniyor olabilir. Lütfen biraz bekleyip cüzdanınızı kontrol edin veya tekrar deneyin."
+    },
+    "transaction_not_confirmed": {
+      "message": "İşlem hâlâ işleniyor",
+      "action": "Lütfen blok zincirinin işleminizi onaylaması için bir süre bekleyin, ardından tekrar deneyin."
+    },
+    "transaction_failed": {
+      "message": "İşlem blok zincirinde başarısız oldu",
+      "action": "Ayrıntılar için cüzdanınızı kontrol edin. İşlem ayarlarınızı değiştirmeniz veya ücretler için daha fazla SOL eklemeniz gerekebilir."
+    },
+    "transaction_expired": {
+      "message": "İşlemin işlenmesi çok uzun sürdü",
+      "action": "Lütfen ödemenizi yeniden deneyin. Cüzdanınız destekliyorsa işlem önceliğini artırmayı düşünün."
+    },
+    "invalid_recipient": {
+      "message": "Ödeme yanlış adrese gönderildi",
+      "action": "Lütfen tekrar deneyin ve cüzdanınızda doğru işlemi onayladığınızdan emin olun."
+    },
+    "invalid_sender": {
+      "message": "Ödeme gönderen cüzdan geçersiz",
+      "action": "Lütfen cüzdanınızı yeniden bağlayıp tekrar deneyin."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "İade işlemi için yetkiniz yok",
+      "action": "Yalnızca yetkili hesaplar iade yapabilir. Bunun bir hata olduğunu düşünüyorsanız lütfen destekle iletişime geçin."
+    },
+    "amount_below_minimum": {
+      "message": "Ödeme tutarı çok düşük",
+      "action": "Lütfen gerekli tutarı kontrol edip tekrar deneyin."
+    },
+    "amount_mismatch": {
+      "message": "Ödeme tutarı teklifle eşleşmiyor",
+      "action": "Fiyat değişmiş olabilir. Lütfen yenileyip ödemenizi yeniden deneyin."
+    },
+    "insufficient_funds_sol": {
+      "message": "İşlem ücretleri için yeterli SOL yok",
+      "action": "Ağ ücretlerini karşılamak için cüzdanınıza en az 0.001 SOL ekleyin, ardından tekrar deneyin."
+    },
+    "insufficient_funds_token": {
+      "message": "Cüzdanınızda yetersiz bakiye",
+      "action": "Lütfen cüzdanınıza daha fazla bakiye ekleyip tekrar deneyin."
+    },
+    "invalid_token_mint": {
+      "message": "Yanlış ödeme tokeni",
+      "action": "Lütfen ödeme ayrıntılarında gösterilen doğru token ile ödeme yapın."
+    },
+    "not_spl_transfer": {
+      "message": "İşlem geçerli bir token transferi değil",
+      "action": "Lütfen cüzdanınızdan doğru token türünü gönderdiğinizden emin olun."
+    },
+    "missing_token_account": {
+      "message": "Token hesabı bulunamadı",
+      "action": "Cüzdanınız önce bir token hesabı oluşturmayı gerektirebilir. Tekrar deneyin veya farklı bir cüzdan kullanın."
+    },
+    "invalid_token_program": {
+      "message": "Geçersiz token programı",
+      "action": "Lütfen ödemenizi yeniden deneyin. Bu devam ederse farklı bir cüzdan kullanmayı deneyin."
+    },
+    "missing_memo": {
+      "message": "Ödeme notu gerekliydi ancak eklenmemiş",
+      "action": "Lütfen ödemenizi yeniden deneyin ve cüzdanınızda işlem ayrıntılarını onayladığınızdan emin olun."
+    },
+    "invalid_memo": {
+      "message": "Ödeme notu biçimi geçersiz",
+      "action": "Lütfen ödemenizi yeniden deneyin."
+    },
+    "payment_already_used": {
+      "message": "Bu ödeme zaten işlendi",
+      "action": "İşlem geçmişinizi kontrol edin. Yeni bir ödeme yapmanız gerekiyorsa lütfen yeni bir işlem başlatın."
+    },
+    "signature_reused": {
+      "message": "İşlem imzası zaten kullanılmış",
+      "action": "Lütfen yeni bir ödeme işlemi oluşturun."
+    },
+    "quote_expired": {
+      "message": "Ödeme teklifi süresi doldu",
+      "action": "Fiyatlar sık sık güncellenir. Lütfen yenileyip ödemenizi yeniden deneyin."
+    },
+    "missing_field": {
+      "message": "Gerekli bilgi eksik",
+      "action": "Lütfen tüm gerekli alanları kontrol edip tekrar deneyin."
+    },
+    "invalid_field": {
+      "message": "Bazı bilgiler geçersiz",
+      "action": "Lütfen girdilerinizi kontrol edip tekrar deneyin."
+    },
+    "invalid_amount": {
+      "message": "Ödeme tutarı geçersiz",
+      "action": "Lütfen tutarı kontrol edip tekrar deneyin."
+    },
+    "invalid_wallet": {
+      "message": "Cüzdan adresi geçersiz",
+      "action": "Lütfen cüzdanınızı yeniden bağlayıp tekrar deneyin."
+    },
+    "invalid_resource": {
+      "message": "Geçersiz öğe seçimi",
+      "action": "Lütfen sayfayı yenileyip tekrar deneyin."
+    },
+    "invalid_coupon": {
+      "message": "Geçersiz kupon kodu",
+      "action": "Lütfen kupon kodunu kontrol edip tekrar deneyin."
+    },
+    "invalid_cart_item": {
+      "message": "Sepetteki bir veya daha fazla ürün geçersiz",
+      "action": "Lütfen sepetinizi gözden geçirip tekrar deneyin."
+    },
+    "empty_cart": {
+      "message": "Sepetiniz boş",
+      "action": "Lütfen ödeme yapmadan önce sepetinize ürün ekleyin."
+    },
+    "resource_not_found": {
+      "message": "Öğe bulunamadı",
+      "action": "Bu öğe artık mevcut olmayabilir. Lütfen yenileyip tekrar deneyin."
+    },
+    "cart_not_found": {
+      "message": "Alışveriş sepeti bulunamadı",
+      "action": "Sepetinizin süresi dolmuş olabilir. Lütfen yeni bir sipariş başlatın."
+    },
+    "refund_not_found": {
+      "message": "İade bulunamadı",
+      "action": "Lütfen iade referans numaranızı kontrol edin veya destekle iletişime geçin."
+    },
+    "product_not_found": {
+      "message": "Ürün mevcut değil",
+      "action": "Bu ürün artık mevcut olmayabilir. Lütfen güncel seçeneklerimize göz atın."
+    },
+    "coupon_not_found": {
+      "message": "Kupon kodu bulunamadı",
+      "action": "Lütfen kupon kodunu kontrol edin veya devam etmek için kaldırın."
+    },
+    "session_not_found": {
+      "message": "Ödeme oturumu sona erdi",
+      "action": "Lütfen yeni bir ödeme başlatın."
+    },
+    "cart_already_paid": {
+      "message": "Bu sipariş zaten ödendi",
+      "action": "Sipariş geçmişinizi kontrol edin. Başka bir satın alma yapmanız gerekiyorsa lütfen yeni bir sipariş başlatın."
+    },
+    "refund_already_processed": {
+      "message": "Bu iade zaten işlendi",
+      "action": "İşlem geçmişinizi kontrol edin veya ayrıntılar için destekle iletişime geçin."
+    },
+    "coupon_expired": {
+      "message": "Kuponun süresi doldu",
+      "action": "Lütfen kuponu kaldırın veya farklı bir kod kullanın."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Kupon kullanım limiti doldu",
+      "action": "Bu kupon tamamen kullanıldı. Lütfen farklı bir kod deneyin."
+    },
+    "coupon_not_applicable": {
+      "message": "Kupon bu satın alma için uygulanamaz",
+      "action": "Lütfen kupon koşullarını kontrol edin veya devam etmek için kaldırın."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Kupon bu ödeme yöntemi için geçerli değil",
+      "action": "Farklı bir ödeme yöntemi deneyin veya kuponu kaldırın."
+    },
+    "stripe_error": {
+      "message": "Kart ödeme servisi geçici olarak kullanılamıyor",
+      "action": "Lütfen kısa bir süre sonra tekrar deneyin veya kripto ödemesini kullanın."
+    },
+    "rpc_error": {
+      "message": "Blok zinciri ağı geçici olarak kullanılamıyor",
+      "action": "Lütfen kısa bir süre sonra tekrar deneyin veya kartla ödemeyi kullanın."
+    },
+    "network_error": {
+      "message": "Ağ bağlantı sorunu",
+      "action": "Lütfen internet bağlantınızı kontrol edip tekrar deneyin."
+    },
+    "internal_error": {
+      "message": "Bizim tarafımızda bir şeyler ters gitti",
+      "action": "Lütfen tekrar deneyin. Bu devam ederse destekle iletişime geçin."
+    },
+    "database_error": {
+      "message": "Hizmet geçici olarak kullanılamıyor",
+      "action": "Lütfen kısa bir süre sonra tekrar deneyin."
+    },
+    "config_error": {
+      "message": "Hizmet yapılandırma hatası",
+      "action": "Yardım için lütfen destekle iletişime geçin."
+    },
+    "unknown_error": {
+      "message": "Beklenmeyen bir hata oluştu",
+      "action": "Lütfen tekrar deneyin veya bu devam ederse destekle iletişime geçin."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Uyarı: Tanınmayan token mint adresi. Fon kaybını önlemek için bunun doğru token olduğundan emin olun.",
+    "token_typo_warning": "Token adresi bilinen stablecoinlerle (USDC, USDT, PYUSD, CASH) eşleşmiyor. Kalıcı fon kaybını önlemek için dikkatle doğrulayın."
+  },
+  "wallet": {
+    "no_wallet_detected": "Solana cüzdanı algılanmadı",
+    "install_wallet": "Lütfen Phantom, Solflare veya Backpack gibi bir Solana cüzdanı yükleyin.",
+    "wallet_not_connected": "Cüzdan bağlı değil",
+    "connect_your_wallet": "Devam etmek için lütfen cüzdanınızı bağlayın.",
+    "wallet_connection_failed": "Cüzdan bağlanamadı",
+    "try_again": "Lütfen tekrar bağlanmayı deneyin.",
+    "transaction_rejected": "İşlem reddedildi",
+    "approve_in_wallet": "Devam etmek için lütfen işlemi cüzdanınızda onaylayın."
+  }
+}

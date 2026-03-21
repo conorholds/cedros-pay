@@ -1,0 +1,1 @@
+{"version":3,"file":"paywallAdapter.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/adapters/paywall/paywallAdapter.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,eAAe,EAA8J,MAAM,oBAAoB,CAAC;AAqKtN,wBAAgB,4BAA4B,CAAC,IAAI,EAAE;IACjD,SAAS,EAAE,MAAM,CAAC;IAClB,MAAM,CAAC,EAAE,MAAM,CAAC;CACjB,GAAG,eAAe,CAsJlB"}

@@ -1,0 +1,125 @@
+/**
+ * Subscription Manager
+ *
+ * Handles subscription-related operations for both Stripe and x402 crypto subscriptions.
+ * Follows the same patterns as StripeManager for consistency.
+ */
+import type { PaymentResult, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse } from '../types';
+import { RouteDiscoveryManager } from './RouteDiscoveryManager';
+/**
+ * Options for requesting a subscription quote (x402)
+ */
+export interface SubscriptionQuoteOptions {
+    /** Coupon code for discount */
+    couponCode?: string;
+    /** Custom interval in days (for 'custom' interval) */
+    intervalDays?: number;
+}
+/**
+ * Public interface for subscription management.
+ *
+ * Use this interface for type annotations instead of the concrete SubscriptionManager class.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { subscriptionManager } = useCedrosContext();
+ *   await subscriptionManager.processSubscription({
+ *     resource: 'plan-pro',
+ *     interval: 'monthly',
+ *   });
+ * }
+ * ```
+ */
+export interface ISubscriptionManager {
+    /**
+     * Initialize Stripe.js library (for redirect flow)
+     */
+    initialize(): Promise<void>;
+    /**
+     * Create a Stripe subscription checkout session
+     */
+    createSubscriptionSession(request: SubscriptionSessionRequest): Promise<SubscriptionSessionResponse>;
+    /**
+     * Redirect to Stripe checkout page
+     */
+    redirectToCheckout(sessionId: string): Promise<PaymentResult>;
+    /**
+     * Complete subscription flow: create session and redirect (Stripe)
+     */
+    processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult>;
+    /**
+     * Check subscription status (for x402 gating)
+     */
+    checkSubscriptionStatus(request: SubscriptionStatusRequest): Promise<SubscriptionStatusResponse>;
+    /**
+     * Request a subscription quote for x402 crypto payment
+     */
+    requestSubscriptionQuote(resource: string, interval: BillingInterval, options?: SubscriptionQuoteOptions): Promise<SubscriptionQuote>;
+    /**
+     * Cancel a subscription
+     */
+    cancelSubscription(request: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse>;
+    /**
+     * Get Stripe billing portal URL for subscription management
+     */
+    getBillingPortalUrl(request: BillingPortalRequest): Promise<BillingPortalResponse>;
+    /**
+     * Activate x402 subscription after payment verification
+     */
+    activateX402Subscription(request: ActivateX402SubscriptionRequest): Promise<ActivateX402SubscriptionResponse>;
+}
+/**
+ * Internal implementation of subscription management.
+ *
+ * @internal
+ * **DO NOT USE THIS CLASS DIRECTLY**
+ *
+ * @see {@link ISubscriptionManager} for the stable interface
+ */
+export declare class SubscriptionManager implements ISubscriptionManager {
+    private isStripeInitialized;
+    private readonly publicKey;
+    private readonly routeDiscovery;
+    private readonly sessionRateLimiter;
+    private readonly statusRateLimiter;
+    private readonly circuitBreaker;
+    constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager);
+    /** Initialize Stripe React Native SDK */
+    initialize(): Promise<void>;
+    /** Internal helper: execute with rate limiting, circuit breaker, and retry */
+    private executeWithResilience;
+    /**
+     * Create a Stripe subscription checkout session
+     */
+    createSubscriptionSession(request: SubscriptionSessionRequest): Promise<SubscriptionSessionResponse>;
+    /**
+     * Redirect to Stripe checkout — not supported on React Native.
+     * Use processSubscription() instead, which uses the native Payment Sheet.
+     */
+    redirectToCheckout(_sessionId: string): Promise<PaymentResult>;
+    /**
+     * Initialize and present the native Payment Sheet for a subscription.
+     */
+    private presentPayment;
+    /**
+     * Complete subscription flow: create session and present Payment Sheet.
+     * Backend must return paymentIntentClientSecret for React Native flows.
+     */
+    processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult>;
+    /**
+     * Check subscription status (for x402 gating)
+     */
+    checkSubscriptionStatus(request: SubscriptionStatusRequest): Promise<SubscriptionStatusResponse>;
+    /**
+     * Request a subscription quote for x402 crypto payment
+     */
+    requestSubscriptionQuote(resource: string, interval: BillingInterval, options?: SubscriptionQuoteOptions): Promise<SubscriptionQuote>;
+    /** Cancel a subscription */
+    cancelSubscription(request: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse>;
+    /** Get Stripe billing portal URL for subscription management */
+    getBillingPortalUrl(request: BillingPortalRequest): Promise<BillingPortalResponse>;
+    /** Activate x402 subscription after payment verification */
+    activateX402Subscription(request: ActivateX402SubscriptionRequest): Promise<ActivateX402SubscriptionResponse>;
+}
+//# sourceMappingURL=SubscriptionManager.d.ts.map

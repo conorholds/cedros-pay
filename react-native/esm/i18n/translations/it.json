@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - File di traduzione (Italiano)",
+  "version": "1.0.0",
+  "locale": "it",
+  "ui": {
+    "pay_with_card": "Paga con carta",
+    "pay_with_crypto": "Paga con USDC",
+    "pay_with_usdc": "Paga con USDC",
+    "purchase": "Acquista",
+    "card": "Carta",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Criptovaluta",
+    "connect_wallet": "Connetti il wallet",
+    "connecting": "Connessione in corso...",
+    "processing": "Elaborazione in corso...",
+    "loading": "Caricamento in corso...",
+    "close": "Chiudi",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "retry": "Riprova",
+    "go_back": "Indietro",
+    "contact_support": "Contatta l'assistenza"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Verifica del pagamento non riuscita",
+      "action": "Riprova a effettuare il pagamento. Se il problema persiste, contatta l'assistenza."
+    },
+    "invalid_signature": {
+      "message": "Firma della transazione non valida",
+      "action": "Approva la transazione nel tuo wallet e riprova."
+    },
+    "invalid_transaction": {
+      "message": "Formato della transazione non valido",
+      "action": "Riprova a effettuare il pagamento. Se continua, prova ad aggiornare l'app del wallet."
+    },
+    "transaction_not_found": {
+      "message": "Transazione non trovata sulla blockchain",
+      "action": "La tua transazione potrebbe essere ancora in elaborazione. Attendi un momento e controlla il wallet, oppure riprova."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transazione ancora in elaborazione",
+      "action": "Attendi che la blockchain confermi la transazione, quindi riprova."
+    },
+    "transaction_failed": {
+      "message": "Transazione non riuscita sulla blockchain",
+      "action": "Controlla il tuo wallet per i dettagli. Potresti dover modificare le impostazioni della transazione o aggiungere più SOL per le commissioni."
+    },
+    "transaction_expired": {
+      "message": "La transazione ha impiegato troppo tempo per essere elaborata",
+      "action": "Riprova a effettuare il pagamento. Valuta di aumentare la priorità della transazione se il tuo wallet lo consente."
+    },
+    "invalid_recipient": {
+      "message": "Il pagamento è stato inviato all'indirizzo sbagliato",
+      "action": "Riprova assicurandoti di approvare la transazione corretta nel wallet."
+    },
+    "invalid_sender": {
+      "message": "Il wallet mittente del pagamento non è valido",
+      "action": "Ricollega il tuo wallet e riprova."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Non sei autorizzato a emettere rimborsi",
+      "action": "Solo gli account autorizzati possono elaborare rimborsi. Contatta l'assistenza se ritieni si tratti di un errore."
+    },
+    "amount_below_minimum": {
+      "message": "L'importo del pagamento è troppo basso",
+      "action": "Controlla l'importo richiesto e riprova."
+    },
+    "amount_mismatch": {
+      "message": "L'importo del pagamento non corrisponde al preventivo",
+      "action": "Il prezzo potrebbe essere cambiato. Aggiorna e riprova a pagare."
+    },
+    "insufficient_funds_sol": {
+      "message": "SOL insufficienti per le commissioni di transazione",
+      "action": "Aggiungi almeno 0.001 SOL al tuo wallet per coprire le commissioni di rete, quindi riprova."
+    },
+    "insufficient_funds_token": {
+      "message": "Saldo insufficiente nel tuo wallet",
+      "action": "Aggiungi fondi al tuo wallet e riprova."
+    },
+    "invalid_token_mint": {
+      "message": "Token di pagamento errato",
+      "action": "Paga con il token corretto come indicato nei dettagli del pagamento."
+    },
+    "not_spl_transfer": {
+      "message": "La transazione non è un trasferimento di token valido",
+      "action": "Assicurati di inviare dal tuo wallet il tipo di token corretto."
+    },
+    "missing_token_account": {
+      "message": "Account token non trovato",
+      "action": "Il tuo wallet potrebbe dover creare prima un account token. Riprova o usa un wallet diverso."
+    },
+    "invalid_token_program": {
+      "message": "Programma token non valido",
+      "action": "Riprova a effettuare il pagamento. Se continua, prova con un wallet diverso."
+    },
+    "missing_memo": {
+      "message": "Memo del pagamento richiesto ma non incluso",
+      "action": "Riprova a effettuare il pagamento assicurandoti di approvare i dettagli della transazione nel wallet."
+    },
+    "invalid_memo": {
+      "message": "Formato del memo del pagamento non valido",
+      "action": "Riprova a effettuare il pagamento."
+    },
+    "payment_already_used": {
+      "message": "Questo pagamento è già stato elaborato",
+      "action": "Controlla la cronologia delle transazioni. Se devi effettuare un altro pagamento, avvia una nuova transazione."
+    },
+    "signature_reused": {
+      "message": "La firma della transazione è già stata utilizzata",
+      "action": "Crea una nuova transazione di pagamento."
+    },
+    "quote_expired": {
+      "message": "Il preventivo di pagamento è scaduto",
+      "action": "I prezzi vengono aggiornati frequentemente. Aggiorna e riprova a pagare."
+    },
+    "missing_field": {
+      "message": "Informazioni obbligatorie mancanti",
+      "action": "Controlla tutti i campi obbligatori e riprova."
+    },
+    "invalid_field": {
+      "message": "Alcune informazioni non sono valide",
+      "action": "Controlla i dati inseriti e riprova."
+    },
+    "invalid_amount": {
+      "message": "Importo del pagamento non valido",
+      "action": "Controlla l'importo e riprova."
+    },
+    "invalid_wallet": {
+      "message": "Indirizzo del wallet non valido",
+      "action": "Ricollega il tuo wallet e riprova."
+    },
+    "invalid_resource": {
+      "message": "Selezione dell'articolo non valida",
+      "action": "Aggiorna la pagina e riprova."
+    },
+    "invalid_coupon": {
+      "message": "Codice coupon non valido",
+      "action": "Controlla il codice coupon e riprova."
+    },
+    "invalid_cart_item": {
+      "message": "Uno o più articoli nel carrello non sono validi",
+      "action": "Rivedi il carrello e riprova."
+    },
+    "empty_cart": {
+      "message": "Il tuo carrello è vuoto",
+      "action": "Aggiungi articoli al carrello prima di procedere al checkout."
+    },
+    "resource_not_found": {
+      "message": "Articolo non trovato",
+      "action": "Questo articolo potrebbe non essere più disponibile. Aggiorna e riprova."
+    },
+    "cart_not_found": {
+      "message": "Carrello non trovato",
+      "action": "Il tuo carrello potrebbe essere scaduto. Avvia un nuovo ordine."
+    },
+    "refund_not_found": {
+      "message": "Rimborso non trovato",
+      "action": "Controlla il numero di riferimento del rimborso o contatta l'assistenza."
+    },
+    "product_not_found": {
+      "message": "Prodotto non disponibile",
+      "action": "Questo prodotto potrebbe non essere più disponibile. Consulta la selezione attuale."
+    },
+    "coupon_not_found": {
+      "message": "Codice coupon non trovato",
+      "action": "Controlla il codice coupon o rimuovilo per continuare."
+    },
+    "session_not_found": {
+      "message": "Sessione di pagamento scaduta",
+      "action": "Avvia un nuovo pagamento."
+    },
+    "cart_already_paid": {
+      "message": "Questo ordine è già stato pagato",
+      "action": "Controlla la cronologia degli ordini. Se devi effettuare un altro acquisto, avvia un nuovo ordine."
+    },
+    "refund_already_processed": {
+      "message": "Questo rimborso è già stato elaborato",
+      "action": "Controlla la cronologia delle transazioni o contatta l'assistenza per i dettagli."
+    },
+    "coupon_expired": {
+      "message": "Il coupon è scaduto",
+      "action": "Rimuovi il codice coupon o usane un altro."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Limite di utilizzo del coupon raggiunto",
+      "action": "Questo coupon è stato completamente riscattato. Prova con un altro codice."
+    },
+    "coupon_not_applicable": {
+      "message": "Il coupon non può essere applicato a questo acquisto",
+      "action": "Verifica i termini del coupon o rimuovilo per continuare."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Coupon non valido per questo metodo di pagamento",
+      "action": "Prova un metodo di pagamento diverso o rimuovi il codice coupon."
+    },
+    "stripe_error": {
+      "message": "Servizio di pagamento con carta temporaneamente non disponibile",
+      "action": "Riprova tra poco, oppure utilizza il pagamento in criptovaluta."
+    },
+    "rpc_error": {
+      "message": "Rete blockchain temporaneamente non disponibile",
+      "action": "Riprova tra poco, oppure usa il pagamento con carta."
+    },
+    "network_error": {
+      "message": "Problemi di connessione di rete",
+      "action": "Controlla la connessione a Internet e riprova."
+    },
+    "internal_error": {
+      "message": "Si è verificato un errore sul nostro server",
+      "action": "Riprova. Se il problema persiste, contatta l'assistenza."
+    },
+    "database_error": {
+      "message": "Servizio temporaneamente non disponibile",
+      "action": "Riprova tra poco."
+    },
+    "config_error": {
+      "message": "Errore di configurazione del servizio",
+      "action": "Contatta l'assistenza per ricevere aiuto."
+    },
+    "unknown_error": {
+      "message": "Si è verificato un errore imprevisto",
+      "action": "Riprova o contatta l'assistenza se il problema persiste."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Avviso: indirizzo di mint del token non riconosciuto. Controlla che questo sia il token corretto per evitare la perdita di fondi.",
+    "token_typo_warning": "L'indirizzo del token non corrisponde alle stablecoin note (USDC, USDT, PYUSD, CASH). Verifica attentamente per evitare perdite permanenti di fondi."
+  },
+  "wallet": {
+    "no_wallet_detected": "Nessun wallet Solana rilevato",
+    "install_wallet": "Installa un wallet Solana come Phantom, Solflare o Backpack.",
+    "wallet_not_connected": "Wallet non connesso",
+    "connect_your_wallet": "Connetti il tuo wallet per continuare.",
+    "wallet_connection_failed": "Connessione al wallet non riuscita",
+    "try_again": "Riprova a connetterti.",
+    "transaction_rejected": "Transazione rifiutata",
+    "approve_in_wallet": "Approva la transazione nel tuo wallet per continuare."
+  }
+}

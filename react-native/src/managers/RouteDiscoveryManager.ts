@@ -3,7 +3,7 @@ import { getLogger } from '../utils/logger';
 import {
   RouteDiscoveryManagerCore,
   type IRouteDiscoveryManager,
-} from '../../../shared/route-discovery-core';
+} from '../shared/route-discovery-core';
 
 export type { IRouteDiscoveryManager };
 

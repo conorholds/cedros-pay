@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Tệp nguồn dịch (Tiếng Việt)",
+  "version": "1.0.0",
+  "locale": "vi",
+  "ui": {
+    "pay_with_card": "Thanh toán bằng thẻ",
+    "pay_with_crypto": "Thanh toán bằng USDC",
+    "pay_with_usdc": "Thanh toán bằng USDC",
+    "purchase": "Mua hàng",
+    "card": "Thẻ",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Tiền mã hoá",
+    "connect_wallet": "Kết nối ví",
+    "connecting": "Đang kết nối...",
+    "processing": "Đang xử lý...",
+    "loading": "Đang tải...",
+    "close": "Đóng",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "retry": "Thử lại",
+    "go_back": "Quay lại",
+    "contact_support": "Liên hệ hỗ trợ"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Xác minh thanh toán không thành công",
+      "action": "Vui lòng thử thanh toán lại. Nếu vẫn tiếp diễn, hãy liên hệ hỗ trợ."
+    },
+    "invalid_signature": {
+      "message": "Chữ ký giao dịch không hợp lệ",
+      "action": "Vui lòng phê duyệt giao dịch trong ví của bạn rồi thử lại."
+    },
+    "invalid_transaction": {
+      "message": "Định dạng giao dịch không hợp lệ",
+      "action": "Vui lòng thử thanh toán lại. Nếu vẫn tiếp diễn, hãy thử cập nhật ứng dụng ví."
+    },
+    "transaction_not_found": {
+      "message": "Không tìm thấy giao dịch trên blockchain",
+      "action": "Giao dịch của bạn có thể vẫn đang được xử lý. Vui lòng đợi một lúc và kiểm tra ví, hoặc thử lại."
+    },
+    "transaction_not_confirmed": {
+      "message": "Giao dịch vẫn đang được xử lý",
+      "action": "Vui lòng đợi blockchain xác nhận giao dịch, sau đó thử lại."
+    },
+    "transaction_failed": {
+      "message": "Giao dịch thất bại trên blockchain",
+      "action": "Kiểm tra chi tiết trong ví của bạn. Bạn có thể cần điều chỉnh cài đặt giao dịch hoặc nạp thêm SOL cho phí."
+    },
+    "transaction_expired": {
+      "message": "Giao dịch mất quá nhiều thời gian để xử lý",
+      "action": "Vui lòng thử thanh toán lại. Cân nhắc tăng mức ưu tiên giao dịch nếu ví của bạn hỗ trợ."
+    },
+    "invalid_recipient": {
+      "message": "Thanh toán đã được gửi đến địa chỉ sai",
+      "action": "Vui lòng thử lại và đảm bảo bạn phê duyệt đúng giao dịch trong ví."
+    },
+    "invalid_sender": {
+      "message": "Ví người gửi thanh toán không hợp lệ",
+      "action": "Vui lòng kết nối lại ví và thử lại."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Bạn không được phép thực hiện hoàn tiền",
+      "action": "Chỉ các tài khoản được ủy quyền mới có thể xử lý hoàn tiền. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là lỗi."
+    },
+    "amount_below_minimum": {
+      "message": "Số tiền thanh toán quá thấp",
+      "action": "Vui lòng kiểm tra số tiền yêu cầu và thử lại."
+    },
+    "amount_mismatch": {
+      "message": "Số tiền thanh toán không khớp với báo giá",
+      "action": "Giá có thể đã thay đổi. Vui lòng làm mới trang và thử thanh toán lại."
+    },
+    "insufficient_funds_sol": {
+      "message": "Không đủ SOL để trả phí giao dịch",
+      "action": "Nạp ít nhất 0.001 SOL vào ví để chi trả phí mạng, sau đó thử lại."
+    },
+    "insufficient_funds_token": {
+      "message": "Số dư trong ví của bạn không đủ",
+      "action": "Vui lòng nạp thêm tiền vào ví rồi thử lại."
+    },
+    "invalid_token_mint": {
+      "message": "Token thanh toán không đúng",
+      "action": "Vui lòng thanh toán bằng token đúng như hiển thị trong chi tiết thanh toán."
+    },
+    "not_spl_transfer": {
+      "message": "Giao dịch không phải là chuyển token hợp lệ",
+      "action": "Vui lòng đảm bảo bạn đang gửi đúng loại token từ ví của mình."
+    },
+    "missing_token_account": {
+      "message": "Không tìm thấy tài khoản token",
+      "action": "Ví của bạn có thể cần tạo tài khoản token trước. Hãy thử lại hoặc dùng ví khác."
+    },
+    "invalid_token_program": {
+      "message": "Chương trình token không hợp lệ",
+      "action": "Vui lòng thử thanh toán lại. Nếu vẫn tiếp diễn, hãy thử dùng ví khác."
+    },
+    "missing_memo": {
+      "message": "Cần có memo thanh toán nhưng chưa được đính kèm",
+      "action": "Vui lòng thử thanh toán lại và đảm bảo phê duyệt chi tiết giao dịch trong ví."
+    },
+    "invalid_memo": {
+      "message": "Định dạng memo thanh toán không hợp lệ",
+      "action": "Vui lòng thử thanh toán lại."
+    },
+    "payment_already_used": {
+      "message": "Khoản thanh toán này đã được xử lý",
+      "action": "Kiểm tra lịch sử giao dịch của bạn. Nếu cần thanh toán khác, vui lòng bắt đầu giao dịch mới."
+    },
+    "signature_reused": {
+      "message": "Chữ ký giao dịch đã được sử dụng",
+      "action": "Vui lòng tạo giao dịch thanh toán mới."
+    },
+    "quote_expired": {
+      "message": "Báo giá thanh toán đã hết hạn",
+      "action": "Giá được cập nhật thường xuyên. Vui lòng làm mới trang và thử thanh toán lại."
+    },
+    "missing_field": {
+      "message": "Thiếu thông tin bắt buộc",
+      "action": "Vui lòng kiểm tra tất cả các trường bắt buộc và thử lại."
+    },
+    "invalid_field": {
+      "message": "Một số thông tin không hợp lệ",
+      "action": "Vui lòng kiểm tra lại dữ liệu nhập và thử lại."
+    },
+    "invalid_amount": {
+      "message": "Số tiền thanh toán không hợp lệ",
+      "action": "Vui lòng kiểm tra số tiền và thử lại."
+    },
+    "invalid_wallet": {
+      "message": "Địa chỉ ví không hợp lệ",
+      "action": "Vui lòng kết nối lại ví và thử lại."
+    },
+    "invalid_resource": {
+      "message": "Lựa chọn mặt hàng không hợp lệ",
+      "action": "Vui lòng làm mới trang và thử lại."
+    },
+    "invalid_coupon": {
+      "message": "Mã giảm giá không hợp lệ",
+      "action": "Vui lòng kiểm tra mã giảm giá và thử lại."
+    },
+    "invalid_cart_item": {
+      "message": "Một hoặc nhiều mặt hàng trong giỏ hàng không hợp lệ",
+      "action": "Vui lòng xem lại giỏ hàng và thử lại."
+    },
+    "empty_cart": {
+      "message": "Giỏ hàng của bạn đang trống",
+      "action": "Vui lòng thêm mặt hàng vào giỏ trước khi thanh toán."
+    },
+    "resource_not_found": {
+      "message": "Không tìm thấy mặt hàng",
+      "action": "Mặt hàng này có thể không còn tồn tại. Vui lòng làm mới và thử lại."
+    },
+    "cart_not_found": {
+      "message": "Không tìm thấy giỏ hàng",
+      "action": "Giỏ hàng của bạn có thể đã hết hạn. Vui lòng bắt đầu đơn hàng mới."
+    },
+    "refund_not_found": {
+      "message": "Không tìm thấy giao dịch hoàn tiền",
+      "action": "Vui lòng kiểm tra số tham chiếu hoàn tiền hoặc liên hệ hỗ trợ."
+    },
+    "product_not_found": {
+      "message": "Sản phẩm không còn khả dụng",
+      "action": "Sản phẩm này có thể đã ngừng bán. Vui lòng xem danh mục hiện có."
+    },
+    "coupon_not_found": {
+      "message": "Không tìm thấy mã giảm giá",
+      "action": "Vui lòng kiểm tra mã hoặc xóa để tiếp tục."
+    },
+    "session_not_found": {
+      "message": "Phiên thanh toán đã hết hạn",
+      "action": "Vui lòng bắt đầu thanh toán mới."
+    },
+    "cart_already_paid": {
+      "message": "Đơn hàng này đã được thanh toán",
+      "action": "Kiểm tra lịch sử đơn hàng của bạn. Nếu cần mua thêm, vui lòng bắt đầu đơn hàng mới."
+    },
+    "refund_already_processed": {
+      "message": "Khoản hoàn tiền này đã được xử lý",
+      "action": "Kiểm tra lịch sử giao dịch hoặc liên hệ hỗ trợ để biết chi tiết."
+    },
+    "coupon_expired": {
+      "message": "Mã giảm giá đã hết hạn",
+      "action": "Vui lòng xóa mã giảm giá hoặc dùng mã khác."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Đã đạt giới hạn sử dụng mã giảm giá",
+      "action": "Mã này đã được sử dụng hết. Vui lòng thử mã khác."
+    },
+    "coupon_not_applicable": {
+      "message": "Không thể áp dụng mã giảm giá cho đơn mua này",
+      "action": "Vui lòng kiểm tra điều khoản của mã hoặc xóa để tiếp tục."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Mã giảm giá không áp dụng cho phương thức thanh toán này",
+      "action": "Thử phương thức thanh toán khác hoặc xóa mã giảm giá."
+    },
+    "stripe_error": {
+      "message": "Dịch vụ thanh toán thẻ tạm thời không khả dụng",
+      "action": "Vui lòng thử lại sau, hoặc dùng thanh toán bằng tiền mã hoá."
+    },
+    "rpc_error": {
+      "message": "Mạng blockchain tạm thời không khả dụng",
+      "action": "Vui lòng thử lại sau, hoặc dùng thanh toán bằng thẻ."
+    },
+    "network_error": {
+      "message": "Sự cố kết nối mạng",
+      "action": "Vui lòng kiểm tra kết nối internet và thử lại."
+    },
+    "internal_error": {
+      "message": "Đã xảy ra lỗi từ phía chúng tôi",
+      "action": "Vui lòng thử lại. Nếu vẫn tiếp diễn, hãy liên hệ hỗ trợ."
+    },
+    "database_error": {
+      "message": "Dịch vụ tạm thời không khả dụng",
+      "action": "Vui lòng thử lại sau."
+    },
+    "config_error": {
+      "message": "Lỗi cấu hình dịch vụ",
+      "action": "Vui lòng liên hệ hỗ trợ để được trợ giúp."
+    },
+    "unknown_error": {
+      "message": "Đã xảy ra lỗi không mong muốn",
+      "action": "Vui lòng thử lại hoặc liên hệ hỗ trợ nếu tình trạng tiếp diễn."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Cảnh báo: Địa chỉ mint của token không được nhận diện. Hãy kiểm tra lại đây có phải token đúng để tránh mất tiền.",
+    "token_typo_warning": "Địa chỉ token không khớp với các stablecoin đã biết (USDC, USDT, PYUSD, CASH). Hãy kiểm tra cẩn thận để tránh mất tiền vĩnh viễn."
+  },
+  "wallet": {
+    "no_wallet_detected": "Không phát hiện ví Solana",
+    "install_wallet": "Vui lòng cài đặt ví Solana như Phantom, Solflare hoặc Backpack.",
+    "wallet_not_connected": "Ví chưa được kết nối",
+    "connect_your_wallet": "Vui lòng kết nối ví để tiếp tục.",
+    "wallet_connection_failed": "Kết nối ví thất bại",
+    "try_again": "Vui lòng thử kết nối lại.",
+    "transaction_rejected": "Giao dịch đã bị từ chối",
+    "approve_in_wallet": "Vui lòng phê duyệt giao dịch trong ví để tiếp tục."
+  }
+}

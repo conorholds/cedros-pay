@@ -1,0 +1,1 @@
+{"version":3,"file":"ShopChatPanel.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/chat/ShopChatPanel.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,KAAK,MAAM,OAAO,CAAC;AAC/B,OAAO,EAA0B,SAAS,EAAuD,MAAM,cAAc,CAAC;AActH,MAAM,WAAW,kBAAkB;IACjC,KAAK,CAAC,EAAE,SAAS,CAAC;CACnB;AAED,wBAAgB,aAAa,CAAC,EAAE,KAAK,EAAE,EAAE,kBAAkB,qBA0I1D"}

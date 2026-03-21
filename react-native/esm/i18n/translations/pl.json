@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Plik źródłowy tłumaczeń (polski)",
+  "version": "1.0.0",
+  "locale": "pl",
+  "ui": {
+    "pay_with_card": "Zapłać kartą",
+    "pay_with_crypto": "Zapłać USDC",
+    "pay_with_usdc": "Zapłać USDC",
+    "purchase": "Zakup",
+    "card": "Karta",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Krypto",
+    "connect_wallet": "Połącz portfel",
+    "connecting": "Łączenie...",
+    "processing": "Przetwarzanie...",
+    "loading": "Wczytywanie...",
+    "close": "Zamknij",
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "retry": "Spróbuj ponownie",
+    "go_back": "Wróć",
+    "contact_support": "Skontaktuj się z pomocą"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Weryfikacja płatności nie powiodła się",
+      "action": "Spróbuj ponownie. Jeśli problem się powtarza, skontaktuj się z pomocą techniczną."
+    },
+    "invalid_signature": {
+      "message": "Podpis transakcji jest nieprawidłowy",
+      "action": "Zatwierdź transakcję w swoim portfelu i spróbuj ponownie."
+    },
+    "invalid_transaction": {
+      "message": "Format transakcji jest nieprawidłowy",
+      "action": "Spróbuj ponownie. Jeśli problem wraca, zaktualizuj aplikację portfela."
+    },
+    "transaction_not_found": {
+      "message": "Nie znaleziono transakcji w blockchainie",
+      "action": "Twoja transakcja może być nadal przetwarzana. Poczekaj chwilę i sprawdź portfel lub spróbuj ponownie."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transakcja jest nadal przetwarzana",
+      "action": "Poczekaj na potwierdzenie w sieci blockchain, a następnie spróbuj ponownie."
+    },
+    "transaction_failed": {
+      "message": "Transakcja nie powiodła się w blockchainie",
+      "action": "Sprawdź szczegóły w portfelu. Może być konieczna zmiana ustawień transakcji lub dodanie SOL na opłaty."
+    },
+    "transaction_expired": {
+      "message": "Przetwarzanie transakcji trwało zbyt długo",
+      "action": "Spróbuj ponownie. Rozważ zwiększenie priorytetu transakcji, jeśli portfel to wspiera."
+    },
+    "invalid_recipient": {
+      "message": "Płatność wysłano na nieprawidłowy adres",
+      "action": "Spróbuj ponownie i upewnij się, że zatwierdzasz właściwą transakcję w portfelu."
+    },
+    "invalid_sender": {
+      "message": "Portfel nadawcy płatności jest nieprawidłowy",
+      "action": "Połącz portfel ponownie i spróbuj jeszcze raz."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Nie masz uprawnień do wystawiania zwrotów",
+      "action": "Tylko autoryzowane konta mogą przetwarzać zwroty. Skontaktuj się z pomocą, jeśli to błąd."
+    },
+    "amount_below_minimum": {
+      "message": "Kwota płatności jest zbyt niska",
+      "action": "Sprawdź wymaganą kwotę i spróbuj ponownie."
+    },
+    "amount_mismatch": {
+      "message": "Kwota płatności nie zgadza się z wyceną",
+      "action": "Cena mogła się zmienić. Odśwież i spróbuj zapłacić ponownie."
+    },
+    "insufficient_funds_sol": {
+      "message": "Za mało SOL na opłaty transakcyjne",
+      "action": "Dodaj co najmniej 0,001 SOL do portfela, aby pokryć opłaty, i spróbuj ponownie."
+    },
+    "insufficient_funds_token": {
+      "message": "Niewystarczające środki w portfelu",
+      "action": "Dodaj środki do portfela i spróbuj ponownie."
+    },
+    "invalid_token_mint": {
+      "message": "Nieprawidłowy token płatności",
+      "action": "Zapłać właściwym tokenem wskazanym w szczegółach płatności."
+    },
+    "not_spl_transfer": {
+      "message": "Transakcja nie jest prawidłowym transferem tokena",
+      "action": "Upewnij się, że wysyłasz właściwy typ tokena ze swojego portfela."
+    },
+    "missing_token_account": {
+      "message": "Nie znaleziono konta tokena",
+      "action": "Twój portfel może wymagać utworzenia konta tokena. Spróbuj ponownie lub użyj innego portfela."
+    },
+    "invalid_token_program": {
+      "message": "Nieprawidłowy program tokenów",
+      "action": "Spróbuj zapłacić ponownie. Jeśli problem wraca, użyj innego portfela."
+    },
+    "missing_memo": {
+      "message": "Wymagany memo płatności nie został dołączony",
+      "action": "Spróbuj ponownie i upewnij się, że zatwierdzasz szczegóły transakcji w portfelu."
+    },
+    "invalid_memo": {
+      "message": "Nieprawidłowy format memo płatności",
+      "action": "Spróbuj dokonać płatności ponownie."
+    },
+    "payment_already_used": {
+      "message": "Ta płatność została już przetworzona",
+      "action": "Sprawdź historię transakcji. Jeśli chcesz zapłacić ponownie, utwórz nową transakcję."
+    },
+    "signature_reused": {
+      "message": "Podpis transakcji został już użyty",
+      "action": "Utwórz nową transakcję płatniczą."
+    },
+    "quote_expired": {
+      "message": "Oferta płatności wygasła",
+      "action": "Ceny są często aktualizowane. Odśwież i spróbuj ponownie."
+    },
+    "missing_field": {
+      "message": "Brak wymaganych informacji",
+      "action": "Sprawdź wszystkie wymagane pola i spróbuj ponownie."
+    },
+    "invalid_field": {
+      "message": "Niektóre informacje są nieprawidłowe",
+      "action": "Sprawdź wprowadzone dane i spróbuj ponownie."
+    },
+    "invalid_amount": {
+      "message": "Nieprawidłowa kwota płatności",
+      "action": "Sprawdź kwotę i spróbuj ponownie."
+    },
+    "invalid_wallet": {
+      "message": "Nieprawidłowy adres portfela",
+      "action": "Połącz portfel ponownie i spróbuj jeszcze raz."
+    },
+    "invalid_resource": {
+      "message": "Nieprawidłowy wybór pozycji",
+      "action": "Odśwież stronę i spróbuj ponownie."
+    },
+    "invalid_coupon": {
+      "message": "Nieprawidłowy kod kuponu",
+      "action": "Sprawdź kod i spróbuj ponownie."
+    },
+    "invalid_cart_item": {
+      "message": "Jedna lub więcej pozycji w koszyku jest nieprawidłowa",
+      "action": "Przejrzyj koszyk i spróbuj ponownie."
+    },
+    "empty_cart": {
+      "message": "Twój koszyk jest pusty",
+      "action": "Dodaj produkty do koszyka przed finalizacją zakupu."
+    },
+    "resource_not_found": {
+      "message": "Nie znaleziono pozycji",
+      "action": "Ta pozycja może być niedostępna. Odśwież i spróbuj ponownie."
+    },
+    "cart_not_found": {
+      "message": "Nie znaleziono koszyka",
+      "action": "Twój koszyk mógł wygasnąć. Rozpocznij nowe zamówienie."
+    },
+    "refund_not_found": {
+      "message": "Nie znaleziono zwrotu",
+      "action": "Sprawdź numer referencyjny zwrotu lub skontaktuj się z pomocą."
+    },
+    "product_not_found": {
+      "message": "Produkt niedostępny",
+      "action": "Produkt mógł zostać wycofany. Przejrzyj naszą aktualną ofertę."
+    },
+    "coupon_not_found": {
+      "message": "Nie znaleziono kodu kuponu",
+      "action": "Sprawdź kod lub usuń go, aby kontynuować."
+    },
+    "session_not_found": {
+      "message": "Sesja płatności wygasła",
+      "action": "Rozpocznij nową płatność."
+    },
+    "cart_already_paid": {
+      "message": "To zamówienie zostało już opłacone",
+      "action": "Sprawdź historię zamówień. Aby kupić ponownie, rozpocznij nowe zamówienie."
+    },
+    "refund_already_processed": {
+      "message": "Ten zwrot został już przetworzony",
+      "action": "Sprawdź historię transakcji lub skontaktuj się z pomocą."
+    },
+    "coupon_expired": {
+      "message": "Kupon wygasł",
+      "action": "Usuń kod kuponu lub użyj innego."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Osiągnięto limit użyć kuponu",
+      "action": "Ten kupon został w pełni wykorzystany. Użyj innego kodu."
+    },
+    "coupon_not_applicable": {
+      "message": "Kupon nie ma zastosowania do tego zakupu",
+      "action": "Sprawdź warunki kuponu lub usuń go, aby kontynuować."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Kupon nie jest ważny dla tej metody płatności",
+      "action": "Wybierz inną metodę płatności lub usuń kupon."
+    },
+    "stripe_error": {
+      "message": "Usługa płatności kartą jest tymczasowo niedostępna",
+      "action": "Spróbuj ponownie za chwilę lub użyj płatności kryptowalutą."
+    },
+    "rpc_error": {
+      "message": "Sieć blockchain jest tymczasowo niedostępna",
+      "action": "Spróbuj ponownie za chwilę lub użyj płatności kartą."
+    },
+    "network_error": {
+      "message": "Problem z połączeniem sieciowym",
+      "action": "Sprawdź połączenie z Internetem i spróbuj ponownie."
+    },
+    "internal_error": {
+      "message": "Coś poszło nie tak po naszej stronie",
+      "action": "Spróbuj ponownie. Jeśli problem się powtarza, skontaktuj się z pomocą."
+    },
+    "database_error": {
+      "message": "Usługa tymczasowo niedostępna",
+      "action": "Spróbuj ponownie za chwilę."
+    },
+    "config_error": {
+      "message": "Błąd konfiguracji usługi",
+      "action": "Skontaktuj się z pomocą w celu uzyskania wsparcia."
+    },
+    "unknown_error": {
+      "message": "Wystąpił nieoczekiwany błąd",
+      "action": "Spróbuj ponownie lub skontaktuj się z pomocą, jeśli problem się powtarza."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Ostrzeżenie: Nierozpoznany adres mintu tokena. Dokładnie sprawdź, czy to właściwy token, aby uniknąć utraty środków.",
+    "token_typo_warning": "Adres tokena nie odpowiada znanym stablecoinom (USDC, USDT, PYUSD, CASH). Zweryfikuj dokładnie, aby zapobiec trwałej utracie środków."
+  },
+  "wallet": {
+    "no_wallet_detected": "Nie wykryto portfela Solana",
+    "install_wallet": "Zainstaluj portfel Solana, np. Phantom, Solflare lub Backpack.",
+    "wallet_not_connected": "Portfel niepołączony",
+    "connect_your_wallet": "Połącz portfel, aby kontynuować.",
+    "wallet_connection_failed": "Nie udało się połączyć portfela",
+    "try_again": "Spróbuj połączyć ponownie.",
+    "transaction_rejected": "Transakcja została odrzucona",
+    "approve_in_wallet": "Zatwierdź transakcję w portfelu, aby kontynuować."
+  }
+}

@@ -1,0 +1,252 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.useCreditsPayment = useCreditsPayment;
+const react_1 = require("react");
+const context_1 = require("../context");
+const cartHelpers_1 = require("../utils/cartHelpers");
+/**
+ * Hook for Credits payment flow
+ *
+ * Handles:
+ * - Fetching credits quotes
+ * - Creating holds
+ * - Authorizing payments
+ * - Managing payment state
+ *
+ * @example
+ * ```tsx
+ * function CreditsPayment({ resource, amount }: { resource: string; amount: number }) {
+ *   const { status, error, requirement, processPayment } = useCreditsPayment();
+ *
+ *   const handlePay = async () => {
+ *     const result = await processPayment(resource, amount);
+ *     if (result.success) {
+ *       console.log('Payment successful:', result.transactionId);
+ *     }
+ *   };
+ *
+ *   return (
+ *     <button onClick={handlePay} disabled={status === 'loading'}>
+ *       {status === 'loading' ? 'Processing...' : `Pay ${amount} credits`}
+ *     </button>
+ *   );
+ * }
+ * ```
+ */
+function useCreditsPayment() {
+    const { creditsManager } = (0, context_1.useCedrosContext)();
+    const [state, setState] = (0, react_1.useState)({
+        status: 'idle',
+        error: null,
+        transactionId: null,
+        requirement: null,
+        holdId: null,
+    });
+    // Track in-flight payment requests to prevent concurrent submissions
+    const isProcessingRef = (0, react_1.useRef)(false);
+    /**
+     * Fetch credits quote for a resource
+     * Updates state.requirement with the quote if available
+     */
+    const fetchQuote = (0, react_1.useCallback)(async (resource, couponCode) => {
+        setState((prev) => ({
+            ...prev,
+            status: 'loading',
+            error: null,
+        }));
+        try {
+            const requirement = await creditsManager.requestQuote(resource, couponCode);
+            setState((prev) => ({
+                ...prev,
+                status: 'idle',
+                requirement,
+            }));
+            return requirement;
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch credits quote';
+            setState((prev) => ({
+                ...prev,
+                status: 'error',
+                error: errorMessage,
+            }));
+            return null;
+        }
+    }, [creditsManager]);
+    /**
+     * Fetch credits quote for a cart
+     */
+    const fetchCartQuote = (0, react_1.useCallback)(async (items, couponCode) => {
+        setState((prev) => ({
+            ...prev,
+            status: 'loading',
+            error: null,
+        }));
+        try {
+            const normalizedItems = (0, cartHelpers_1.normalizeCartItems)(items);
+            const result = await creditsManager.requestCartQuote(normalizedItems, couponCode);
+            setState((prev) => ({
+                ...prev,
+                status: 'idle',
+            }));
+            return result;
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch cart credits quote';
+            setState((prev) => ({
+                ...prev,
+                status: 'error',
+                error: errorMessage,
+            }));
+            return null;
+        }
+    }, [creditsManager]);
+    /**
+     * Process a complete credits payment
+     * Creates hold and authorizes in one step
+     * @param resource - Resource being purchased
+     * @param authToken - JWT token from cedros-login for user authentication
+     * @param couponCode - Optional coupon code for discount
+     * @param metadata - Optional metadata
+     */
+    const processPayment = (0, react_1.useCallback)(async (resource, authToken, couponCode, metadata) => {
+        // Deduplication: prevent concurrent payment requests
+        if (isProcessingRef.current) {
+            return { success: false, error: 'Payment already in progress' };
+        }
+        isProcessingRef.current = true;
+        setState({
+            status: 'loading',
+            error: null,
+            transactionId: null,
+            requirement: null,
+            holdId: null,
+        });
+        try {
+            const result = await creditsManager.processPayment(resource, authToken, couponCode, metadata);
+            setState({
+                status: result.success ? 'success' : 'error',
+                error: result.success ? null : (result.error || 'Credits payment failed'),
+                transactionId: result.success ? (result.transactionId || null) : null,
+                requirement: null,
+                holdId: null,
+            });
+            return result;
+        }
+        finally {
+            isProcessingRef.current = false;
+        }
+    }, [creditsManager]);
+    /**
+     * Process a credits cart payment
+     * Creates hold and authorizes cart in one step
+     * @param items - Cart items to purchase
+     * @param authToken - JWT token from cedros-login for user authentication
+     * @param couponCode - Optional coupon code for discount
+     * @param metadata - Optional metadata
+     */
+    const processCartPayment = (0, react_1.useCallback)(async (items, authToken, couponCode, metadata) => {
+        // Deduplication: prevent concurrent payment requests
+        if (isProcessingRef.current) {
+            return { success: false, error: 'Payment already in progress' };
+        }
+        isProcessingRef.current = true;
+        setState({
+            status: 'loading',
+            error: null,
+            transactionId: null,
+            requirement: null,
+            holdId: null,
+        });
+        let currentHoldId = null;
+        try {
+            // Step 1: Get cart quote
+            const normalizedItems = (0, cartHelpers_1.normalizeCartItems)(items);
+            const cartQuote = await creditsManager.requestCartQuote(normalizedItems, couponCode);
+            if (!cartQuote) {
+                setState({
+                    status: 'error',
+                    error: 'Credits payment not available for this cart',
+                    transactionId: null,
+                    requirement: null,
+                    holdId: null,
+                });
+                return { success: false, error: 'Credits payment not available' };
+            }
+            // Step 2: Create hold on credits for this cart
+            const hold = await creditsManager.createCartHold({
+                cartId: cartQuote.cartId,
+                authToken,
+            });
+            // Store holdId in local variable for cleanup in catch block
+            currentHoldId = hold.holdId;
+            setState((prev) => ({
+                ...prev,
+                holdId: currentHoldId,
+            }));
+            // Step 3: Authorize cart payment
+            const result = await creditsManager.authorizeCartPayment({
+                cartId: cartQuote.cartId,
+                holdId: currentHoldId,
+                authToken,
+                metadata,
+            });
+            setState({
+                status: result.success ? 'success' : 'error',
+                error: result.success ? null : (result.error || 'Cart credits payment failed'),
+                transactionId: result.success ? (result.transactionId || null) : null,
+                requirement: null,
+                holdId: null,
+            });
+            return {
+                success: result.success,
+                transactionId: result.transactionId,
+                error: result.error,
+            };
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Cart credits payment failed';
+            if (currentHoldId) {
+                try {
+                    await creditsManager.releaseHold(currentHoldId, authToken);
+                }
+                catch {
+                    // Do not mask checkout failures when release fails.
+                }
+            }
+            setState({
+                status: 'error',
+                error: errorMessage,
+                transactionId: null,
+                requirement: null,
+                holdId: null,
+            });
+            return { success: false, error: errorMessage };
+        }
+        finally {
+            isProcessingRef.current = false;
+        }
+    }, [creditsManager]);
+    /**
+     * Reset payment state
+     */
+    const reset = (0, react_1.useCallback)(() => {
+        setState({
+            status: 'idle',
+            error: null,
+            transactionId: null,
+            requirement: null,
+            holdId: null,
+        });
+        isProcessingRef.current = false;
+    }, []);
+    return {
+        ...state,
+        fetchQuote,
+        fetchCartQuote,
+        processPayment,
+        processCartPayment,
+        reset,
+    };
+}
+//# sourceMappingURL=useCreditsPayment.js.map

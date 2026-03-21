@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Fichier source de traduction (Français)",
+  "version": "1.0.0",
+  "locale": "fr",
+  "ui": {
+    "pay_with_card": "Payer par carte",
+    "pay_with_crypto": "Payer en USDC",
+    "pay_with_usdc": "Payer en USDC",
+    "purchase": "Acheter",
+    "card": "Carte",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Crypto",
+    "connect_wallet": "Connecter le portefeuille",
+    "connecting": "Connexion en cours...",
+    "processing": "Traitement en cours...",
+    "loading": "Chargement en cours...",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "retry": "Réessayer",
+    "go_back": "Retour",
+    "contact_support": "Contacter l’assistance"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Échec de la vérification du paiement",
+      "action": "Veuillez réessayer votre paiement. Si le problème persiste, contactez l’assistance."
+    },
+    "invalid_signature": {
+      "message": "La signature de la transaction est invalide",
+      "action": "Veuillez approuver la transaction dans votre portefeuille puis réessayer."
+    },
+    "invalid_transaction": {
+      "message": "Le format de la transaction est invalide",
+      "action": "Veuillez réessayer votre paiement. Si cela continue, essayez de mettre à jour votre application de portefeuille."
+    },
+    "transaction_not_found": {
+      "message": "Transaction introuvable sur la blockchain",
+      "action": "Votre transaction est peut‑être encore en cours de traitement. Patientez un instant et vérifiez votre portefeuille, ou réessayez."
+    },
+    "transaction_not_confirmed": {
+      "message": "La transaction est encore en cours de traitement",
+      "action": "Veuillez patienter le temps que la blockchain confirme votre transaction, puis réessayez."
+    },
+    "transaction_failed": {
+      "message": "La transaction a échoué sur la blockchain",
+      "action": "Vérifiez les détails dans votre portefeuille. Vous devrez peut‑être ajuster les paramètres de la transaction ou ajouter davantage de SOL pour les frais."
+    },
+    "transaction_expired": {
+      "message": "La transaction a mis trop de temps à être traitée",
+      "action": "Veuillez réessayer votre paiement. Envisagez d’augmenter la priorité de la transaction si votre portefeuille le permet."
+    },
+    "invalid_recipient": {
+      "message": "Le paiement a été envoyé à la mauvaise adresse",
+      "action": "Veuillez réessayer et assurez‑vous d’approuver la bonne transaction dans votre portefeuille."
+    },
+    "invalid_sender": {
+      "message": "Le portefeuille expéditeur du paiement est invalide",
+      "action": "Veuillez reconnecter votre portefeuille et réessayer."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Vous n’êtes pas autorisé à émettre des remboursements",
+      "action": "Seuls les comptes autorisés peuvent traiter des remboursements. Contactez l’assistance si vous pensez qu’il s’agit d’une erreur."
+    },
+    "amount_below_minimum": {
+      "message": "Montant de paiement trop faible",
+      "action": "Veuillez vérifier le montant requis puis réessayer."
+    },
+    "amount_mismatch": {
+      "message": "Le montant du paiement ne correspond pas au devis",
+      "action": "Le prix a peut‑être changé. Actualisez la page puis réessayez votre paiement."
+    },
+    "insufficient_funds_sol": {
+      "message": "Solde en SOL insuffisant pour les frais de transaction",
+      "action": "Ajoutez au moins 0.001 SOL à votre portefeuille pour couvrir les frais réseau, puis réessayez."
+    },
+    "insufficient_funds_token": {
+      "message": "Solde insuffisant dans votre portefeuille",
+      "action": "Ajoutez des fonds à votre portefeuille puis réessayez."
+    },
+    "invalid_token_mint": {
+      "message": "Jeton de paiement incorrect",
+      "action": "Veuillez payer avec le jeton correct tel qu’indiqué dans les détails du paiement."
+    },
+    "not_spl_transfer": {
+      "message": "La transaction n’est pas un transfert de jetons valide",
+      "action": "Assurez‑vous d’envoyer le bon type de jeton depuis votre portefeuille."
+    },
+    "missing_token_account": {
+      "message": "Compte de jetons introuvable",
+      "action": "Votre portefeuille doit peut‑être d’abord créer un compte de jetons. Réessayez ou utilisez un autre portefeuille."
+    },
+    "invalid_token_program": {
+      "message": "Programme de jetons invalide",
+      "action": "Veuillez réessayer votre paiement. Si cela continue, essayez un autre portefeuille."
+    },
+    "missing_memo": {
+      "message": "Le mémo de paiement est requis mais n’a pas été inclus",
+      "action": "Veuillez réessayer votre paiement et approuver les détails de la transaction dans votre portefeuille."
+    },
+    "invalid_memo": {
+      "message": "Format du mémo de paiement invalide",
+      "action": "Veuillez réessayer votre paiement."
+    },
+    "payment_already_used": {
+      "message": "Ce paiement a déjà été traité",
+      "action": "Vérifiez votre historique de transactions. Si vous devez effectuer un autre paiement, commencez une nouvelle transaction."
+    },
+    "signature_reused": {
+      "message": "La signature de la transaction a déjà été utilisée",
+      "action": "Veuillez créer une nouvelle transaction de paiement."
+    },
+    "quote_expired": {
+      "message": "Le devis de paiement a expiré",
+      "action": "Les prix sont fréquemment mis à jour. Actualisez la page puis réessayez votre paiement."
+    },
+    "missing_field": {
+      "message": "Informations requises manquantes",
+      "action": "Veuillez vérifier tous les champs obligatoires puis réessayer."
+    },
+    "invalid_field": {
+      "message": "Certaines informations sont invalides",
+      "action": "Veuillez vérifier vos saisies puis réessayer."
+    },
+    "invalid_amount": {
+      "message": "Montant de paiement invalide",
+      "action": "Veuillez vérifier le montant puis réessayer."
+    },
+    "invalid_wallet": {
+      "message": "Adresse de portefeuille invalide",
+      "action": "Veuillez reconnecter votre portefeuille et réessayer."
+    },
+    "invalid_resource": {
+      "message": "Sélection d’article invalide",
+      "action": "Actualisez la page puis réessayez."
+    },
+    "invalid_coupon": {
+      "message": "Code promo invalide",
+      "action": "Veuillez vérifier le code promo puis réessayer."
+    },
+    "invalid_cart_item": {
+      "message": "Un ou plusieurs articles du panier sont invalides",
+      "action": "Veuillez vérifier votre panier puis réessayer."
+    },
+    "empty_cart": {
+      "message": "Votre panier est vide",
+      "action": "Ajoutez des articles à votre panier avant de payer."
+    },
+    "resource_not_found": {
+      "message": "Article introuvable",
+      "action": "Cet article n’est peut‑être plus disponible. Actualisez la page puis réessayez."
+    },
+    "cart_not_found": {
+      "message": "Panier introuvable",
+      "action": "Votre panier a peut‑être expiré. Veuillez lancer une nouvelle commande."
+    },
+    "refund_not_found": {
+      "message": "Remboursement introuvable",
+      "action": "Veuillez vérifier votre numéro de référence de remboursement ou contacter l’assistance."
+    },
+    "product_not_found": {
+      "message": "Produit non disponible",
+      "action": "Ce produit n’est peut‑être plus disponible. Parcourez notre sélection actuelle."
+    },
+    "coupon_not_found": {
+      "message": "Code promo introuvable",
+      "action": "Veuillez vérifier le code ou le supprimer pour continuer."
+    },
+    "session_not_found": {
+      "message": "Session de paiement expirée",
+      "action": "Veuillez commencer un nouveau paiement."
+    },
+    "cart_already_paid": {
+      "message": "Cette commande a déjà été payée",
+      "action": "Vérifiez votre historique de commandes. Pour un nouvel achat, lancez une nouvelle commande."
+    },
+    "refund_already_processed": {
+      "message": "Ce remboursement a déjà été traité",
+      "action": "Vérifiez votre historique de transactions ou contactez l’assistance pour plus de détails."
+    },
+    "coupon_expired": {
+      "message": "Le code promo a expiré",
+      "action": "Supprimez le code promo ou utilisez‑en un autre."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Limite d’utilisation du code promo atteinte",
+      "action": "Ce code promo a été entièrement utilisé. Veuillez essayer un autre code."
+    },
+    "coupon_not_applicable": {
+      "message": "Le code promo ne s’applique pas à cet achat",
+      "action": "Veuillez vérifier les conditions du code ou le supprimer pour continuer."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Le code promo n’est pas valable pour ce mode de paiement",
+      "action": "Essayez un autre mode de paiement ou supprimez le code."
+    },
+    "stripe_error": {
+      "message": "Service de paiement par carte temporairement indisponible",
+      "action": "Veuillez réessayer dans un instant, ou utilisez le paiement en crypto à la place."
+    },
+    "rpc_error": {
+      "message": "Réseau blockchain temporairement indisponible",
+      "action": "Veuillez réessayer dans un instant, ou utilisez le paiement par carte à la place."
+    },
+    "network_error": {
+      "message": "Problème de connexion réseau",
+      "action": "Veuillez vérifier votre connexion Internet puis réessayer."
+    },
+    "internal_error": {
+      "message": "Un problème est survenu de notre côté",
+      "action": "Veuillez réessayer. Si le problème persiste, contactez l’assistance."
+    },
+    "database_error": {
+      "message": "Service temporairement indisponible",
+      "action": "Veuillez réessayer dans un instant."
+    },
+    "config_error": {
+      "message": "Erreur de configuration du service",
+      "action": "Veuillez contacter l’assistance pour obtenir de l’aide."
+    },
+    "unknown_error": {
+      "message": "Une erreur inattendue s’est produite",
+      "action": "Veuillez réessayer ou contacter l’assistance si cela persiste."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Avertissement : adresse mint du jeton non reconnue. Vérifiez bien qu’il s’agit du bon jeton afin d’éviter toute perte de fonds.",
+    "token_typo_warning": "L’adresse du jeton ne correspond pas aux stablecoins connus (USDC, USDT, PYUSD, CASH). Vérifiez attentivement pour éviter toute perte définitive de fonds."
+  },
+  "wallet": {
+    "no_wallet_detected": "Aucun portefeuille Solana détecté",
+    "install_wallet": "Veuillez installer un portefeuille Solana comme Phantom, Solflare ou Backpack.",
+    "wallet_not_connected": "Portefeuille non connecté",
+    "connect_your_wallet": "Veuillez connecter votre portefeuille pour continuer.",
+    "wallet_connection_failed": "Échec de la connexion au portefeuille",
+    "try_again": "Veuillez réessayer la connexion.",
+    "transaction_rejected": "La transaction a été refusée",
+    "approve_in_wallet": "Veuillez approuver la transaction dans votre portefeuille pour continuer."
+  }
+}

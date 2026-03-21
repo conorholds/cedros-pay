@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - 翻訳元ファイル（日本語）",
+  "version": "1.0.0",
+  "locale": "ja",
+  "ui": {
+    "pay_with_card": "カードで支払う",
+    "pay_with_crypto": "USDC で支払う",
+    "pay_with_usdc": "USDC で支払う",
+    "purchase": "購入",
+    "card": "カード",
+    "usdc_solana": "USDC（Solana）",
+    "crypto": "暗号資産",
+    "connect_wallet": "ウォレットを接続",
+    "connecting": "接続中…",
+    "processing": "処理中…",
+    "loading": "読み込み中…",
+    "close": "閉じる",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "retry": "もう一度試す",
+    "go_back": "戻る",
+    "contact_support": "サポートに連絡"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "支払いの検証に失敗しました",
+      "action": "もう一度お支払いをお試しください。継続する場合はサポートにご連絡ください。"
+    },
+    "invalid_signature": {
+      "message": "取引の署名が無効です",
+      "action": "ウォレットで取引を承認してから、もう一度お試しください。"
+    },
+    "invalid_transaction": {
+      "message": "取引形式が無効です",
+      "action": "もう一度お支払いをお試しください。続く場合はウォレットアプリの更新をお試しください。"
+    },
+    "transaction_not_found": {
+      "message": "ブロックチェーン上で取引が見つかりません",
+      "action": "取引はまだ処理中の可能性があります。少し待ってからウォレットを確認するか、再度お試しください。"
+    },
+    "transaction_not_confirmed": {
+      "message": "取引は処理中です",
+      "action": "ブロックチェーンの確認が完了するまでお待ちいただき、その後もう一度お試しください。"
+    },
+    "transaction_failed": {
+      "message": "ブロックチェーン上で取引が失敗しました",
+      "action": "ウォレットの詳細を確認してください。取引設定の調整や、手数料用に SOL を追加する必要がある場合があります。"
+    },
+    "transaction_expired": {
+      "message": "取引の処理に時間がかかりすぎました",
+      "action": "もう一度お支払いをお試しください。ウォレットが対応している場合は取引の優先度を上げることをご検討ください。"
+    },
+    "invalid_recipient": {
+      "message": "支払いが誤ったアドレスに送信されました",
+      "action": "再度お試しのうえ、ウォレットで正しい取引を承認していることをご確認ください。"
+    },
+    "invalid_sender": {
+      "message": "支払い送信元ウォレットが無効です",
+      "action": "ウォレットを再接続してから、もう一度お試しください。"
+    },
+    "unauthorized_refund_issuer": {
+      "message": "返金を行う権限がありません",
+      "action": "返金は許可されたアカウントのみが処理できます。誤りと思われる場合はサポートにご連絡ください。"
+    },
+    "amount_below_minimum": {
+      "message": "支払い金額が低すぎます",
+      "action": "必要金額をご確認のうえ、再度お試しください。"
+    },
+    "amount_mismatch": {
+      "message": "支払い金額が見積額と一致しません",
+      "action": "価格が変更された可能性があります。ページを更新してから再度お支払いください。"
+    },
+    "insufficient_funds_sol": {
+      "message": "取引手数料に必要な SOL が不足しています",
+      "action": "ネットワーク手数料をカバーするため、ウォレットに少なくとも 0.001 SOL を追加してから再度お試しください。"
+    },
+    "insufficient_funds_token": {
+      "message": "ウォレットの残高が不足しています",
+      "action": "ウォレットに資金を追加してから、再度お試しください。"
+    },
+    "invalid_token_mint": {
+      "message": "支払いトークンが正しくありません",
+      "action": "支払い詳細に表示されている正しいトークンでお支払いください。"
+    },
+    "not_spl_transfer": {
+      "message": "取引は有効なトークン送金ではありません",
+      "action": "ウォレットから正しい種類のトークンを送信していることをご確認ください。"
+    },
+    "missing_token_account": {
+      "message": "トークンアカウントが見つかりません",
+      "action": "先にトークンアカウントの作成が必要な場合があります。再試行するか、別のウォレットをご利用ください。"
+    },
+    "invalid_token_program": {
+      "message": "トークンプログラムが無効です",
+      "action": "もう一度お支払いをお試しください。続く場合は別のウォレットをご利用ください。"
+    },
+    "missing_memo": {
+      "message": "支払いメモが必要ですが、含まれていません",
+      "action": "もう一度お支払いを行い、ウォレットで取引詳細を承認してください。"
+    },
+    "invalid_memo": {
+      "message": "支払いメモの形式が無効です",
+      "action": "もう一度お支払いをお試しください。"
+    },
+    "payment_already_used": {
+      "message": "この支払いはすでに処理されています",
+      "action": "取引履歴をご確認ください。別のお支払いが必要な場合は、新しい取引を開始してください。"
+    },
+    "signature_reused": {
+      "message": "この取引署名はすでに使用されています",
+      "action": "新しい支払い取引を作成してください。"
+    },
+    "quote_expired": {
+      "message": "支払い見積もりの有効期限が切れました",
+      "action": "価格は頻繁に更新されます。ページを更新してから再度お支払いください。"
+    },
+    "missing_field": {
+      "message": "必須情報が不足しています",
+      "action": "すべての必須項目を確認してから、再度お試しください。"
+    },
+    "invalid_field": {
+      "message": "一部の情報が無効です",
+      "action": "入力内容を確認のうえ、再度お試しください。"
+    },
+    "invalid_amount": {
+      "message": "支払い金額が無効です",
+      "action": "金額を確認してから、再度お試しください。"
+    },
+    "invalid_wallet": {
+      "message": "ウォレットアドレスが無効です",
+      "action": "ウォレットを再接続してから、再度お試しください。"
+    },
+    "invalid_resource": {
+      "message": "無効な商品選択です",
+      "action": "ページを更新してから、再度お試しください。"
+    },
+    "invalid_coupon": {
+      "message": "無効なクーポンコードです",
+      "action": "クーポンコードを確認してから、再度お試しください。"
+    },
+    "invalid_cart_item": {
+      "message": "カート内の一部商品が無効です",
+      "action": "カート内容を確認してから、再度お試しください。"
+    },
+    "empty_cart": {
+      "message": "カートが空です",
+      "action": "チェックアウトの前に商品を追加してください。"
+    },
+    "resource_not_found": {
+      "message": "商品が見つかりません",
+      "action": "この商品は既に在庫切れの可能性があります。ページを更新してから再度お試しください。"
+    },
+    "cart_not_found": {
+      "message": "ショッピングカートが見つかりません",
+      "action": "カートの有効期限が切れた可能性があります。新しい注文を開始してください。"
+    },
+    "refund_not_found": {
+      "message": "返金が見つかりません",
+      "action": "返金の参照番号を確認するか、サポートにご連絡ください。"
+    },
+    "product_not_found": {
+      "message": "商品は利用できません",
+      "action": "この商品はすでに取り扱いがない可能性があります。現在の取扱商品をご覧ください。"
+    },
+    "coupon_not_found": {
+      "message": "クーポンコードが見つかりません",
+      "action": "コードを確認するか、削除して続行してください。"
+    },
+    "session_not_found": {
+      "message": "支払いセッションの有効期限が切れました",
+      "action": "新しいお支払いを開始してください。"
+    },
+    "cart_already_paid": {
+      "message": "この注文はすでに支払い済みです",
+      "action": "注文履歴を確認してください。別の購入が必要な場合は、新しい注文を開始してください。"
+    },
+    "refund_already_processed": {
+      "message": "この返金はすでに処理されています",
+      "action": "取引履歴を確認するか、詳細はサポートにお問い合わせください。"
+    },
+    "coupon_expired": {
+      "message": "クーポンの有効期限が切れています",
+      "action": "クーポンコードを削除するか、別のコードをご利用ください。"
+    },
+    "coupon_usage_limit_reached": {
+      "message": "クーポンの使用上限に達しました",
+      "action": "このクーポンはすでにすべて使用されています。別のコードをお試しください。"
+    },
+    "coupon_not_applicable": {
+      "message": "この購入にはクーポンを適用できません",
+      "action": "クーポンの条件を確認するか、削除して続行してください。"
+    },
+    "coupon_wrong_payment_method": {
+      "message": "このお支払い方法ではクーポンは無効です",
+      "action": "別のお支払い方法を試すか、クーポンコードを削除してください。"
+    },
+    "stripe_error": {
+      "message": "カード決済サービスは一時的に利用できません",
+      "action": "しばらくしてからもう一度お試しになるか、代わりに暗号資産でお支払いください。"
+    },
+    "rpc_error": {
+      "message": "ブロックチェーンネットワークは一時的に利用できません",
+      "action": "しばらくしてからもう一度お試しになるか、代わりにカード決済をご利用ください。"
+    },
+    "network_error": {
+      "message": "ネットワーク接続に問題が発生しました",
+      "action": "インターネット接続を確認のうえ、再度お試しください。"
+    },
+    "internal_error": {
+      "message": "サーバー側で問題が発生しました",
+      "action": "もう一度お試しください。継続する場合はサポートにご連絡ください。"
+    },
+    "database_error": {
+      "message": "サービスを一時的に利用できません",
+      "action": "しばらくしてから再度お試しください。"
+    },
+    "config_error": {
+      "message": "サービスの設定エラーです",
+      "action": "サポートまでお問い合わせください。"
+    },
+    "unknown_error": {
+      "message": "予期しないエラーが発生しました",
+      "action": "再度お試しになるか、継続する場合はサポートにご連絡ください。"
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "警告：未確認のトークンミントアドレスです。資金損失を避けるため、正しいトークンであることを再確認してください。",
+    "token_typo_warning": "トークンアドレスが既知のステーブルコイン（USDC、USDT、PYUSD、CASH）と一致しません。資金を恒久的に失うのを防ぐため、注意深く確認してください。"
+  },
+  "wallet": {
+    "no_wallet_detected": "Solana ウォレットが検出されませんでした",
+    "install_wallet": "Phantom、Solflare、Backpack などの Solana ウォレットをインストールしてください。",
+    "wallet_not_connected": "ウォレットが接続されていません",
+    "connect_your_wallet": "続行するにはウォレットを接続してください。",
+    "wallet_connection_failed": "ウォレットの接続に失敗しました",
+    "try_again": "もう一度接続をお試しください。",
+    "transaction_rejected": "取引が拒否されました",
+    "approve_in_wallet": "続行するには、ウォレットで取引を承認してください。"
+  }
+}

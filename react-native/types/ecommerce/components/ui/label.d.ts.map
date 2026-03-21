@@ -1,0 +1,1 @@
+{"version":3,"file":"label.d.ts","sourceRoot":"","sources":["../../../../src/ecommerce/components/ui/label.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,KAAK,MAAM,OAAO,CAAC;AAC/B,OAAO,EAAE,IAAI,EAAc,SAAS,EAAE,MAAM,cAAc,CAAC;AAE3D,UAAU,UAAU;IAClB,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAC;IAC1B,KAAK,CAAC,EAAE,SAAS,CAAC;IAClB,QAAQ,CAAC,EAAE,OAAO,CAAC;CACpB;AAED,eAAO,MAAM,KAAK,yEAUjB,CAAC"}

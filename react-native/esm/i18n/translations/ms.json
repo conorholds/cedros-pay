@@ -1,0 +1,240 @@
+{
+  "comment": "CEDROS PAY - Fail Sumber Terjemahan (Bahasa Melayu)",
+  "version": "1.0.0",
+  "locale": "ms",
+  "ui": {
+    "pay_with_card": "Bayar dengan Kad",
+    "pay_with_crypto": "Bayar dengan USDC",
+    "pay_with_usdc": "Bayar dengan USDC",
+    "purchase": "Beli",
+    "card": "Kad",
+    "usdc_solana": "USDC (Solana)",
+    "crypto": "Kripto",
+    "connect_wallet": "Sambungkan Dompet",
+    "connecting": "Menyambung...",
+    "processing": "Memproses...",
+    "loading": "Memuatkan...",
+    "close": "Tutup",
+    "cancel": "Batal",
+    "confirm": "Sahkan",
+    "retry": "Cuba Lagi",
+    "go_back": "Kembali",
+    "contact_support": "Hubungi Sokongan"
+  },
+  "errors": {
+    "invalid_payment_proof": {
+      "message": "Pengesahan pembayaran gagal",
+      "action": "Sila cuba buat pembayaran semula. Jika masalah berterusan, hubungi sokongan."
+    },
+    "invalid_signature": {
+      "message": "Tandatangan transaksi tidak sah",
+      "action": "Sila luluskan transaksi dalam dompet anda dan cuba lagi."
+    },
+    "invalid_transaction": {
+      "message": "Format transaksi tidak sah",
+      "action": "Sila cuba pembayaran anda sekali lagi. Jika berterusan, cuba kemas kini aplikasi dompet anda."
+    },
+    "transaction_not_found": {
+      "message": "Transaksi tidak ditemui pada rantaian blok",
+      "action": "Transaksi anda mungkin masih diproses. Tunggu sebentar dan semak dompet anda, atau cuba lagi."
+    },
+    "transaction_not_confirmed": {
+      "message": "Transaksi masih diproses",
+      "action": "Sila tunggu sebentar untuk rantaian blok mengesahkan transaksi anda, kemudian cuba lagi."
+    },
+    "transaction_failed": {
+      "message": "Transaksi gagal pada rantaian blok",
+      "action": "Semak dompet anda untuk butiran. Anda mungkin perlu melaraskan tetapan transaksi atau menambah lebih banyak SOL untuk yuran."
+    },
+    "transaction_expired": {
+      "message": "Transaksi mengambil masa terlalu lama untuk diproses",
+      "action": "Sila cuba pembayaran anda sekali lagi. Pertimbangkan untuk meningkatkan keutamaan transaksi jika dompet anda menyokongnya."
+    },
+    "invalid_recipient": {
+      "message": "Pembayaran dihantar ke alamat yang salah",
+      "action": "Sila cuba lagi dan pastikan anda meluluskan transaksi yang betul dalam dompet."
+    },
+    "invalid_sender": {
+      "message": "Dompet penghantar pembayaran tidak sah",
+      "action": "Sila sambungkan semula dompet anda dan cuba lagi."
+    },
+    "unauthorized_refund_issuer": {
+      "message": "Anda tidak dibenarkan mengeluarkan bayaran balik",
+      "action": "Hanya akaun yang diberi kuasa boleh memproses bayaran balik. Sila hubungi sokongan jika ini adalah ralat."
+    },
+    "amount_below_minimum": {
+      "message": "Jumlah pembayaran terlalu rendah",
+      "action": "Sila semak jumlah yang diperlukan dan cuba lagi."
+    },
+    "amount_mismatch": {
+      "message": "Jumlah pembayaran tidak sepadan dengan sebut harga",
+      "action": "Harga mungkin telah berubah. Sila segar semula dan cuba pembayaran anda semula."
+    },
+    "insufficient_funds_sol": {
+      "message": "SOL tidak mencukupi untuk yuran transaksi",
+      "action": "Tambahkan sekurang-kurangnya 0.001 SOL ke dompet anda untuk menampung yuran rangkaian, kemudian cuba lagi."
+    },
+    "insufficient_funds_token": {
+      "message": "Baki dalam dompet anda tidak mencukupi",
+      "action": "Tambah lebih banyak dana ke dompet anda dan cuba lagi."
+    },
+    "invalid_token_mint": {
+      "message": "Token pembayaran tidak betul",
+      "action": "Sila bayar dengan token yang betul seperti yang ditunjukkan dalam butiran pembayaran."
+    },
+    "not_spl_transfer": {
+      "message": "Transaksi bukan pemindahan token yang sah",
+      "action": "Pastikan anda menghantar jenis token yang betul daripada dompet anda."
+    },
+    "missing_token_account": {
+      "message": "Akaun token tidak ditemui",
+      "action": "Dompet anda mungkin perlu mencipta akaun token terlebih dahulu. Cuba lagi atau gunakan dompet lain."
+    },
+    "invalid_token_program": {
+      "message": "Program token tidak sah",
+      "action": "Sila cuba pembayaran anda sekali lagi. Jika berterusan, cuba gunakan dompet lain."
+    },
+    "missing_memo": {
+      "message": "Memo pembayaran diperlukan tetapi tidak disertakan",
+      "action": "Sila cuba pembayaran anda semula dan pastikan butiran transaksi diluluskan dalam dompet anda."
+    },
+    "invalid_memo": {
+      "message": "Format memo pembayaran tidak sah",
+      "action": "Sila cuba pembayaran anda semula."
+    },
+    "payment_already_used": {
+      "message": "Pembayaran ini telah diproses",
+      "action": "Semak sejarah transaksi anda. Jika perlu membuat pembayaran lain, mulakan transaksi baharu."
+    },
+    "signature_reused": {
+      "message": "Tandatangan transaksi telah digunakan",
+      "action": "Sila cipta transaksi pembayaran baharu."
+    },
+    "quote_expired": {
+      "message": "Sebut harga pembayaran telah tamat tempoh",
+      "action": "Harga kerap dikemas kini. Sila segar semula dan cuba pembayaran anda semula."
+    },
+    "missing_field": {
+      "message": "Maklumat yang diperlukan tiada",
+      "action": "Sila semak semua medan yang diperlukan dan cuba lagi."
+    },
+    "invalid_field": {
+      "message": "Sesetengah maklumat tidak sah",
+      "action": "Sila semak input anda dan cuba lagi."
+    },
+    "invalid_amount": {
+      "message": "Amaun pembayaran tidak sah",
+      "action": "Sila semak amaun dan cuba lagi."
+    },
+    "invalid_wallet": {
+      "message": "Alamat dompet tidak sah",
+      "action": "Sila sambungkan semula dompet anda dan cuba lagi."
+    },
+    "invalid_resource": {
+      "message": "Pilihan item tidak sah",
+      "action": "Sila segar semula halaman dan cuba lagi."
+    },
+    "invalid_coupon": {
+      "message": "Kod kupon tidak sah",
+      "action": "Sila semak kod kupon dan cuba lagi."
+    },
+    "invalid_cart_item": {
+      "message": "Satu atau lebih item dalam troli tidak sah",
+      "action": "Sila semak troli anda dan cuba lagi."
+    },
+    "empty_cart": {
+      "message": "Troli anda kosong",
+      "action": "Sila tambah item ke troli sebelum membuat pembayaran."
+    },
+    "resource_not_found": {
+      "message": "Item tidak ditemui",
+      "action": "Item ini mungkin tidak lagi tersedia. Sila segar semula dan cuba lagi."
+    },
+    "cart_not_found": {
+      "message": "Troli beli-belah tidak ditemui",
+      "action": "Troli anda mungkin telah tamat tempoh. Sila mulakan pesanan baharu."
+    },
+    "refund_not_found": {
+      "message": "Bayaran balik tidak ditemui",
+      "action": "Sila semak nombor rujukan bayaran balik anda atau hubungi sokongan."
+    },
+    "product_not_found": {
+      "message": "Produk tidak tersedia",
+      "action": "Produk ini mungkin tidak lagi tersedia. Sila semak pilihan semasa kami."
+    },
+    "coupon_not_found": {
+      "message": "Kod kupon tidak ditemui",
+      "action": "Sila semak kod kupon atau keluarkannya untuk meneruskan."
+    },
+    "session_not_found": {
+      "message": "Sesi pembayaran telah tamat tempoh",
+      "action": "Sila mulakan pembayaran baharu."
+    },
+    "cart_already_paid": {
+      "message": "Pesanan ini telah dibayar",
+      "action": "Semak sejarah pesanan anda. Jika perlu membuat pembelian lain, mulakan pesanan baharu."
+    },
+    "refund_already_processed": {
+      "message": "Bayaran balik ini telah diproses",
+      "action": "Semak sejarah transaksi anda atau hubungi sokongan untuk butiran."
+    },
+    "coupon_expired": {
+      "message": "Kupon telah tamat tempoh",
+      "action": "Sila keluarkan kod kupon atau gunakan kod lain."
+    },
+    "coupon_usage_limit_reached": {
+      "message": "Had penggunaan kupon telah dicapai",
+      "action": "Kupon ini telah ditebus sepenuhnya. Sila cuba kod lain."
+    },
+    "coupon_not_applicable": {
+      "message": "Kupon tidak boleh digunakan untuk pembelian ini",
+      "action": "Sila semak terma kupon atau keluarkannya untuk meneruskan."
+    },
+    "coupon_wrong_payment_method": {
+      "message": "Kupon tidak sah untuk kaedah pembayaran ini",
+      "action": "Cuba kaedah pembayaran lain atau keluarkan kod kupon."
+    },
+    "stripe_error": {
+      "message": "Perkhidmatan pembayaran kad tidak tersedia buat sementara",
+      "action": "Sila cuba lagi sebentar lagi, atau gunakan pembayaran kripto."
+    },
+    "rpc_error": {
+      "message": "Rangkaian blockchain tidak tersedia buat sementara",
+      "action": "Sila cuba lagi sebentar lagi, atau gunakan pembayaran kad."
+    },
+    "network_error": {
+      "message": "Masalah sambungan rangkaian",
+      "action": "Sila semak sambungan internet anda dan cuba lagi."
+    },
+    "internal_error": {
+      "message": "Terdapat ralat di pihak kami",
+      "action": "Sila cuba lagi. Jika berterusan, hubungi sokongan."
+    },
+    "database_error": {
+      "message": "Perkhidmatan tidak tersedia buat sementara",
+      "action": "Sila cuba lagi sebentar lagi."
+    },
+    "config_error": {
+      "message": "Ralat konfigurasi perkhidmatan",
+      "action": "Sila hubungi sokongan untuk bantuan."
+    },
+    "unknown_error": {
+      "message": "Ralat yang tidak dijangka berlaku",
+      "action": "Sila cuba lagi atau hubungi sokongan jika berterusan."
+    }
+  },
+  "validation": {
+    "unknown_token_mint": "Amaran: Alamat token mint tidak dikenali. Pastikan ini ialah token yang betul untuk mengelakkan kehilangan dana.",
+    "token_typo_warning": "Alamat token tidak sepadan dengan stablecoin yang diketahui (USDC, USDT, PYUSD, CASH). Sahkan dengan teliti bagi mengelakkan kehilangan dana secara kekal."
+  },
+  "wallet": {
+    "no_wallet_detected": "Tiada dompet Solana dikesan",
+    "install_wallet": "Sila pasang dompet Solana seperti Phantom, Solflare, atau Backpack.",
+    "wallet_not_connected": "Dompet tidak disambungkan",
+    "connect_your_wallet": "Sila sambungkan dompet anda untuk meneruskan.",
+    "wallet_connection_failed": "Gagal menyambungkan dompet",
+    "try_again": "Sila cuba sambung semula.",
+    "transaction_rejected": "Transaksi telah ditolak",
+    "approve_in_wallet": "Sila luluskan transaksi dalam dompet anda untuk meneruskan."
+  }
+}

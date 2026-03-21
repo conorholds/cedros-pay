@@ -1,0 +1,91 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CartLoading = CartLoading;
+const React = __importStar(require("react"));
+const react_native_1 = require("react-native");
+const skeleton_1 = require("../ui/skeleton");
+function CartLoading({ itemCount = 3, style, }) {
+    return (<react_native_1.View style={[styles.container, style]}>
+      {Array.from({ length: itemCount }).map((_, index) => (<react_native_1.View key={index} style={styles.itemRow}>
+          {/* Image skeleton */}
+          <skeleton_1.Skeleton width={48} height={48} style={styles.imageSkeleton}/>
+          
+          {/* Content skeleton */}
+          <react_native_1.View style={styles.contentContainer}>
+            <skeleton_1.Skeleton width="70%" height={16} style={styles.titleSkeleton}/>
+            <skeleton_1.Skeleton width="40%" height={12} style={styles.priceSkeleton}/>
+          </react_native_1.View>
+          
+          {/* Quantity controls skeleton */}
+          <react_native_1.View style={styles.controlsContainer}>
+            <skeleton_1.Skeleton width={32} height={32} style={styles.controlSkeleton}/>
+            <skeleton_1.Skeleton width={44} height={32} style={styles.controlSkeleton}/>
+            <skeleton_1.Skeleton width={32} height={32} style={styles.controlSkeleton}/>
+          </react_native_1.View>
+        </react_native_1.View>))}
+    </react_native_1.View>);
+}
+const styles = react_native_1.StyleSheet.create({
+    container: {
+        gap: 16,
+    },
+    itemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    imageSkeleton: {
+        borderRadius: 8,
+    },
+    contentContainer: {
+        flex: 1,
+        gap: 8,
+    },
+    titleSkeleton: {
+        borderRadius: 4,
+    },
+    priceSkeleton: {
+        borderRadius: 4,
+    },
+    controlsContainer: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    controlSkeleton: {
+        borderRadius: 6,
+    },
+});
+//# sourceMappingURL=CartLoading.js.map
