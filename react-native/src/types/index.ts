@@ -1,3 +1,39 @@
+import type {
+  CedrosPaymentPolicyConfig as CedrosPaymentPolicyConfigType,
+  CedrosStoreBillingConfig as CedrosStoreBillingConfigType,
+  CedrosProductCatalog as CedrosProductCatalogType,
+  CedrosProductCatalogSyncConfig as CedrosProductCatalogSyncConfigType,
+  CedrosStoreProductConfig as CedrosStoreProductConfigType,
+  AppleStoreProductConfig as AppleStoreProductConfigType,
+  GooglePlayStoreProductConfig as GooglePlayStoreProductConfigType,
+  DistributionChannel as DistributionChannelType,
+  StorefrontRegion as StorefrontRegionType,
+  FulfillmentType as FulfillmentTypeType,
+  OrchestratedPaymentMethod as OrchestratedPaymentMethodType,
+  PaymentAdapter as PaymentAdapterType,
+  AvailablePaymentAdapters as AvailablePaymentAdaptersType,
+  CedrosProductDefinition as CedrosProductDefinitionType,
+  PaymentPolicyContext as PaymentPolicyContextType,
+  PaymentPolicyFailure as PaymentPolicyFailureType,
+  PaymentPolicyFailureCode as PaymentPolicyFailureCodeType,
+  PaymentPolicyResolution as PaymentPolicyResolutionType,
+  PaymentPolicyPurchaseMode as PaymentPolicyPurchaseModeType,
+  StoreManagedProductKind as StoreManagedProductKindType,
+  StorekitMode as StorekitModeType,
+  StoreTransactionHandling as StoreTransactionHandlingType,
+  NativeStoreMethod as NativeStoreMethodType,
+  NativeStoreCheckoutContext as NativeStoreCheckoutContextType,
+  NativeStorePaymentHandler as NativeStorePaymentHandlerType,
+  NativeStoreRestoreRequest as NativeStoreRestoreRequestType,
+  NativeStoreManageSubscriptionsRequest as NativeStoreManageSubscriptionsRequestType,
+  NativeStorePurchaseRequest as NativeStorePurchaseRequestType,
+  NativeStorePurchaseResult as NativeStorePurchaseResultType,
+  CedrosPayPolicyOverrides as CedrosPayPolicyOverridesType,
+  PaymentPolicyPrograms as PaymentPolicyProgramsType,
+  AppleStorePolicyPrograms as AppleStorePolicyProgramsType,
+  GooglePlayPolicyPrograms as GooglePlayPolicyProgramsType,
+} from './storePolicy';
+
 /**
  * Core types for Cedros Pay
  *
@@ -33,6 +69,7 @@ export namespace v1 {
     resource: string;
     quantity?: number;
     metadata?: Record<string, string>;
+    fulfillmentType?: FulfillmentTypeType;
   }
 
   /**
@@ -42,6 +79,7 @@ export namespace v1 {
     stripePublicKey: string;
     serverUrl: string; // Required: your API server URL (e.g., "https://api.example.com")
     solanaCluster: SolanaCluster;
+    stripeReturnUrl?: string; // Optional deep link / universal link used by Stripe PaymentSheet for app return
     tokenMint?: string; // Default: USDC
     solanaEndpoint?: string; // Optional custom RPC endpoint
     theme?: CedrosThemeMode;
@@ -61,6 +99,7 @@ export namespace v1 {
      * @default false
      */
     dangerouslyAllowUnknownMint?: boolean;
+    paymentPolicy?: CedrosPaymentPolicyConfigType;
   }
 
   /**
@@ -404,6 +443,39 @@ export type CreditsHoldRequest = v1.CreditsHoldRequest;
 export type CreditsHoldResponse = v1.CreditsHoldResponse;
 export type CreditsAuthorizeRequest = v1.CreditsAuthorizeRequest;
 export type CreditsPaymentResult = v1.CreditsPaymentResult;
+export type FulfillmentType = FulfillmentTypeType;
+export type DistributionChannel = DistributionChannelType;
+export type StorefrontRegion = StorefrontRegionType;
+export type OrchestratedPaymentMethod = OrchestratedPaymentMethodType;
+export type PaymentAdapter = PaymentAdapterType;
+export type AvailablePaymentAdapters = AvailablePaymentAdaptersType;
+export type StoreManagedProductKind = StoreManagedProductKindType;
+export type StorekitMode = StorekitModeType;
+export type StoreTransactionHandling = StoreTransactionHandlingType;
+export type NativeStoreMethod = NativeStoreMethodType;
+export type CedrosProductDefinition = CedrosProductDefinitionType;
+export type CedrosProductCatalog = CedrosProductCatalogType;
+export type CedrosProductCatalogSyncConfig = CedrosProductCatalogSyncConfigType;
+export type CedrosStoreProductConfig = CedrosStoreProductConfigType;
+export type AppleStoreProductConfig = AppleStoreProductConfigType;
+export type GooglePlayStoreProductConfig = GooglePlayStoreProductConfigType;
+export type CedrosStoreBillingConfig = CedrosStoreBillingConfigType;
+export type PaymentPolicyContext = PaymentPolicyContextType;
+export type PaymentPolicyFailure = PaymentPolicyFailureType;
+export type PaymentPolicyFailureCode = PaymentPolicyFailureCodeType;
+export type PaymentPolicyResolution = PaymentPolicyResolutionType;
+export type PaymentPolicyPurchaseMode = PaymentPolicyPurchaseModeType;
+export type PaymentPolicyPrograms = PaymentPolicyProgramsType;
+export type AppleStorePolicyPrograms = AppleStorePolicyProgramsType;
+export type GooglePlayPolicyPrograms = GooglePlayPolicyProgramsType;
+export type NativeStoreCheckoutContext = NativeStoreCheckoutContextType;
+export type NativeStorePaymentHandler = NativeStorePaymentHandlerType;
+export type NativeStoreRestoreRequest = NativeStoreRestoreRequestType;
+export type NativeStoreManageSubscriptionsRequest =
+  NativeStoreManageSubscriptionsRequestType;
+export type NativeStorePurchaseRequest = NativeStorePurchaseRequestType;
+export type NativeStorePurchaseResult = NativeStorePurchaseResultType;
+export type CedrosPayPolicyOverrides = CedrosPayPolicyOverridesType;
 
 // Error handling types
 export { PaymentErrorCode, PaymentError, ERROR_CATEGORIES, type ErrorResponse } from './errors';
@@ -421,11 +493,17 @@ export type {
   AdvancedOptions,
 } from './componentOptions';
 
+export type { CedrosPaymentPolicyConfig } from './storePolicy';
+
 // Subscription types
 export type {
   BillingInterval,
   SubscriptionStatus,
+  SubscriptionSessionFlow,
   SubscriptionSessionRequest,
+  MobileSubscriptionSessionRequest,
+  RedirectCheckoutSubscriptionSessionResponse,
+  PaymentSheetSubscriptionSessionResponse,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
   SubscriptionStatusResponse,

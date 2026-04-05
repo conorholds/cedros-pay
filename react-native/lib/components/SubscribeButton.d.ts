@@ -7,6 +7,8 @@ import type { BillingInterval } from '../types';
 interface SubscribeButtonProps {
     /** Resource/plan ID for the subscription */
     resource: string;
+    /** Which Stripe subscription flow to use */
+    flow?: 'redirect_checkout' | 'payment_sheet';
     /** Billing interval */
     interval: BillingInterval;
     /** Custom interval in days (only used when interval is 'custom') */
@@ -43,8 +45,8 @@ interface SubscribeButtonProps {
 /**
  * Button component for Stripe subscription checkout (React Native)
  *
- * Handles redirect to Stripe-hosted subscription checkout
+ * Supports both hosted redirect checkout and native PaymentSheet subscriptions.
  */
-export declare function SubscribeButton({ resource, interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, }: SubscribeButtonProps): React.JSX.Element;
+export declare function SubscribeButton({ resource, flow, interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, }: SubscribeButtonProps): React.JSX.Element;
 export {};
 //# sourceMappingURL=SubscribeButton.d.ts.map

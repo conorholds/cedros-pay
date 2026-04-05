@@ -370,6 +370,8 @@ cargo install cedros-pay-server
 - `POST /paywall/v1/stripe-session` - Create Stripe checkout (single item)
 - `GET /paywall/v1/stripe-session/verify` - Verify Stripe payment session (security-critical)
 - `POST /paywall/v1/cart/checkout` - Create Stripe checkout (cart)
+- `POST /paywall/v1/subscription/stripe-session` - Create Stripe subscription checkout
+- `POST /paywall/v1/subscription/stripe-mobile-session` - Create Stripe-native mobile subscription session
 - `POST /paywall/v1/cart/quote` - Get x402 quote for cart items
 - `POST /paywall/v1/gasless-transaction` - Build gasless transaction (optional)
 - `POST /paywall/v1/nonce` - Generate nonce for admin authentication
@@ -377,6 +379,34 @@ cargo install cedros-pay-server
 - `POST /paywall/v1/refunds/pending` - Get all pending refunds (admin-only, requires nonce)
 - `POST /paywall/v1/refunds/approve` - Get fresh quote for pending refund (admin-only)
 - `POST /paywall/v1/refunds/deny` - Deny pending refund (admin-only)
+
+**Turnkey cross-channel setup**
+
+Cedros is designed so you create the product once in the admin dashboard and then let the packages choose the right payment rail for web, Apple App Store, and Google Play at runtime.
+
+For the full operator runbook, see [`ui/docs/cross-channel-setup.md`](./docs/cross-channel-setup.md).
+
+1. In **Admin → Products**, create the product and set:
+   - the normal commerce fields such as title, price, fulfillment, and checkout requirements
+   - the **Store policy classification** such as `digital_in_app`, `physical_goods`, `real_world_service`, or `reader_content`
+   - the **store-managed product kind** plus any Apple product ID or Google Play product/base-plan mapping when the product is sold inside app-store builds
+2. In **Admin → Payment Options → Stripe**, add your Stripe API keys, webhook secret, and any mobile redirect URI schemes you use.
+3. In **Admin → Payment Options → App Stores**, add:
+   - Apple issuer ID, key ID, private key, and bundle ID
+   - Google service-account credentials, package name, RTDN push identity, and push audience
+4. In Stripe, App Store Connect, and Google Play Console, create the matching products and point their webhooks / notifications at your Cedros server endpoints.
+5. In your React Native app, set Cedros provider config once for the build, especially `distributionChannel`, and Cedros will hydrate the product catalog from `/paywall/v1/products` automatically unless you disable catalog sync.
+
+**Manual setup that still matters**
+
+- Stripe:
+  Use the Cedros Stripe webhook endpoint so subscription and Checkout lifecycle events reach Cedros.
+- Apple:
+  Create matching App Store Connect products and configure App Store Server Notifications to your tenant-scoped Cedros Apple notification URL.
+- Google:
+  Create matching Play Console products and configure Real-time developer notifications to your tenant-scoped Cedros Google notification URL.
+- Store policy exceptions:
+  Only enable reader-app, external-link, User Choice Billing, Alternative Billing Only, or external-offers behavior when your app is actually approved for those storefront programs.
 
 **Example - Quote Request:**
 
@@ -423,6 +453,44 @@ X-Signer: <wallet-address>
 # Recipient wallet must match the payer from original transaction
 # Only one refund allowed per transaction signature
 ```
+
+**React Native Stripe subscriptions**
+
+- Cedros now supports two explicit Stripe subscription flows on mobile.
+- Hosted redirect checkout remains the stock default:
+
+```json
+{
+  "flow": "redirect_checkout",
+  "sessionId": "cs_test_123",
+  "url": "https://checkout.stripe.com/c/pay/cs_test_123"
+}
+```
+
+- `@cedros/pay-react-native` opens `url` automatically in the device browser for this flow.
+- Native mobile subscriptions use a dedicated PaymentSheet contract from `POST /paywall/v1/subscription/stripe-mobile-session`:
+
+```json
+{
+  "flow": "payment_sheet",
+  "subscriptionId": "sub_123",
+  "customerId": "cus_123",
+  "customerEphemeralKeySecret": "ephkey_123",
+  "paymentIntentClientSecret": "pi_123_secret_abc"
+}
+```
+
+- In React Native, use `SubscribeButton` with `flow="payment_sheet"` or call `subscriptionManager.processMobileSubscription(...)` directly when you want the native Stripe sheet.
+- Set `stripeReturnUrl` in `CedrosProvider` for PaymentSheet app return handling on iOS, for example `covenant://stripe-return`.
+- If Stripe should return to your app via a custom deep link such as `covenant://subscription/success`, allowlist the URI scheme on the server with `stripe.allowed_redirect_schemes` or `CEDROS_STRIPE_ALLOWED_REDIRECT_SCHEMES=covenant`.
+- Universal links such as `https://app.example.com/subscription/success` do not need to be allowlisted.
+
+**React Native store-aware product sync**
+
+- `@cedros/pay-react-native` can now hydrate its provider-level store policy catalog from `GET /paywall/v1/products`.
+- By default, Cedros merges the server catalog with any manually supplied `paymentPolicy.productCatalog`, with manual entries taking precedence.
+- This means the host app can usually pass just the product id to `CedrosPay` while keeping the canonical fulfillment and store-product mapping in the Cedros admin dashboard.
+- If you need to disable that behavior, set `paymentPolicy.productCatalogSync.enabled` to `false`.
 
 **Example - Get Pending Refunds (Admin - Nonce Required):**
 
@@ -1473,24 +1541,30 @@ function AdminPage() {
 
 ### Unified Dashboard with Plugin System
 
-For apps using both **cedros-login** and **cedros-pay**, use cedros-login's `AdminShell` component with the `cedrosPayPlugin` to create a combined admin interface:
+For apps using both **cedros-login** and **cedros-pay**, use `AdminShell` from `@cedros/admin-react` with both plugins to create a combined admin interface:
 
 ```tsx
-import { AdminShell, cedrosLoginPlugin, useCedrosLogin } from "@cedros/login-react";
-import { cedrosPayPlugin } from "@cedros/pay-react";
+import { AdminShell, HOST_SERVICE_IDS } from "@cedros/admin-react";
+import {
+  cedrosLoginPlugin,
+  useCedrosLogin,
+} from "@cedros/login-react/admin-only";
+import { cedrosPayPlugin } from "@cedros/pay-react/admin";
 
 function UnifiedAdmin() {
   const { user, getAccessToken, serverUrl } = useCedrosLogin();
 
   // Build host context from your auth providers
   const hostContext = {
-    cedrosLogin: {
-      user,
-      getAccessToken,
-      serverUrl,
-    },
-    cedrosPay: {
-      serverUrl: "https://api.example.com",
+    services: {
+      [HOST_SERVICE_IDS.cedrosLogin]: {
+        user,
+        getAccessToken,
+        serverUrl,
+      },
+      [HOST_SERVICE_IDS.cedrosPay]: {
+        serverUrl: "https://api.example.com",
+      },
     },
   };
 
@@ -1505,7 +1579,7 @@ function UnifiedAdmin() {
 }
 ```
 
-> **Note:** The `AdminShell` component is provided by `@cedros/login-react`. This package only exports the `cedrosPayPlugin` for use with their shell.
+> **Note:** The shared admin standard is the shell + plugin contract. `cedros-pay` exports `cedrosPayPlugin` for composition under a single `/admin` dashboard.
 
 ### cedrosPayPlugin Sections
 
@@ -1554,7 +1628,83 @@ See the [cedros-login documentation](https://github.com/cedros-dev/cedros-login)
 | `solanaEndpoint`              | `string`                                  | Custom Solana RPC endpoint                                                                                                                                     |
 | `tokenMint`                   | `string`                                  | SPL token mint address (default: USDC) - see [Token Mint Validation](#-token-mint-validation)                                                                  |
 | `dangerouslyAllowUnknownMint` | `boolean`                                 | Allow unknown token mints (default: false) - ⚠️ WARNING: Only enable after triple-checking mint address - see [Token Mint Validation](#-token-mint-validation) |
+| `featureFlags`                | `Partial<Record<FeatureFlagName, boolean>>` | Explicit feature flag overrides. Precedence is `config.featureFlags` > environment variable > registry default.                                              |
 | `logLevel`                    | `LogLevel`                                | Logging verbosity (default: `LogLevel.WARN` in production, `LogLevel.DEBUG` in development) - see [Logging](#-logging)                                         |
+
+### Feature Flags
+
+Cedros Pay uses a central feature flag registry in [`src/featureFlags.ts`](./src/featureFlags.ts). Each flag has one stable positive name, a description, a default value, and a rollout stage. Call sites should read flags through the resolved helper instead of hard-coding boolean checks.
+
+#### Consumer overrides
+
+Package consumers can opt into or out of flags in provider config:
+
+```tsx
+<CedrosProvider
+  config={{
+    stripePublicKey: "pk_test_...",
+    serverUrl: "https://api.example.com",
+    solanaCluster: "devnet",
+    featureFlags: {
+      complianceCheck: true
+    }
+  }}
+>
+  <App />
+</CedrosProvider>
+```
+
+Environment variable overrides are also supported when your runtime or bundler exposes `process.env` values to the package:
+
+```bash
+CEDROS_FEATURE_COMPLIANCE_CHECK=true
+```
+
+Supported boolean env values are `1`, `true`, `yes`, `on`, `0`, `false`, `no`, and `off`.
+
+#### Adding a new flag
+
+Define the flag once in [`src/featureFlags.ts`](./src/featureFlags.ts):
+
+```ts
+export const FEATURE_FLAG_REGISTRY = defineFeatureFlagRegistry({
+  complianceCheck: {
+    description: 'Enable pre-flight compliance checks before Stripe checkout.',
+    default: false,
+    stage: 'stable',
+  },
+  newParser: {
+    description: 'Use the new parser implementation.',
+    default: false,
+    stage: 'experimental',
+  },
+});
+```
+
+Then resolve it where needed:
+
+```ts
+const enabled = isFeatureEnabled('newParser', {
+  featureFlags: config.featureFlags,
+});
+```
+
+#### Flipping the default later
+
+Use positive names such as `newParser`, not negative names such as `disableNewParser`. That keeps the flag name stable across rollout:
+
+1. Ship it disabled by default with `default: false`.
+2. Let consumers opt in with `featureFlags.newParser = true` or `CEDROS_FEATURE_NEW_PARSER=true`.
+3. When the feature is ready, change only the registry entry to `default: true`.
+4. Consumers can still opt out temporarily with `false` if they need a rollback window.
+
+Precedence is always:
+
+1. Explicit runtime config in `featureFlags`
+2. Environment variable override
+3. Registry default
+
+The existing top-level `complianceCheck` config field is still accepted for backward compatibility, but new integrations should prefer `featureFlags.complianceCheck`.
 
 ### CedrosPay Component
 
@@ -1573,8 +1723,8 @@ See the [cedros-login documentation](https://github.com/cedros-dev/cedros-login)
 | --------------- | ------------------------ | ---------------------------------- |
 | `customerEmail` | `string`                 | Pre-fill email for Stripe checkout |
 | `couponCode`    | `string`                 | Coupon code to apply               |
-| `successUrl`    | `string`                 | Stripe redirect URL on success     |
-| `cancelUrl`     | `string`                 | Stripe redirect URL on cancel      |
+| `successUrl`    | `string`                 | Stripe redirect URL on success. React Native may use an allowlisted app deep link or universal link. |
+| `cancelUrl`     | `string`                 | Stripe redirect URL on cancel. React Native may use an allowlisted app deep link or universal link. |
 | `metadata`      | `Record<string, string>` | Custom tracking data               |
 
 #### Display Options

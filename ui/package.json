@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react",
-  "version": "1.1.26",
+  "version": "1.1.27",
   "description": "React frontend library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -11,6 +11,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./admin": {
+      "react-native": "./src/admin.ts",
+      "types": "./dist/admin.d.ts",
+      "import": "./dist/admin.mjs",
+      "require": "./dist/admin.js"
     },
     "./stripe-only": {
       "react-native": "./src/stripe-only.ts",
@@ -65,6 +71,7 @@
   },
   "homepage": "https://github.com/conorholds/cedros-pay/tree/main/ui#readme",
   "peerDependencies": {
+    "@cedros/admin-react": "^0.1.0",
     "@cedros/login-react": ">=0.0.4",
     "@solana/spl-token": "^0.4.14",
     "@solana/wallet-adapter-base": "^0.9.23",
@@ -77,6 +84,9 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@cedros/admin-react": {
+      "optional": true
+    },
     "@cedros/login-react": {
       "optional": true
     },
@@ -120,6 +130,8 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@cedros/admin-react": "file:../../cedros-admin/ui",
+    "@cedros/data-react": "file:../../cedros-data/ui",
     "@cedros/login-react": "^0.0.4",
     "@solana/spl-token": "^0.4.14",
     "@solana/wallet-adapter-base": "^0.9.23",
@@ -171,6 +183,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build",
+    "prepack": "npm run build",
     "prepare": "husky"
   },
   "overrides": {

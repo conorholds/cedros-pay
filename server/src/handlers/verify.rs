@@ -284,6 +284,7 @@ mod tests {
             product_repo,
             stripe_client: None,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         })

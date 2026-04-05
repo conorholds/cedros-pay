@@ -1,4 +1,5 @@
 import type { CedrosConfig } from '../types';
+import { validateFeatureFlagOverrides } from '../featureFlags';
 import { validateTokenMint } from './tokenMintValidator';
 import { getLogger } from './logger';
 
@@ -114,6 +115,18 @@ export function validateConfig(config: CedrosConfig): CedrosConfig & { serverUrl
     issues.push({
       field: 'tokenMint',
       message: 'must be a string when provided',
+    });
+  }
+
+  try {
+    validateFeatureFlagOverrides(
+      config.featureFlags as Record<string, unknown> | undefined,
+      'config.featureFlags'
+    );
+  } catch (error) {
+    issues.push({
+      field: 'featureFlags',
+      message: error instanceof Error ? error.message : 'contains invalid values',
     });
   }
 

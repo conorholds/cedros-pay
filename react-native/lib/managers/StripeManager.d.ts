@@ -97,9 +97,12 @@ export declare class StripeManager implements IStripeManager {
     private isStripeInitialized;
     private readonly publicKey;
     private readonly routeDiscovery;
+    private readonly returnUrl?;
     private readonly rateLimiter;
     private readonly circuitBreaker;
-    constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager);
+    constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager, options?: {
+        returnUrl?: string;
+    });
     /**
      * Initialize Stripe React Native SDK
      */

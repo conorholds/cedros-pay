@@ -1,3 +1,4 @@
+import type { CedrosPaymentPolicyConfig as CedrosPaymentPolicyConfigType, CedrosStoreBillingConfig as CedrosStoreBillingConfigType, CedrosProductCatalog as CedrosProductCatalogType, CedrosProductCatalogSyncConfig as CedrosProductCatalogSyncConfigType, CedrosStoreProductConfig as CedrosStoreProductConfigType, AppleStoreProductConfig as AppleStoreProductConfigType, GooglePlayStoreProductConfig as GooglePlayStoreProductConfigType, DistributionChannel as DistributionChannelType, StorefrontRegion as StorefrontRegionType, FulfillmentType as FulfillmentTypeType, OrchestratedPaymentMethod as OrchestratedPaymentMethodType, PaymentAdapter as PaymentAdapterType, AvailablePaymentAdapters as AvailablePaymentAdaptersType, CedrosProductDefinition as CedrosProductDefinitionType, PaymentPolicyContext as PaymentPolicyContextType, PaymentPolicyFailure as PaymentPolicyFailureType, PaymentPolicyFailureCode as PaymentPolicyFailureCodeType, PaymentPolicyResolution as PaymentPolicyResolutionType, PaymentPolicyPurchaseMode as PaymentPolicyPurchaseModeType, StoreManagedProductKind as StoreManagedProductKindType, StorekitMode as StorekitModeType, StoreTransactionHandling as StoreTransactionHandlingType, NativeStoreMethod as NativeStoreMethodType, NativeStoreCheckoutContext as NativeStoreCheckoutContextType, NativeStorePaymentHandler as NativeStorePaymentHandlerType, NativeStoreRestoreRequest as NativeStoreRestoreRequestType, NativeStoreManageSubscriptionsRequest as NativeStoreManageSubscriptionsRequestType, NativeStorePurchaseRequest as NativeStorePurchaseRequestType, NativeStorePurchaseResult as NativeStorePurchaseResultType, CedrosPayPolicyOverrides as CedrosPayPolicyOverridesType, PaymentPolicyPrograms as PaymentPolicyProgramsType, AppleStorePolicyPrograms as AppleStorePolicyProgramsType, GooglePlayPolicyPrograms as GooglePlayPolicyProgramsType } from './storePolicy';
 /**
  * Core types for Cedros Pay
  *
@@ -28,6 +29,7 @@ export declare namespace v1 {
         resource: string;
         quantity?: number;
         metadata?: Record<string, string>;
+        fulfillmentType?: FulfillmentTypeType;
     }
     /**
      * Configuration for the Cedros Pay provider
@@ -36,6 +38,7 @@ export declare namespace v1 {
         stripePublicKey: string;
         serverUrl: string;
         solanaCluster: SolanaCluster;
+        stripeReturnUrl?: string;
         tokenMint?: string;
         solanaEndpoint?: string;
         theme?: CedrosThemeMode;
@@ -55,6 +58,7 @@ export declare namespace v1 {
          * @default false
          */
         dangerouslyAllowUnknownMint?: boolean;
+        paymentPolicy?: CedrosPaymentPolicyConfigType;
     }
     /**
      * x402 payment requirement (official spec)
@@ -358,7 +362,40 @@ export type CreditsHoldRequest = v1.CreditsHoldRequest;
 export type CreditsHoldResponse = v1.CreditsHoldResponse;
 export type CreditsAuthorizeRequest = v1.CreditsAuthorizeRequest;
 export type CreditsPaymentResult = v1.CreditsPaymentResult;
+export type FulfillmentType = FulfillmentTypeType;
+export type DistributionChannel = DistributionChannelType;
+export type StorefrontRegion = StorefrontRegionType;
+export type OrchestratedPaymentMethod = OrchestratedPaymentMethodType;
+export type PaymentAdapter = PaymentAdapterType;
+export type AvailablePaymentAdapters = AvailablePaymentAdaptersType;
+export type StoreManagedProductKind = StoreManagedProductKindType;
+export type StorekitMode = StorekitModeType;
+export type StoreTransactionHandling = StoreTransactionHandlingType;
+export type NativeStoreMethod = NativeStoreMethodType;
+export type CedrosProductDefinition = CedrosProductDefinitionType;
+export type CedrosProductCatalog = CedrosProductCatalogType;
+export type CedrosProductCatalogSyncConfig = CedrosProductCatalogSyncConfigType;
+export type CedrosStoreProductConfig = CedrosStoreProductConfigType;
+export type AppleStoreProductConfig = AppleStoreProductConfigType;
+export type GooglePlayStoreProductConfig = GooglePlayStoreProductConfigType;
+export type CedrosStoreBillingConfig = CedrosStoreBillingConfigType;
+export type PaymentPolicyContext = PaymentPolicyContextType;
+export type PaymentPolicyFailure = PaymentPolicyFailureType;
+export type PaymentPolicyFailureCode = PaymentPolicyFailureCodeType;
+export type PaymentPolicyResolution = PaymentPolicyResolutionType;
+export type PaymentPolicyPurchaseMode = PaymentPolicyPurchaseModeType;
+export type PaymentPolicyPrograms = PaymentPolicyProgramsType;
+export type AppleStorePolicyPrograms = AppleStorePolicyProgramsType;
+export type GooglePlayPolicyPrograms = GooglePlayPolicyProgramsType;
+export type NativeStoreCheckoutContext = NativeStoreCheckoutContextType;
+export type NativeStorePaymentHandler = NativeStorePaymentHandlerType;
+export type NativeStoreRestoreRequest = NativeStoreRestoreRequestType;
+export type NativeStoreManageSubscriptionsRequest = NativeStoreManageSubscriptionsRequestType;
+export type NativeStorePurchaseRequest = NativeStorePurchaseRequestType;
+export type NativeStorePurchaseResult = NativeStorePurchaseResultType;
+export type CedrosPayPolicyOverrides = CedrosPayPolicyOverridesType;
 export { PaymentErrorCode, PaymentError, ERROR_CATEGORIES, type ErrorResponse } from './errors';
 export type { PaymentMethod, FuturePaymentMethod, PaymentSuccessResult, PaymentErrorDetail, CheckoutOptions, DisplayOptions, ModalRenderProps, CallbackOptions, AdvancedOptions, } from './componentOptions';
-export type { BillingInterval, SubscriptionStatus, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, SubscriptionState, SubscriptionPaymentResult, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse, ProrationBehavior, ChangeSubscriptionRequest, ChangeSubscriptionResponse, ChangePreviewRequest, ChangePreviewResponse, SubscriptionDetails, } from './subscription';
+export type { CedrosPaymentPolicyConfig } from './storePolicy';
+export type { BillingInterval, SubscriptionStatus, SubscriptionSessionFlow, SubscriptionSessionRequest, MobileSubscriptionSessionRequest, RedirectCheckoutSubscriptionSessionResponse, PaymentSheetSubscriptionSessionResponse, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, SubscriptionState, SubscriptionPaymentResult, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse, ProrationBehavior, ChangeSubscriptionRequest, ChangeSubscriptionResponse, ChangePreviewRequest, ChangePreviewResponse, SubscriptionDetails, } from './subscription';
 //# sourceMappingURL=index.d.ts.map

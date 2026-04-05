@@ -38,6 +38,15 @@ export interface ProcessCartCheckoutOptions {
   paymentMethodId?: string;
 }
 
+type CartQuoteResponse = {
+  cartId?: string;
+  quote?: unknown;
+};
+
+type CartCheckoutSessionResponse = StripeSessionResponse & {
+  sessionId: string;
+};
+
 /**
  * Public interface for Stripe payment management.
  *
@@ -313,12 +322,21 @@ export class StripeManager implements IStripeManager {
       };
     }
 
-    const cartIdempotencyKey = generateUUID();
-    const cartRequest = {
+    const quoteIdempotencyKey = generateUUID();
+    const quoteRequest = {
       items,
+      metadata,
+      coupon: couponCode,
+      couponCode,
+    };
+    const quoteRequestBody = JSON.stringify(quoteRequest);
+    const checkoutIdempotencyKey = generateUUID();
+    const checkoutRequest = {
+      items,
+      metadata,
+      cartId: '',
       successUrl,
       cancelUrl,
-      metadata,
       customerEmail,
       customerName,
       customerPhone,
@@ -330,9 +348,43 @@ export class StripeManager implements IStripeManager {
       shippingMethodId,
       paymentMethodId,
     };
-    const cartRequestBody = JSON.stringify(cartRequest);
     try {
       const session = await this.circuitBreaker.execute(async () => {
+        const quote = await retryWithBackoff(
+          async () => {
+            const quoteUrl = await this.routeDiscovery.buildUrl('/paywall/v1/cart/quote');
+
+            const response = await fetchWithTimeout(quoteUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Idempotency-Key': quoteIdempotencyKey,
+              },
+              body: quoteRequestBody,
+            });
+
+            if (!response.ok) {
+              const errorMessage = await parseErrorResponse(response, 'Failed to create cart quote');
+              throw RetryableHttpError.fromResponse(response, errorMessage);
+            }
+
+            return await response.json() as CartQuoteResponse;
+          },
+          {
+            ...RETRY_PRESETS.IDEMPOTENT_WRITE,
+            name: 'stripe-cart-quote',
+            inFlightKey: `stripe:cart-quote:${quoteRequestBody}`,
+          }
+        );
+
+        if (!quote.cartId) {
+          throw new Error('Invalid cart quote response: missing cartId');
+        }
+
+        const checkoutRequestBody = JSON.stringify({
+          ...checkoutRequest,
+          cartId: quote.cartId,
+        });
         return await retryWithBackoff(
           async () => {
             const url = await this.routeDiscovery.buildUrl('/paywall/v1/cart/checkout');
@@ -341,9 +393,9 @@ export class StripeManager implements IStripeManager {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Idempotency-Key': cartIdempotencyKey,
+                'Idempotency-Key': checkoutIdempotencyKey,
               },
-              body: cartRequestBody,
+              body: checkoutRequestBody,
             });
 
             if (!response.ok) {
@@ -351,12 +403,12 @@ export class StripeManager implements IStripeManager {
               throw RetryableHttpError.fromResponse(response, errorMessage);
             }
 
-            return await response.json() as StripeSessionResponse;
+            return await response.json() as CartCheckoutSessionResponse;
           },
           {
             ...RETRY_PRESETS.IDEMPOTENT_WRITE,
             name: 'stripe-cart-checkout',
-            inFlightKey: `stripe:cart-checkout:${cartRequestBody}`,
+            inFlightKey: `stripe:cart-checkout:${checkoutRequestBody}`,
           }
         );
       });

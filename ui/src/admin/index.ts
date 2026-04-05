@@ -1,12 +1,14 @@
 /**
  * Admin Plugin Exports
  *
- * Exports the cedrosPayPlugin for use with cedros-login's AdminShell.
- * Types are re-exported from @cedros/login-react to ensure type identity.
+ * Exports the cedrosPayPlugin for use with the shared Cedros Admin host.
+ * Types are re-exported from @cedros/admin-react.
  */
 
-// Types (re-exported from @cedros/login-react via ./types)
+// Types
 export type {
+  AdminHostContext,
+  AdminHostServiceBag,
   AdminPlugin,
   AdminSectionConfig,
   AdminGroupConfig,

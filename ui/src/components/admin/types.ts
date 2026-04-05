@@ -34,18 +34,73 @@ export interface PaymentStats {
 }
 
 /** Product resource from backend */
+export type StoreManagedProductKind =
+  | 'consumable'
+  | 'non_consumable'
+  | 'auto_renewable_subscription';
+
+export type StorePolicyFulfillmentType =
+  | 'digital_in_app'
+  | 'physical_goods'
+  | 'real_world_service'
+  | 'reader_content'
+  | 'other';
+
+export interface AppleStoreBillingConfig {
+  productId?: string;
+}
+
+export interface GoogleStoreBillingConfig {
+  productId?: string;
+  packageName?: string;
+  basePlanId?: string;
+  offerId?: string;
+}
+
+export interface StoreBillingConfig {
+  kind?: StoreManagedProductKind;
+  apple?: AppleStoreBillingConfig;
+  google?: GoogleStoreBillingConfig;
+}
+
+export interface CheckoutRequirements {
+  email?: 'none' | 'optional' | 'required';
+  name?: 'none' | 'optional' | 'required';
+  phone?: 'none' | 'optional' | 'required';
+  shippingAddress?: boolean;
+  billingAddress?: boolean;
+}
+
+export interface FulfillmentInfo {
+  type: 'digital_download' | 'shipping' | 'service';
+  notes?: string;
+}
+
 export interface Product {
   id: string;
   title?: string;
+  shortDescription?: string;
   slug?: string;
   imageUrl?: string;
+  images?: Array<{ url: string; alt?: string }>;
   description: string;
   fiatAmountCents: number;
   fiatCurrency: string;
+  compareAtFiatAmountCents?: number | null;
+  compareAtFiatCurrency?: string | null;
   stripePriceId?: string;
+  stripeProductId?: string;
   cryptoAtomicAmount: number;
   cryptoToken: string;
+  tags?: string[];
+  categoryIds?: string[];
+  shippingProfile?: 'physical' | 'digital' | null;
+  checkoutRequirements?: CheckoutRequirements;
+  fulfillment?: FulfillmentInfo;
+  storeBilling?: StoreBillingConfig | null;
   inventoryQuantity?: number | null;
+  inventoryStatus?: string | null;
+  inventoryPolicy?: string | null;
   metadata?: Record<string, string>;
   active?: boolean;
   /** Product variations (SKUs) - each variation is a separate SKU */

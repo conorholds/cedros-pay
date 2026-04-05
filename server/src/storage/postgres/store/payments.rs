@@ -128,6 +128,31 @@ pub(super) async fn try_record_payment(
     Ok(result.rows_affected() > 0)
 }
 
+pub(super) async fn upsert_payment(
+    store: &PostgresStore,
+    tx: PaymentTransaction,
+) -> StorageResult<()> {
+    let metadata_json = serde_json::to_value(&tx.metadata)
+        .map_err(|e| StorageError::internal("serialize metadata", e))?;
+
+    let query = store.payment_query(queries::payment::UPSERT);
+    sqlx::query(&query)
+        .bind(&tx.signature)
+        .bind(&tx.tenant_id)
+        .bind(&tx.resource_id)
+        .bind(&tx.wallet)
+        .bind(&tx.user_id)
+        .bind(tx.amount.to_atomic())
+        .bind(&tx.amount.asset.code)
+        .bind(tx.created_at)
+        .bind(&metadata_json)
+        .execute(store.pool.inner())
+        .await
+        .map_err(|e| StorageError::internal("upsert payment", e))?;
+
+    Ok(())
+}
+
 pub(super) async fn delete_payment(
     store: &PostgresStore,
     tenant_id: &str,

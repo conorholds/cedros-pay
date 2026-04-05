@@ -1,8 +1,10 @@
 import React from 'react';
+import { resolveFeatureFlags, type ResolvedFeatureFlags } from '../../featureFlags';
 import type { CedrosShopConfig } from './types';
 
 export type CedrosShopContextValue = {
   config: CedrosShopConfig;
+  featureFlags: ResolvedFeatureFlags;
 };
 
 const CedrosShopContext = React.createContext<CedrosShopContextValue | null>(null);
@@ -27,7 +29,11 @@ export function CedrosShopProvider({
   config: CedrosShopConfig;
   children: React.ReactNode;
 }) {
-  const value = React.useMemo(() => ({ config }), [config]);
+  const featureFlags = React.useMemo(
+    () => resolveFeatureFlags({ featureFlags: config.featureFlags }),
+    [config.featureFlags]
+  );
+  const value = React.useMemo(() => ({ config, featureFlags }), [config, featureFlags]);
   return (
     <CedrosShopContext.Provider value={value}>{children}</CedrosShopContext.Provider>
   );

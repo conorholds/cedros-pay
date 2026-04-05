@@ -5,29 +5,24 @@
  * When used with cedros-login's plugin, provides a combined admin interface.
  */
 
-import { lazy, useMemo, type ComponentType } from 'react';
-import { useCedrosLogin } from '@cedros/login-react';
+import { lazy, useMemo, type ComponentType, type ReactNode } from 'react';
+import { HOST_SERVICE_IDS, getHostService } from '@cedros/admin-react';
 import type { AdminPlugin, AdminSectionProps, HostContext, PluginContext } from './types';
 import type { SectionProps } from '../components/admin/types';
 import { AdminAuthManager } from '../components/admin/AdminAuthManager';
-import { Icons } from '../components/admin/icons';
+import { AdminPluginIcons } from '../components/admin/icons';
 
 // Lazy-load section components wrapped with AdminSectionProps adapter
 const wrapSection = (
   importFn: () => Promise<{ default: ComponentType<SectionProps> }>
-): ComponentType<AdminSectionProps> => {
+): ((props: AdminSectionProps) => ReactNode) => {
   const LazyComponent = lazy(async () => {
     const module = await importFn();
     const OriginalComponent = module.default;
 
     // Return a wrapper that converts AdminSectionProps to SectionProps
     const WrappedComponent = ({ pluginContext }: AdminSectionProps) => {
-      // Read JWT directly from cedros-login React context (same approach
-      // as cedros-login's own sections). pluginContext.getAccessToken() depends
-      // on the consuming app correctly wiring hostContext.cedrosLogin.getAccessToken,
-      // which may not include _internal.getAccessToken from the context.
-      const loginCtx = useCedrosLogin();
-      const token = loginCtx?._internal?.getAccessToken() ?? pluginContext.getAccessToken();
+      const token = pluginContext.getAccessToken();
       const hasVerifiedAdminPermission =
         pluginContext.hasPermission('cedros-pay:admin') ||
         pluginContext.hasPermission('admin');
@@ -63,19 +58,19 @@ export const cedrosPayPlugin: AdminPlugin = {
 
   sections: [
     // Store group (main cedros-pay sections)
-    { id: 'transactions', label: 'Transactions', icon: Icons.transactions, group: 'Store', order: 0 },
-    { id: 'products', label: 'Products', icon: Icons.products, group: 'Store', order: 1 },
-    { id: 'subscriptions', label: 'Subscriptions', icon: Icons.subscriptions, group: 'Store', order: 2 },
-    { id: 'coupons', label: 'Coupons', icon: Icons.coupons, group: 'Store', order: 3 },
-    { id: 'refunds', label: 'Refunds', icon: Icons.refunds, group: 'Store', order: 4 },
-    { id: 'compliance', label: 'Compliance', icon: Icons.shield, group: 'Store', order: 5 },
+    { id: 'transactions', label: 'Transactions', icon: AdminPluginIcons.transactions, group: 'Store', order: 0 },
+    { id: 'products', label: 'Products', icon: AdminPluginIcons.products, group: 'Store', order: 1 },
+    { id: 'subscriptions', label: 'Subscriptions', icon: AdminPluginIcons.products, group: 'Store', order: 2 },
+    { id: 'coupons', label: 'Coupons', icon: AdminPluginIcons.coupons, group: 'Store', order: 3 },
+    { id: 'refunds', label: 'Refunds', icon: AdminPluginIcons.refunds, group: 'Store', order: 4 },
+    { id: 'compliance', label: 'Compliance', icon: AdminPluginIcons.settings, group: 'Store', order: 5 },
     // Configuration group
-    { id: 'storefront', label: 'Storefront', icon: Icons.storefront, group: 'Configuration', order: 10 },
-    { id: 'ai-settings', label: 'Store AI', icon: Icons.ai, group: 'Configuration', order: 11 },
-    { id: 'faqs', label: 'Knowledge Base', icon: Icons.faq, group: 'Configuration', order: 12 },
-    { id: 'payment-settings', label: 'Payment Options', icon: Icons.wallet, group: 'Configuration', order: 13 },
-    { id: 'messaging', label: 'Store Messages', icon: Icons.notifications, group: 'Configuration', order: 14 },
-    { id: 'settings', label: 'Store Server', icon: Icons.settings, group: 'Configuration', order: 15 },
+    { id: 'storefront', label: 'Storefront', icon: AdminPluginIcons.products, group: 'Configuration', order: 10 },
+    { id: 'ai-settings', label: 'Store AI', icon: AdminPluginIcons.settings, group: 'Configuration', order: 11 },
+    { id: 'faqs', label: 'Knowledge Base', icon: AdminPluginIcons.settings, group: 'Configuration', order: 12 },
+    { id: 'payment-settings', label: 'Payment Options', icon: AdminPluginIcons.wallet, group: 'Configuration', order: 13 },
+    { id: 'messaging', label: 'Store Messages', icon: AdminPluginIcons.settings, group: 'Configuration', order: 14 },
+    { id: 'settings', label: 'Store Server', icon: AdminPluginIcons.settings, group: 'Configuration', order: 15 },
   ],
 
   groups: [
@@ -99,8 +94,15 @@ export const cedrosPayPlugin: AdminPlugin = {
   },
 
   createPluginContext(hostContext: HostContext): PluginContext {
-    const payContext = hostContext.cedrosPay;
-    const loginContext = hostContext.cedrosLogin;
+    const payContext = getHostService<NonNullable<HostContext['cedrosPay']>>(
+      hostContext,
+      HOST_SERVICE_IDS.cedrosPay
+    );
+    const loginContext = getHostService<NonNullable<HostContext['cedrosLogin']>>(
+      hostContext,
+      HOST_SERVICE_IDS.cedrosLogin
+    );
+    const orgContext = getHostService<NonNullable<HostContext['org']>>(hostContext, HOST_SERVICE_IDS.org);
 
     // Prefer cedros-pay serverUrl, fall back to cedros-login
     const serverUrl = payContext?.serverUrl || loginContext?.serverUrl || '';
@@ -113,7 +115,7 @@ export const cedrosPayPlugin: AdminPlugin = {
         return loginContext?.getAccessToken?.() || payContext?.jwtToken || null;
       },
       hasPermission: (permission: string) => this.checkPermission(permission, hostContext),
-      orgId: hostContext.org?.orgId,
+      orgId: orgContext?.orgId,
       pluginData: {
         walletAddress: payContext?.walletAddress,
       },
@@ -123,8 +125,9 @@ export const cedrosPayPlugin: AdminPlugin = {
   checkPermission(permission: string, hostContext: HostContext): boolean {
     // Only treat explicitly granted org permissions as UI authorization hints.
     // The server remains authoritative for all admin actions.
-    if (hostContext.org?.permissions) {
-      return hostContext.org.permissions.includes(permission);
+    const orgContext = getHostService<NonNullable<HostContext['org']>>(hostContext, HOST_SERVICE_IDS.org);
+    if (orgContext?.permissions) {
+      return orgContext.permissions.includes(permission);
     }
     return false;
   },

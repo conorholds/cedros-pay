@@ -4,6 +4,9 @@ export { StripeButton } from './StripeButton';
 export { CryptoButton } from './CryptoButton';
 export { CreditsButton } from './CreditsButton';
 export { PurchaseButton } from './PurchaseButton';
+export { NativeStoreButton } from './NativeStoreButton';
+export { RestorePurchasesButton } from './RestorePurchasesButton';
+export { ManageSubscriptionsButton } from './ManageSubscriptionsButton';
 // Subscription components
 export { SubscribeButton } from './SubscribeButton';
 export { CryptoSubscribeButton } from './CryptoSubscribeButton';
@@ -13,5 +16,5 @@ export { SubscriptionManagementPanel } from './SubscriptionManagementPanel';
 export { PaymentModal } from './PaymentModal';
 export { ProductPrice, PaymentMethodBadge } from './ProductPrice';
 // Main entry point component
-export { CedrosPay } from './CedrosPay';
+export { CedrosPay, CedrosPayButton } from './CedrosPay';
 //# sourceMappingURL=index.js.map

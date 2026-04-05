@@ -86,7 +86,9 @@ impl PaywallService {
                         code: e,
                         message: "invalid payment proof".into(),
                     })?;
-                return self.authorize_cart(tenant_id, cart_id, proof, country_code).await;
+                return self
+                    .authorize_cart(tenant_id, cart_id, proof, country_code)
+                    .await;
             }
             // No payment header - return unauthorized
             return Ok(AuthorizationResult {

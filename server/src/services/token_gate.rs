@@ -93,11 +93,7 @@ impl TokenGateChecker {
 
     /// Get fungible token balance for a wallet, checking both SPL Token and
     /// Token-2022 ATAs. Returns 0 if neither ATA exists.
-    async fn check_fungible_balance(
-        &self,
-        wallet: &Pubkey,
-        mint_str: &str,
-    ) -> anyhow::Result<u64> {
+    async fn check_fungible_balance(&self, wallet: &Pubkey, mint_str: &str) -> anyhow::Result<u64> {
         let cache_key = format!("ft:{wallet}:{mint_str}");
         if let Some(cached) = self.cache.get(&cache_key) {
             return Ok(cached);
@@ -212,9 +208,7 @@ fn parse_spl_token_amount(data: &[u8]) -> u64 {
 /// Extract a mint pubkey from an RPC keyed account if the token amount is 1.
 ///
 /// Parses the JSON-parsed account data returned by `get_token_accounts_by_owner`.
-fn extract_nft_mint(
-    keyed: &solana_rpc_client_api::response::RpcKeyedAccount,
-) -> Option<Pubkey> {
+fn extract_nft_mint(keyed: &solana_rpc_client_api::response::RpcKeyedAccount) -> Option<Pubkey> {
     let data = &keyed.account.data;
     // jsonParsed response: data is UiAccountData::Json(ParsedAccount)
     // ParsedAccount.parsed["info"]["mint"] and ["info"]["tokenAmount"]["amount"]
@@ -386,16 +380,14 @@ mod tests {
     #[test]
     fn has_verified_collection_parses_valid_metadata() {
         // Build a minimal valid metadata v1 blob with a verified collection
-        let collection_key =
-            Pubkey::from_str("11111111111111111111111111111111").unwrap();
+        let collection_key = Pubkey::from_str("11111111111111111111111111111111").unwrap();
         let data = build_test_metadata(&collection_key, true);
         assert!(has_verified_collection(&data, &collection_key));
     }
 
     #[test]
     fn has_verified_collection_rejects_unverified() {
-        let collection_key =
-            Pubkey::from_str("11111111111111111111111111111111").unwrap();
+        let collection_key = Pubkey::from_str("11111111111111111111111111111111").unwrap();
         let data = build_test_metadata(&collection_key, false);
         assert!(!has_verified_collection(&data, &collection_key));
     }

@@ -1,12 +1,10 @@
 /**
- * Admin Plugin Types
- *
- * Re-exported from @cedros/login-react (source of truth for AdminShell types).
- * This ensures type identity — no casts needed when passing cedrosPayPlugin
- * to AdminShell.
+ * Shared admin-shell/plugin contract used by cedros-pay.
  */
 
 export type {
+  AdminHostContext,
+  AdminHostServiceBag,
   AdminPlugin,
   AdminSectionConfig,
   AdminGroupConfig,
@@ -18,4 +16,5 @@ export type {
   SectionId,
   QualifiedSectionId,
   PluginPermission,
-} from '@cedros/login-react';
+  ResolvedSection,
+} from '@cedros/admin-react';

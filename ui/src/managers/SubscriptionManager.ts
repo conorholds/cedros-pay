@@ -9,6 +9,8 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { generateUUID } from '../utils/uuid';
 import type {
   PaymentResult,
+  PaymentSheetSubscriptionSessionResponse,
+  RedirectCheckoutSubscriptionSessionResponse,
   SubscriptionSessionRequest,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
@@ -131,6 +133,53 @@ export class SubscriptionManager implements ISubscriptionManager {
   constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager) {
     this.publicKey = publicKey;
     this.routeDiscovery = routeDiscovery;
+  }
+
+  private resolveSubscriptionSessionFlow(
+    session: SubscriptionSessionResponse
+  ): RedirectCheckoutSubscriptionSessionResponse | PaymentSheetSubscriptionSessionResponse | null {
+    const record = session as unknown as Record<string, unknown>;
+    const flow =
+      typeof record.flow === 'string' ? record.flow : undefined;
+
+    if (
+      flow === 'payment_sheet' ||
+      typeof record.paymentIntentClientSecret === 'string' ||
+      typeof record.setupIntentClientSecret === 'string'
+    ) {
+      return {
+        flow: 'payment_sheet',
+        paymentIntentClientSecret:
+          typeof record.paymentIntentClientSecret === 'string'
+            ? record.paymentIntentClientSecret
+            : undefined,
+        setupIntentClientSecret:
+          typeof record.setupIntentClientSecret === 'string'
+            ? record.setupIntentClientSecret
+            : undefined,
+        customerId: typeof record.customerId === 'string' ? record.customerId : undefined,
+        customerEphemeralKeySecret:
+          typeof record.customerEphemeralKeySecret === 'string'
+            ? record.customerEphemeralKeySecret
+            : undefined,
+        sessionId: typeof record.sessionId === 'string' ? record.sessionId : undefined,
+        url: typeof record.url === 'string' ? record.url : undefined,
+      };
+    }
+
+    if (
+      (flow === undefined || flow === 'redirect_checkout') &&
+      typeof record.sessionId === 'string' &&
+      typeof record.url === 'string'
+    ) {
+      return {
+        flow: 'redirect_checkout',
+        sessionId: record.sessionId,
+        url: record.url,
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -270,7 +319,24 @@ export class SubscriptionManager implements ISubscriptionManager {
   async processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult> {
     try {
       const session = await this.createSubscriptionSession(request);
-      return await this.redirectToCheckout(session.sessionId);
+      const resolvedSession = this.resolveSubscriptionSessionFlow(session);
+
+      if (!resolvedSession) {
+        return {
+          success: false,
+          error: 'Subscription session response was missing required redirect checkout fields.',
+        };
+      }
+
+      if (resolvedSession.flow === 'payment_sheet') {
+        return {
+          success: false,
+          error:
+            'Native payment sheet subscription sessions are not supported on web. Use redirect checkout instead.',
+        };
+      }
+
+      return await this.redirectToCheckout(resolvedSession.sessionId);
     } catch (error) {
       return {
         success: false,

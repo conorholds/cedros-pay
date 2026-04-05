@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CedrosPay = exports.PaymentMethodBadge = exports.ProductPrice = exports.PaymentModal = exports.SubscriptionManagementPanel = exports.CreditsSubscribeButton = exports.CryptoSubscribeButton = exports.SubscribeButton = exports.PurchaseButton = exports.CreditsButton = exports.CryptoButton = exports.StripeButton = void 0;
+exports.CedrosPayButton = exports.CedrosPay = exports.PaymentMethodBadge = exports.ProductPrice = exports.PaymentModal = exports.SubscriptionManagementPanel = exports.CreditsSubscribeButton = exports.CryptoSubscribeButton = exports.SubscribeButton = exports.ManageSubscriptionsButton = exports.RestorePurchasesButton = exports.NativeStoreButton = exports.PurchaseButton = exports.CreditsButton = exports.CryptoButton = exports.StripeButton = void 0;
 // React Native Components for Cedros Pay
 // Main payment components
 var StripeButton_1 = require("./StripeButton");
@@ -11,6 +11,12 @@ var CreditsButton_1 = require("./CreditsButton");
 Object.defineProperty(exports, "CreditsButton", { enumerable: true, get: function () { return CreditsButton_1.CreditsButton; } });
 var PurchaseButton_1 = require("./PurchaseButton");
 Object.defineProperty(exports, "PurchaseButton", { enumerable: true, get: function () { return PurchaseButton_1.PurchaseButton; } });
+var NativeStoreButton_1 = require("./NativeStoreButton");
+Object.defineProperty(exports, "NativeStoreButton", { enumerable: true, get: function () { return NativeStoreButton_1.NativeStoreButton; } });
+var RestorePurchasesButton_1 = require("./RestorePurchasesButton");
+Object.defineProperty(exports, "RestorePurchasesButton", { enumerable: true, get: function () { return RestorePurchasesButton_1.RestorePurchasesButton; } });
+var ManageSubscriptionsButton_1 = require("./ManageSubscriptionsButton");
+Object.defineProperty(exports, "ManageSubscriptionsButton", { enumerable: true, get: function () { return ManageSubscriptionsButton_1.ManageSubscriptionsButton; } });
 // Subscription components
 var SubscribeButton_1 = require("./SubscribeButton");
 Object.defineProperty(exports, "SubscribeButton", { enumerable: true, get: function () { return SubscribeButton_1.SubscribeButton; } });
@@ -29,4 +35,5 @@ Object.defineProperty(exports, "PaymentMethodBadge", { enumerable: true, get: fu
 // Main entry point component
 var CedrosPay_1 = require("./CedrosPay");
 Object.defineProperty(exports, "CedrosPay", { enumerable: true, get: function () { return CedrosPay_1.CedrosPay; } });
+Object.defineProperty(exports, "CedrosPayButton", { enumerable: true, get: function () { return CedrosPay_1.CedrosPayButton; } });
 //# sourceMappingURL=index.js.map

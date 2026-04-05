@@ -39,6 +39,7 @@ describe('SubscriptionManager', () => {
       };
 
       const mockResponse: SubscriptionSessionResponse = {
+        flow: 'redirect_checkout',
         sessionId: 'cs_sub_test_123',
         url: 'https://checkout.stripe.com/test',
       };
@@ -87,6 +88,7 @@ describe('SubscriptionManager', () => {
       };
 
       const mockResponse: SubscriptionSessionResponse = {
+        flow: 'redirect_checkout',
         sessionId: 'cs_sub_test_456',
         url: 'https://checkout.stripe.com/test',
       };
@@ -146,6 +148,77 @@ describe('SubscriptionManager', () => {
       });
 
       await expect(manager.createSubscriptionSession(request)).rejects.toThrow('Invalid plan');
+    });
+  });
+
+  describe('processSubscription', () => {
+    it('redirects to checkout for redirect_checkout sessions', async () => {
+      const redirectSpy = vi
+        .spyOn(manager, 'redirectToCheckout')
+        .mockResolvedValue({ success: true, transactionId: 'cs_sub_redirect_123' });
+
+      fetchMock.mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('/cedros-health')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ routePrefix: '/api' }),
+          } as Response;
+        }
+        if (typeof url === 'string' && url.includes('/paywall/v1/subscription/stripe-session')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              flow: 'redirect_checkout',
+              sessionId: 'cs_sub_redirect_123',
+              url: 'https://checkout.stripe.com/subscription',
+            }),
+          } as Response;
+        }
+        return Promise.reject(new Error('Unmocked fetch call'));
+      });
+
+      const result = await manager.processSubscription({
+        resource: 'plan-pro',
+        interval: 'monthly',
+      });
+
+      expect(result).toEqual({ success: true, transactionId: 'cs_sub_redirect_123' });
+      expect(redirectSpy).toHaveBeenCalledWith('cs_sub_redirect_123');
+
+      redirectSpy.mockRestore();
+    });
+
+    it('fails clearly when a native payment sheet subscription flow is returned on web', async () => {
+      fetchMock.mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('/cedros-health')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ routePrefix: '/api' }),
+          } as Response;
+        }
+        if (typeof url === 'string' && url.includes('/paywall/v1/subscription/stripe-session')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              flow: 'payment_sheet',
+              paymentIntentClientSecret: 'pi_sub_123_secret_abc',
+            }),
+          } as Response;
+        }
+        return Promise.reject(new Error('Unmocked fetch call'));
+      });
+
+      const result = await manager.processSubscription({
+        resource: 'plan-pro',
+        interval: 'monthly',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not supported on web');
     });
   });
 

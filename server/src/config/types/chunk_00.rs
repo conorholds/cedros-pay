@@ -329,6 +329,8 @@ pub struct StripeConfig {
     #[serde(default)]
     pub cancel_url: String,
     #[serde(default)]
+    pub allowed_redirect_schemes: Vec<String>,
+    #[serde(default)]
     pub tax_rate_id: String,
     #[serde(default = "default_stripe_mode")]
     pub mode: String,
@@ -344,8 +346,90 @@ impl std::fmt::Debug for StripeConfig {
             .field("publishable_key", &self.publishable_key)
             .field("success_url", &self.success_url)
             .field("cancel_url", &self.cancel_url)
+            .field("allowed_redirect_schemes", &self.allowed_redirect_schemes)
             .field("tax_rate_id", &self.tax_rate_id)
             .field("mode", &self.mode)
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AppleNativeStoreConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub issuer_id: String,
+    #[serde(default)]
+    pub key_id: String,
+    #[serde(default)]
+    pub private_key: String,
+    #[serde(default)]
+    pub bundle_id: String,
+    #[serde(default = "default_true")]
+    pub allow_sandbox_fallback: bool,
+}
+
+impl std::fmt::Debug for AppleNativeStoreConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppleNativeStoreConfig")
+            .field("enabled", &self.enabled)
+            .field("issuer_id", &self.issuer_id)
+            .field("key_id", &self.key_id)
+            .field("private_key", &"[REDACTED]")
+            .field("bundle_id", &self.bundle_id)
+            .field("allow_sandbox_fallback", &self.allow_sandbox_fallback)
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GoogleNativeStoreConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub service_account_email: String,
+    #[serde(default)]
+    pub private_key: String,
+    #[serde(default)]
+    pub package_name: String,
+    #[serde(default)]
+    pub push_service_account_email: String,
+    #[serde(default)]
+    pub push_audience: String,
+}
+
+impl std::fmt::Debug for GoogleNativeStoreConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GoogleNativeStoreConfig")
+            .field("enabled", &self.enabled)
+            .field("service_account_email", &self.service_account_email)
+            .field("private_key", &"[REDACTED]")
+            .field("package_name", &self.package_name)
+            .field(
+                "push_service_account_email",
+                &self.push_service_account_email,
+            )
+            .field("push_audience", &self.push_audience)
+            .finish()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct NativeStoreConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub apple: AppleNativeStoreConfig,
+    #[serde(default)]
+    pub google: GoogleNativeStoreConfig,
+}
+
+impl std::fmt::Debug for NativeStoreConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NativeStoreConfig")
+            .field("enabled", &self.enabled)
+            .field("apple", &self.apple)
+            .field("google", &self.google)
             .finish()
     }
 }

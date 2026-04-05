@@ -7,6 +7,7 @@ pub mod gift_card_fulfillment;
 pub mod health;
 pub mod image_storage;
 pub mod messaging;
+pub mod native_store;
 pub mod paywall;
 pub mod sanctions;
 pub mod sanctions_list;
@@ -125,10 +126,13 @@ pub use subscriptions::{ChangeSubscriptionResult, StripeSubscriptionUpdate, Subs
 
 pub use asset_fulfillment::AssetFulfillmentService;
 pub use compliance_checker::ComplianceChecker;
-pub use sanctions_list::SanctionsListService;
-pub use token_gate::TokenGateChecker;
 pub use gift_card_fulfillment::GiftCardFulfillmentService;
 pub use image_storage::ImageStorageService;
+pub use native_store::{
+    NativeStoreService, NativeStoreVerificationRequest, NativeStoreVerificationResult,
+};
+pub use sanctions_list::SanctionsListService;
+pub use token_gate::TokenGateChecker;
 
 pub use ai::{
     parse_json_response, slugify, AiError, AiService, CategoriesResult, ChatOrchestrator,

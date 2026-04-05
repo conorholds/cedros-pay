@@ -12,12 +12,14 @@ export {
   type DashboardSection,
 } from './components/admin';
 
-// Admin Plugin - for use with cedros-login's AdminShell
+// Admin Plugin - for use with the shared Cedros Admin host
 export {
   cedrosPayPlugin,
   CEDROS_PAY_SECTIONS,
   CEDROS_PAY_SECTION_IDS,
   CEDROS_PAY_GROUPS,
+  type AdminHostContext,
+  type AdminHostServiceBag,
   type SectionReference,
   type AdminPlugin,
   type AdminSectionConfig,
@@ -30,7 +32,7 @@ export {
   type SectionId,
   type QualifiedSectionId,
   type PluginPermission,
-} from './admin';
+} from './admin/index';
 export { StripeButton } from './components/StripeButton';
 export { ComplianceGatePage } from './components/ComplianceGatePage';
 export type { ComplianceGatePageProps } from './components/ComplianceGatePage';
@@ -73,6 +75,10 @@ export type {
 // Types
 export type {
   CedrosConfig,
+  FeatureFlagName,
+  FeatureFlagDefinition,
+  FeatureFlagOverrides,
+  ResolvedFeatureFlags,
   SolanaCluster,
   PaymentStatus,
   Currency,
@@ -113,7 +119,11 @@ export type {
   // Subscription types
   BillingInterval,
   SubscriptionStatus,
+  SubscriptionSessionFlow,
   SubscriptionSessionRequest,
+  MobileSubscriptionSessionRequest,
+  RedirectCheckoutSubscriptionSessionResponse,
+  PaymentSheetSubscriptionSessionResponse,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
   SubscriptionStatusResponse,
@@ -133,6 +143,17 @@ export type {
   ChangePreviewResponse,
   SubscriptionDetails,
 } from './types';
+
+export {
+  FEATURE_FLAG_REGISTRY,
+  FEATURE_FLAG_NAMES,
+  getFeatureFlagDefinition,
+  getFeatureFlagDefinitions,
+  parseFeatureFlagBoolean,
+  resolveFeatureFlags,
+  isFeatureEnabled,
+} from './featureFlags';
+export type { FeatureFlagEnv, ResolveFeatureFlagsOptions } from './featureFlags';
 
 // Error code categories (for bulk error handling)
 export { ERROR_CATEGORIES } from './types/errors';

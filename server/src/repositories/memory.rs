@@ -365,6 +365,8 @@ impl CouponRepository for InMemoryCouponRepository {
             PaymentMethod::Stripe => "stripe",
             PaymentMethod::X402 => "x402",
             PaymentMethod::Credits => "credits",
+            PaymentMethod::AppleIap => "apple_iap",
+            PaymentMethod::GooglePlayBilling => "google_play_billing",
         };
         let now = chrono::Utc::now();
         Ok(self
@@ -396,6 +398,8 @@ impl CouponRepository for InMemoryCouponRepository {
             PaymentMethod::Stripe => "stripe",
             PaymentMethod::X402 => "x402",
             PaymentMethod::Credits => "credits",
+            PaymentMethod::AppleIap => "apple_iap",
+            PaymentMethod::GooglePlayBilling => "google_play_billing",
         };
         let now = chrono::Utc::now();
         let mut map: HashMap<String, Vec<Coupon>> = HashMap::new();

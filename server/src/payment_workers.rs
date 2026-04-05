@@ -9,9 +9,9 @@ use crate::config::{Config, PostgresConfigRepository};
 use crate::handlers;
 use crate::middleware;
 use crate::services::token22::Token22Service;
+use crate::services::SanctionsListService;
 use crate::storage::Store;
 use crate::webhooks;
-use crate::services::SanctionsListService;
 use crate::workers::{CleanupWorker, HealthChecker, SanctionsRefreshWorker, SanctionsSweepWorker};
 
 /// OPS-01: Supervised spawn that catches worker panics and logs them at error level.

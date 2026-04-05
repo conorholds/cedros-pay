@@ -42,6 +42,7 @@ const WalletManager_1 = require("./WalletManager");
 const SubscriptionManager_1 = require("./SubscriptionManager");
 const SubscriptionChangeManager_1 = require("./SubscriptionChangeManager");
 const CreditsManager_1 = require("./CreditsManager");
+const StoreBillingManager_1 = require("./StoreBillingManager");
 const RouteDiscoveryManager_1 = require("./RouteDiscoveryManager");
 const logger_1 = require("../utils/logger");
 /**
@@ -62,13 +63,17 @@ const managerCache = new Map();
  *
  * Note: Wallet pools are NOT cached - they remain per-provider for isolation
  */
-function getCacheKey(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint) {
+function getCacheKey(stripePublicKey, serverUrl, solanaCluster, stripeReturnUrl, solanaEndpoint, dangerouslyAllowUnknownMint, storeBillingConfig) {
     return JSON.stringify({
         stripePublicKey,
         serverUrl,
         solanaCluster,
+        stripeReturnUrl: stripeReturnUrl || '',
         solanaEndpoint: solanaEndpoint || '',
         dangerouslyAllowUnknownMint: dangerouslyAllowUnknownMint || false,
+        storeBillingEnabled: storeBillingConfig?.enabled ?? true,
+        storekitMode: storeBillingConfig?.storekitMode ?? 'STOREKIT_HYBRID_MODE',
+        transactionHandling: storeBillingConfig?.transactionHandling ?? 'auto_finish',
     });
 }
 /**
@@ -79,8 +84,8 @@ function getCacheKey(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, 
  *
  * @returns Cached or newly created manager instances
  */
-function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint) {
-    const cacheKey = getCacheKey(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint);
+function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, stripeReturnUrl, solanaEndpoint, dangerouslyAllowUnknownMint, storeBillingConfig) {
+    const cacheKey = getCacheKey(stripePublicKey, serverUrl, solanaCluster, stripeReturnUrl, solanaEndpoint, dangerouslyAllowUnknownMint, storeBillingConfig);
     // Check cache
     let cached = managerCache.get(cacheKey);
     if (cached) {
@@ -92,12 +97,17 @@ function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, solanaEn
     // Create new managers
     (0, logger_1.getLogger)().debug('[ManagerCache] Creating new manager instances:', { stripePublicKey: stripePublicKey.slice(0, 10) + '...', serverUrl });
     const routeDiscovery = new RouteDiscoveryManager_1.RouteDiscoveryManager(serverUrl);
-    const stripeManager = new StripeManager_1.StripeManager(stripePublicKey, routeDiscovery);
+    const stripeManager = new StripeManager_1.StripeManager(stripePublicKey, routeDiscovery, {
+        returnUrl: stripeReturnUrl,
+    });
     const x402Manager = new X402Manager_1.X402Manager(routeDiscovery);
     const walletManager = new WalletManager_1.WalletManager(solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint ?? false);
-    const subscriptionManager = new SubscriptionManager_1.SubscriptionManager(stripePublicKey, routeDiscovery);
+    const subscriptionManager = new SubscriptionManager_1.SubscriptionManager(stripePublicKey, routeDiscovery, {
+        returnUrl: stripeReturnUrl,
+    });
     const subscriptionChangeManager = new SubscriptionChangeManager_1.SubscriptionChangeManager(routeDiscovery);
     const creditsManager = new CreditsManager_1.CreditsManager(routeDiscovery);
+    const storeBillingManager = new StoreBillingManager_1.StoreBillingManager(routeDiscovery, storeBillingConfig);
     // Cache with initial refCount of 1
     cached = {
         stripeManager,
@@ -106,6 +116,7 @@ function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, solanaEn
         subscriptionManager,
         subscriptionChangeManager,
         creditsManager,
+        storeBillingManager,
         routeDiscovery,
         refCount: 1,
     };
@@ -122,8 +133,8 @@ function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, solanaEn
  * because other providers may still be using them. Cleanup happens naturally
  * when all references are released and garbage collection runs.
  */
-function releaseManagers(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint) {
-    const cacheKey = getCacheKey(stripePublicKey, serverUrl, solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint);
+function releaseManagers(stripePublicKey, serverUrl, solanaCluster, stripeReturnUrl, solanaEndpoint, dangerouslyAllowUnknownMint, storeBillingConfig) {
+    const cacheKey = getCacheKey(stripePublicKey, serverUrl, solanaCluster, stripeReturnUrl, solanaEndpoint, dangerouslyAllowUnknownMint, storeBillingConfig);
     const cached = managerCache.get(cacheKey);
     if (!cached) {
         (0, logger_1.getLogger)().warn('[ManagerCache] Attempted to release non-existent managers:', { cacheKey });
@@ -133,6 +144,9 @@ function releaseManagers(stripePublicKey, serverUrl, solanaCluster, solanaEndpoi
     (0, logger_1.getLogger)().debug(`[ManagerCache] Released manager reference (refCount: ${cached.refCount}):`, { stripePublicKey: stripePublicKey.slice(0, 10) + '...', serverUrl });
     // Remove from cache when no longer referenced
     if (cached.refCount <= 0) {
+        void cached.storeBillingManager.destroy().catch((error) => {
+            (0, logger_1.getLogger)().warn('[ManagerCache] Failed to destroy store billing manager:', error);
+        });
         managerCache.delete(cacheKey);
         (0, logger_1.getLogger)().debug('[ManagerCache] Removed managers from cache (refCount reached 0)');
     }
@@ -143,6 +157,11 @@ function releaseManagers(stripePublicKey, serverUrl, solanaCluster, solanaEndpoi
  * @internal
  */
 function clearManagerCache() {
+    managerCache.forEach((cached) => {
+        void cached.storeBillingManager.destroy().catch((error) => {
+            (0, logger_1.getLogger)().warn('[ManagerCache] Failed to destroy store billing manager:', error);
+        });
+    });
     managerCache.clear();
     (0, logger_1.getLogger)().debug('[ManagerCache] Cache cleared');
 }

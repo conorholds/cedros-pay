@@ -117,7 +117,7 @@ describe('CedrosProvider initialization errors', () => {
       config.solanaCluster,
       undefined,
       undefined,
-      undefined
+      false
     );
 
   });

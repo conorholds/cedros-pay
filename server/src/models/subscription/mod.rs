@@ -62,6 +62,8 @@ pub enum PaymentMethod {
     X402,
     /// Credits payment via cedros-login deposit system
     Credits,
+    AppleIap,
+    GooglePlayBilling,
 }
 
 impl fmt::Display for PaymentMethod {
@@ -70,6 +72,8 @@ impl fmt::Display for PaymentMethod {
             PaymentMethod::Stripe => write!(f, "stripe"),
             PaymentMethod::X402 => write!(f, "x402"),
             PaymentMethod::Credits => write!(f, "credits"),
+            PaymentMethod::AppleIap => write!(f, "apple_iap"),
+            PaymentMethod::GooglePlayBilling => write!(f, "google_play_billing"),
         }
     }
 }

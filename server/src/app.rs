@@ -35,6 +35,8 @@ pub struct BuiltServices<S: Store> {
     pub paywall_service: Arc<PaywallService>,
     /// Subscription management service
     pub subscription_service: Arc<SubscriptionService<S>>,
+    /// Apple / Google native store verification service
+    pub native_store_service: Arc<services::NativeStoreService<S>>,
     /// Stripe API client (if configured)
     pub stripe_client: Option<Arc<StripeClient>>,
     /// Webhook notifier
@@ -200,11 +202,9 @@ async fn build_services_internal<S: Store + 'static>(
     // Token gate checker — uses the same RPC as Token22
     let token_gate_checker: Option<Arc<services::TokenGateChecker>> =
         if !cfg.x402.rpc_url.is_empty() {
-            let rpc = Arc::new(
-                solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
-                    cfg.x402.rpc_url.clone(),
-                ),
-            );
+            let rpc = Arc::new(solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+                cfg.x402.rpc_url.clone(),
+            ));
             Some(Arc::new(services::TokenGateChecker::new(rpc)))
         } else {
             None
@@ -263,6 +263,14 @@ async fn build_services_internal<S: Store + 'static>(
     }
     let subscription_service = Arc::new(subscription_service);
 
+    let native_store_service = Arc::new(services::NativeStoreService::new(
+        Arc::new(cfg.clone()),
+        store.clone(),
+        product_repo.clone(),
+        notifier.clone(),
+        callback.clone(),
+    ));
+
     let stripe_client = if !cfg.stripe.secret_key.is_empty() {
         let stripe_cb = middleware::CircuitBreakerConfig::from_service_config(
             "stripe_api",
@@ -318,6 +326,7 @@ async fn build_services_internal<S: Store + 'static>(
         store,
         paywall_service,
         subscription_service,
+        native_store_service,
         stripe_client,
         notifier,
         product_repo,
@@ -503,6 +512,7 @@ pub(crate) fn paywall_resource_to_product(resource: &PaywallResource) -> Product
         compare_at_fiat_price: None,
         stripe_product_id: None,
         stripe_price_id: resource.stripe_price_id.clone(),
+        store_billing: None,
         crypto_price,
         inventory_status: None,
         inventory_quantity: None,

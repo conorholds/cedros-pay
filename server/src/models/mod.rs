@@ -1,9 +1,9 @@
 pub mod admin_audit;
 pub mod asset_redemption;
-pub mod compliance;
 pub mod cart;
 pub mod chat;
 pub mod collection;
+pub mod compliance;
 pub mod coupon;
 pub mod customer;
 pub mod dispute;
@@ -51,8 +51,10 @@ pub use payment::{
     StripeOption, SubscriptionInfo, VerificationResult,
 };
 pub use product::{
-    CheckoutRequirements, FulfillmentInfo, GiftCardConfig, Product, ProductImage, ProductVariant,
-    ProductVariationConfig, SubscriptionConfig, VariantPrice, VariationType, VariationValue,
+    AppleStoreProductConfig, CheckoutRequirements, FulfillmentInfo, GiftCardConfig,
+    GooglePlayStoreProductConfig, Product, ProductImage, ProductVariant, ProductVariationConfig,
+    StoreBillingConfig, StoreManagedProductKind, SubscriptionConfig, VariantPrice, VariationType,
+    VariationValue,
 };
 // TokenizedAssetConfig is re-exported from tokenization module above
 pub use admin_audit::AdminAuditEntry;

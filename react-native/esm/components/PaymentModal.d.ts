@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewStyle } from 'react-native';
-import type { CartItem, PaymentMethod } from '../types';
+import type { CartItem, CedrosProductDefinition, DistributionChannel, NativeStorePurchaseResult, PaymentMethod } from '../types';
 export interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -8,9 +8,19 @@ export interface PaymentModalProps {
     resource?: string;
     /** Multiple items (for cart purchases) - mutually exclusive with resource */
     items?: CartItem[];
+    product?: CedrosProductDefinition;
+    distributionChannel?: DistributionChannel;
+    appleIapLabel?: string;
+    googlePlayBillingLabel?: string;
+    restorePurchasesLabel?: string;
+    manageSubscriptionsLabel?: string;
     cardLabel?: string;
     cryptoLabel?: string;
     creditsLabel?: string;
+    showAppleIap?: boolean;
+    showGooglePlayBilling?: boolean;
+    showRestorePurchases?: boolean;
+    showManageSubscriptions?: boolean;
     showCard?: boolean;
     showCrypto?: boolean;
     showCredits?: boolean;
@@ -21,12 +31,20 @@ export interface PaymentModalProps {
     /** Legacy: used for auto-Stripe fallback only */
     onPaymentError?: (error: string) => void;
     /** Method-specific callbacks (new, preferred) */
+    onAppleIapSuccess?: (txId: string) => void;
+    onGooglePlayBillingSuccess?: (txId: string) => void;
     onStripeSuccess?: (txId: string) => void;
     onCryptoSuccess?: (txId: string) => void;
     onCreditsSuccess?: (txId: string) => void;
+    onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+    onManageSubscriptionsOpen?: () => void;
+    onAppleIapError?: (error: string) => void;
+    onGooglePlayBillingError?: (error: string) => void;
     onStripeError?: (error: string) => void;
     onCryptoError?: (error: string) => void;
     onCreditsError?: (error: string) => void;
+    onRestorePurchasesError?: (error: string) => void;
+    onManageSubscriptionsError?: (error: string) => void;
     customerEmail?: string;
     successUrl?: string;
     cancelUrl?: string;

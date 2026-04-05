@@ -186,6 +186,8 @@ impl PaywallService {
             "stripe" => Some(crate::models::PaymentMethod::Stripe),
             "x402" => Some(crate::models::PaymentMethod::X402),
             "credits" => Some(crate::models::PaymentMethod::Credits),
+            "apple_iap" => Some(crate::models::PaymentMethod::AppleIap),
+            "google_play_billing" => Some(crate::models::PaymentMethod::GooglePlayBilling),
             _ => None,
         });
 
@@ -448,5 +450,7 @@ fn payment_method_name(
         crate::models::PaymentMethod::Stripe => "stripe",
         crate::models::PaymentMethod::X402 => "x402",
         crate::models::PaymentMethod::Credits => "credits",
+        crate::models::PaymentMethod::AppleIap => "apple_iap",
+        crate::models::PaymentMethod::GooglePlayBilling => "google_play_billing",
     })
 }

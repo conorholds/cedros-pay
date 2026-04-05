@@ -59,6 +59,24 @@ function useSubscription() {
         return result;
     }, [subscriptionManager]);
     /**
+     * Process a native Stripe PaymentSheet subscription flow.
+     */
+    const processMobileSubscription = (0, react_1.useCallback)(async (request) => {
+        setState((prev) => ({
+            ...prev,
+            status: 'loading',
+            error: null,
+        }));
+        const result = await subscriptionManager.processMobileSubscription(request);
+        setState((prev) => ({
+            ...prev,
+            status: result.success ? 'success' : 'error',
+            error: result.success ? null : result.error || 'Mobile subscription failed',
+            sessionId: result.success ? result.transactionId || null : null,
+        }));
+        return result;
+    }, [subscriptionManager]);
+    /**
      * Check subscription status for a user/resource (for x402 gating)
      */
     const checkStatus = (0, react_1.useCallback)(async (request) => {
@@ -129,6 +147,7 @@ function useSubscription() {
     return {
         ...state,
         processSubscription,
+        processMobileSubscription,
         checkStatus,
         requestQuote,
         reset,

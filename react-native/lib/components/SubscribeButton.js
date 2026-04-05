@@ -45,10 +45,10 @@ const useTranslation_1 = require("../i18n/useTranslation");
 /**
  * Button component for Stripe subscription checkout (React Native)
  *
- * Handles redirect to Stripe-hosted subscription checkout
+ * Supports both hosted redirect checkout and native PaymentSheet subscriptions.
  */
-function SubscribeButton({ resource, interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled = false, onAttempt, onSuccess, onError, style, textStyle, loadingColor = '#ffffff', }) {
-    const { status, error, sessionId, processSubscription } = (0, useSubscription_1.useSubscription)();
+function SubscribeButton({ resource, flow = 'redirect_checkout', interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled = false, onAttempt, onSuccess, onError, style, textStyle, loadingColor = '#ffffff', }) {
+    const { status, error, sessionId, processSubscription, processMobileSubscription } = (0, useSubscription_1.useSubscription)();
     const theme = (0, context_1.useCedrosTheme)();
     const { t, translations } = (0, useTranslation_1.useTranslation)();
     // Use translated default label if not provided
@@ -86,17 +86,27 @@ function SubscribeButton({ resource, interval, intervalDays, trialDays, successU
         }
         // Emit processing event
         (0, eventEmitter_1.emitPaymentProcessing)('stripe', resource);
-        const result = await processSubscription({
-            resource,
-            interval,
-            intervalDays,
-            trialDays,
-            customerEmail,
-            metadata,
-            couponCode,
-            successUrl,
-            cancelUrl,
-        });
+        const result = flow === 'payment_sheet'
+            ? await processMobileSubscription({
+                resource,
+                interval,
+                intervalDays,
+                trialDays,
+                customerEmail,
+                metadata,
+                couponCode,
+            })
+            : await processSubscription({
+                resource,
+                interval,
+                intervalDays,
+                trialDays,
+                customerEmail,
+                metadata,
+                couponCode,
+                successUrl,
+                cancelUrl,
+            });
         if (result.success && result.transactionId) {
             (0, eventEmitter_1.emitPaymentSuccess)('stripe', result.transactionId, resource);
             if (onSuccess) {
@@ -117,9 +127,11 @@ function SubscribeButton({ resource, interval, intervalDays, trialDays, successU
         customerEmail,
         metadata,
         couponCode,
+        flow,
         successUrl,
         cancelUrl,
         processSubscription,
+        processMobileSubscription,
         onAttempt,
         onSuccess,
         onError,
@@ -143,7 +155,7 @@ function SubscribeButton({ resource, interval, intervalDays, trialDays, successU
       {localizedError && (<react_native_1.Text style={[styles.errorText, { color: theme.tokens?.errorText || '#ef4444' }]}>
           {localizedError}
         </react_native_1.Text>)}
-      {sessionId && (<react_native_1.Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }]}>
+      {flow === 'redirect_checkout' && sessionId && (<react_native_1.Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }]}>
           {t('ui.redirecting_to_checkout')}
         </react_native_1.Text>)}
     </react_native_1.View>);

@@ -318,4 +318,79 @@ describe('StripeManager', () => {
       logSpy.mockRestore();
     });
   });
+
+  describe('processCartCheckout', () => {
+    it('creates a cart quote before requesting cart checkout', async () => {
+      const redirectSpy = vi
+        .spyOn(manager, 'redirectToCheckout')
+        .mockResolvedValue({ success: true });
+
+      fetchMock.mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('/cedros-health')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ routePrefix: '/api' }),
+          } as Response;
+        }
+        if (typeof url === 'string' && url.includes('/paywall/v1/cart/quote')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ cartId: 'cart_test_123' }),
+          } as Response;
+        }
+        if (typeof url === 'string' && url.includes('/paywall/v1/cart/checkout')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              sessionId: 'cs_cart_123',
+              url: 'https://checkout.stripe.com/cart',
+            }),
+          } as Response;
+        }
+        return Promise.reject(new Error('Unmocked fetch call'));
+      });
+
+      const result = await manager.processCartCheckout({
+        items: [
+          { resource: 'product-1', quantity: 2 },
+          { resource: 'product-2', quantity: 1, variantId: 'blue' },
+        ],
+        customerEmail: 'buyer@example.com',
+        couponCode: 'SAVE10',
+        successUrl: 'https://example.com/success',
+        cancelUrl: 'https://example.com/cancel',
+      });
+
+      const fetchCalls = fetchMock.mock.calls;
+      const quoteCall = fetchCalls.find(([url]) => String(url).includes('/paywall/v1/cart/quote'));
+      const checkoutCall = fetchCalls.find(([url]) =>
+        String(url).includes('/paywall/v1/cart/checkout')
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(quoteCall).toBeDefined();
+      expect(checkoutCall).toBeDefined();
+
+      const quoteBody = JSON.parse(String(quoteCall?.[1]?.body));
+      expect(quoteBody.items).toEqual([
+        { resource: 'product-1', quantity: 2 },
+        { resource: 'product-2', quantity: 1, variantId: 'blue' },
+      ]);
+      expect(quoteBody.couponCode).toBe('SAVE10');
+
+      const checkoutBody = JSON.parse(String(checkoutCall?.[1]?.body));
+      expect(checkoutBody.cartId).toBe('cart_test_123');
+      expect(checkoutBody.customerEmail).toBe('buyer@example.com');
+      expect(checkoutBody.items).toEqual([
+        { resource: 'product-1', quantity: 2 },
+        { resource: 'product-2', quantity: 1, variantId: 'blue' },
+      ]);
+      expect(redirectSpy).toHaveBeenCalledWith('cs_cart_123');
+
+      redirectSpy.mockRestore();
+    });
+  });
 });

@@ -8,10 +8,11 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { useCedrosTheme } from '../context';
+import { useCedrosContext, useCedrosTheme } from '../context';
 import { usePaymentMode } from '../hooks/usePaymentMode';
 import { useStripeCheckout } from '../hooks/useStripeCheckout';
-import { PaymentModal } from './PaymentModal';
+import { PaymentModal, type PaymentModalProps } from './PaymentModal';
+import { mergeCedrosProductDefinition } from '../policy/resolveStoreProductConfiguration';
 import { createDedupedClickHandler } from '../utils/requestDeduplication';
 import {
   emitPaymentStart,
@@ -21,17 +22,33 @@ import {
 } from '../utils/eventEmitter';
 import { getCartItemCount } from '../utils/cartHelpers';
 import { useTranslation } from '../i18n/useTranslation';
-import type { CartItem, PaymentMethod } from '../types';
+import type {
+  CartItem,
+  CedrosProductDefinition,
+  DistributionChannel,
+  NativeStorePurchaseResult,
+  PaymentMethod,
+} from '../types';
 
 export interface PurchaseButtonProps {
   /** Single resource ID (for single-item payments) */
   resource?: string;
   /** Multiple items (for cart purchases) - mutually exclusive with resource */
   items?: CartItem[];
+  product?: CedrosProductDefinition;
+  distributionChannel?: DistributionChannel;
   label?: string;
+  appleIapLabel?: string;
+  googlePlayBillingLabel?: string;
+  restorePurchasesLabel?: string;
+  manageSubscriptionsLabel?: string;
   cardLabel?: string;
   cryptoLabel?: string;
   creditsLabel?: string;
+  showAppleIap?: boolean;
+  showGooglePlayBilling?: boolean;
+  showRestorePurchases?: boolean;
+  showManageSubscriptions?: boolean;
   showCard?: boolean;
   showCrypto?: boolean;
   showCredits?: boolean;
@@ -42,12 +59,20 @@ export interface PurchaseButtonProps {
   /** Legacy: used for auto-Stripe fallback only */
   onPaymentError?: (error: string) => void;
   /** Method-specific callbacks (new, preferred) */
+  onAppleIapSuccess?: (txId: string) => void;
+  onGooglePlayBillingSuccess?: (txId: string) => void;
   onStripeSuccess?: (txId: string) => void;
   onCryptoSuccess?: (txId: string) => void;
   onCreditsSuccess?: (txId: string) => void;
+  onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+  onManageSubscriptionsOpen?: () => void;
+  onAppleIapError?: (error: string) => void;
+  onGooglePlayBillingError?: (error: string) => void;
   onStripeError?: (error: string) => void;
   onCryptoError?: (error: string) => void;
   onCreditsError?: (error: string) => void;
+  onRestorePurchasesError?: (error: string) => void;
+  onManageSubscriptionsError?: (error: string) => void;
   customerEmail?: string;
   successUrl?: string;
   cancelUrl?: string;
@@ -64,55 +89,46 @@ export interface PurchaseButtonProps {
   /** Loading indicator color */
   loadingColor?: string;
   /** Custom modal renderer */
-  renderModal?: (props: {
-    isOpen: boolean;
-    onClose: () => void;
-    resource?: string;
-    items?: CartItem[];
-    cardLabel?: string;
-    cryptoLabel?: string;
-    creditsLabel?: string;
-    showCard?: boolean;
-    showCrypto?: boolean;
-    showCredits?: boolean;
-    onPaymentAttempt?: (method: PaymentMethod) => void;
-    onPaymentSuccess?: (txId: string) => void;
-    onPaymentError?: (error: string) => void;
-    onStripeSuccess?: (txId: string) => void;
-    onCryptoSuccess?: (txId: string) => void;
-    onCreditsSuccess?: (txId: string) => void;
-    onStripeError?: (error: string) => void;
-    onCryptoError?: (error: string) => void;
-    onCreditsError?: (error: string) => void;
-    customerEmail?: string;
-    successUrl?: string;
-    cancelUrl?: string;
-    metadata?: Record<string, string>;
-    couponCode?: string;
-    authToken?: string;
-    hideMessages?: boolean;
-  }) => React.ReactNode;
+  renderModal?: (props: PaymentModalProps) => React.ReactNode;
 }
 
 export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   resource,
   items,
+  product,
+  distributionChannel,
   label,
+  appleIapLabel,
+  googlePlayBillingLabel,
+  restorePurchasesLabel,
+  manageSubscriptionsLabel,
   cardLabel,
   cryptoLabel,
   creditsLabel,
+  showAppleIap = false,
+  showGooglePlayBilling = false,
+  showRestorePurchases,
+  showManageSubscriptions,
   showCard = true,
   showCrypto = true,
   showCredits = false,
   onPaymentAttempt,
   onPaymentSuccess,
   onPaymentError,
+  onAppleIapSuccess,
+  onGooglePlayBillingSuccess,
   onStripeSuccess,
   onCryptoSuccess,
   onCreditsSuccess,
+  onRestorePurchasesSuccess,
+  onManageSubscriptionsOpen,
+  onAppleIapError,
+  onGooglePlayBillingError,
   onStripeError,
   onCryptoError,
   onCreditsError,
+  onRestorePurchasesError,
+  onManageSubscriptionsError,
   customerEmail,
   successUrl,
   cancelUrl,
@@ -126,14 +142,30 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   loadingColor = '#ffffff',
   renderModal,
 }) => {
+  const { config } = useCedrosContext();
   const theme = useCedrosTheme();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { status, processPayment, processCartCheckout } = useStripeCheckout();
   const { isCartMode, effectiveResource } = usePaymentMode(resource, items);
   const { t } = useTranslation();
+  const resolvedResource = product?.id ?? effectiveResource;
+  const resolvedProduct = useMemo(
+    () =>
+      mergeCedrosProductDefinition({
+        fallbackId: resolvedResource,
+        catalogProduct: resolvedResource
+          ? config.paymentPolicy?.productCatalog?.[resolvedResource]
+          : undefined,
+        explicitProduct: product,
+      }),
+    [config.paymentPolicy?.productCatalog, product, resolvedResource]
+  );
 
   // Use translated default labels if not provided
   const buttonLabel = label || t('ui.purchase');
+  const buttonAppleIapLabel = appleIapLabel || 'Buy with Apple';
+  const buttonGooglePlayBillingLabel =
+    googlePlayBillingLabel || 'Buy with Google Play';
   const buttonCardLabel = cardLabel || t('ui.card');
   const buttonCryptoLabel = cryptoLabel || t('ui.usdc_solana');
   const buttonCreditsLabel = creditsLabel || t('ui.pay_with_credits') || 'Pay with Credits';
@@ -143,13 +175,13 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     // SECURITY FIX: Only auto-fallback to Stripe if BOTH conditions are met:
     // 1. No wallet detected AND
     // 2. Card payments are actually enabled (showCard={true})
-    if (autoDetectWallets && showCard) {
+    if (autoDetectWallets && showCard && !showAppleIap && !showGooglePlayBilling) {
       // Lazy-load wallet detection to improve tree-shaking
       const { detectSolanaWallets } = await import('../utils/walletDetection');
 
       if (!detectSolanaWallets()) {
         // AUTO-STRIPE FALLBACK PATH - Add full telemetry
-        const resourceId = isCartMode ? undefined : effectiveResource;
+        const resourceId = isCartMode ? undefined : resolvedResource;
         const itemCount = isCartMode && items ? getCartItemCount(items) : undefined;
 
         emitPaymentStart('stripe', resourceId, itemCount);
@@ -170,9 +202,9 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
             customerEmail,
             couponCode
           );
-        } else if (effectiveResource) {
+        } else if (resolvedResource) {
           result = await processPayment(
-            effectiveResource,
+            resolvedResource,
             successUrl,
             cancelUrl,
             metadata,
@@ -205,9 +237,11 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   }, [
     autoDetectWallets,
     showCard,
+    showAppleIap,
+    showGooglePlayBilling,
     isCartMode,
     items,
-    effectiveResource,
+    resolvedResource,
     processCartCheckout,
     processPayment,
     successUrl,
@@ -227,8 +261,8 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     if (isCartMode && items) {
       return `purchase-cart-${items.map((i) => i.resource).join('-')}`;
     }
-    return `purchase-${effectiveResource || 'unknown'}`;
-  }, [isCartMode, items, effectiveResource]);
+    return `purchase-${resolvedResource || 'unknown'}`;
+  }, [isCartMode, items, resolvedResource]);
 
   // Wrap with deduplication + cooldown
   const handlePress = useMemo(
@@ -241,11 +275,21 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
   const modalProps = {
     isOpen: isModalOpen,
     onClose: () => setIsModalOpen(false),
-    resource: isCartMode ? undefined : effectiveResource,
+    resource: isCartMode ? undefined : resolvedResource,
     items: isCartMode ? items : undefined,
+    product: resolvedProduct,
+    distributionChannel,
+    appleIapLabel: buttonAppleIapLabel,
+    googlePlayBillingLabel: buttonGooglePlayBillingLabel,
+    restorePurchasesLabel,
+    manageSubscriptionsLabel,
     cardLabel: buttonCardLabel,
     cryptoLabel: buttonCryptoLabel,
     creditsLabel: buttonCreditsLabel,
+    showAppleIap,
+    showGooglePlayBilling,
+    showRestorePurchases,
+    showManageSubscriptions,
     showCard,
     showCrypto,
     showCredits,
@@ -257,6 +301,14 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
     onPaymentError: (error: string) => {
       setIsModalOpen(false);
       onPaymentError?.(error);
+    },
+    onAppleIapSuccess: (txId: string) => {
+      setIsModalOpen(false);
+      onAppleIapSuccess?.(txId);
+    },
+    onGooglePlayBillingSuccess: (txId: string) => {
+      setIsModalOpen(false);
+      onGooglePlayBillingSuccess?.(txId);
     },
     onStripeSuccess: (txId: string) => {
       setIsModalOpen(false);
@@ -270,6 +322,22 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
       setIsModalOpen(false);
       onCreditsSuccess?.(txId);
     },
+    onRestorePurchasesSuccess: (results: NativeStorePurchaseResult[]) => {
+      setIsModalOpen(false);
+      onRestorePurchasesSuccess?.(results);
+    },
+    onManageSubscriptionsOpen: () => {
+      setIsModalOpen(false);
+      onManageSubscriptionsOpen?.();
+    },
+    onAppleIapError: (error: string) => {
+      setIsModalOpen(false);
+      onAppleIapError?.(error);
+    },
+    onGooglePlayBillingError: (error: string) => {
+      setIsModalOpen(false);
+      onGooglePlayBillingError?.(error);
+    },
     onStripeError: (error: string) => {
       setIsModalOpen(false);
       onStripeError?.(error);
@@ -282,6 +350,8 @@ export const PurchaseButton: React.FC<PurchaseButtonProps> = ({
       setIsModalOpen(false);
       onCreditsError?.(error);
     },
+    onRestorePurchasesError,
+    onManageSubscriptionsError,
     customerEmail,
     successUrl,
     cancelUrl,

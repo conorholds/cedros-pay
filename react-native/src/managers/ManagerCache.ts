@@ -37,9 +37,11 @@ import { WalletManager, type IWalletManager } from './WalletManager';
 import { SubscriptionManager, type ISubscriptionManager } from './SubscriptionManager';
 import { SubscriptionChangeManager, type ISubscriptionChangeManager } from './SubscriptionChangeManager';
 import { CreditsManager, type ICreditsManager } from './CreditsManager';
+import { StoreBillingManager, type IStoreBillingManager } from './StoreBillingManager';
 import { RouteDiscoveryManager } from './RouteDiscoveryManager';
 import { getLogger } from '../utils/logger';
 import type { SolanaCluster } from '../types';
+import type { CedrosStoreBillingConfig } from '../types/storePolicy';
 
 /**
  * Cached manager set for a specific configuration
@@ -51,6 +53,7 @@ interface CachedManagers {
   subscriptionManager: ISubscriptionManager;
   subscriptionChangeManager: ISubscriptionChangeManager;
   creditsManager: ICreditsManager;
+  storeBillingManager: IStoreBillingManager;
   routeDiscovery: RouteDiscoveryManager;
   refCount: number; // Track number of providers using this cache entry
 }
@@ -78,15 +81,21 @@ function getCacheKey(
   stripePublicKey: string,
   serverUrl: string,
   solanaCluster: SolanaCluster,
+  stripeReturnUrl?: string,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  storeBillingConfig?: CedrosStoreBillingConfig
 ): string {
   return JSON.stringify({
     stripePublicKey,
     serverUrl,
     solanaCluster,
+    stripeReturnUrl: stripeReturnUrl || '',
     solanaEndpoint: solanaEndpoint || '',
     dangerouslyAllowUnknownMint: dangerouslyAllowUnknownMint || false,
+    storeBillingEnabled: storeBillingConfig?.enabled ?? true,
+    storekitMode: storeBillingConfig?.storekitMode ?? 'STOREKIT_HYBRID_MODE',
+    transactionHandling: storeBillingConfig?.transactionHandling ?? 'auto_finish',
   });
 }
 
@@ -102,8 +111,10 @@ export function getOrCreateManagers(
   stripePublicKey: string,
   serverUrl: string,
   solanaCluster: SolanaCluster,
+  stripeReturnUrl?: string,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  storeBillingConfig?: CedrosStoreBillingConfig
 ): {
   stripeManager: IStripeManager;
   x402Manager: IX402Manager;
@@ -111,14 +122,17 @@ export function getOrCreateManagers(
   subscriptionManager: ISubscriptionManager;
   subscriptionChangeManager: ISubscriptionChangeManager;
   creditsManager: ICreditsManager;
+  storeBillingManager: IStoreBillingManager;
   routeDiscovery: RouteDiscoveryManager;
 } {
   const cacheKey = getCacheKey(
     stripePublicKey,
     serverUrl,
     solanaCluster,
+    stripeReturnUrl,
     solanaEndpoint,
-    dangerouslyAllowUnknownMint
+    dangerouslyAllowUnknownMint,
+    storeBillingConfig
   );
 
   // Check cache
@@ -141,16 +155,24 @@ export function getOrCreateManagers(
   );
 
   const routeDiscovery = new RouteDiscoveryManager(serverUrl);
-  const stripeManager = new StripeManager(stripePublicKey, routeDiscovery);
+  const stripeManager = new StripeManager(stripePublicKey, routeDiscovery, {
+    returnUrl: stripeReturnUrl,
+  });
   const x402Manager = new X402Manager(routeDiscovery);
   const walletManager = new WalletManager(
     solanaCluster,
     solanaEndpoint,
     dangerouslyAllowUnknownMint ?? false
   );
-  const subscriptionManager = new SubscriptionManager(stripePublicKey, routeDiscovery);
+  const subscriptionManager = new SubscriptionManager(stripePublicKey, routeDiscovery, {
+    returnUrl: stripeReturnUrl,
+  });
   const subscriptionChangeManager = new SubscriptionChangeManager(routeDiscovery);
   const creditsManager = new CreditsManager(routeDiscovery);
+  const storeBillingManager = new StoreBillingManager(
+    routeDiscovery,
+    storeBillingConfig
+  );
 
   // Cache with initial refCount of 1
   cached = {
@@ -160,6 +182,7 @@ export function getOrCreateManagers(
     subscriptionManager,
     subscriptionChangeManager,
     creditsManager,
+    storeBillingManager,
     routeDiscovery,
     refCount: 1,
   };
@@ -183,15 +206,19 @@ export function releaseManagers(
   stripePublicKey: string,
   serverUrl: string,
   solanaCluster: SolanaCluster,
+  stripeReturnUrl?: string,
   solanaEndpoint?: string,
-  dangerouslyAllowUnknownMint?: boolean
+  dangerouslyAllowUnknownMint?: boolean,
+  storeBillingConfig?: CedrosStoreBillingConfig
 ): void {
   const cacheKey = getCacheKey(
     stripePublicKey,
     serverUrl,
     solanaCluster,
+    stripeReturnUrl,
     solanaEndpoint,
-    dangerouslyAllowUnknownMint
+    dangerouslyAllowUnknownMint,
+    storeBillingConfig
   );
 
   const cached = managerCache.get(cacheKey);
@@ -210,6 +237,9 @@ export function releaseManagers(
 
   // Remove from cache when no longer referenced
   if (cached.refCount <= 0) {
+    void cached.storeBillingManager.destroy().catch((error) => {
+      getLogger().warn('[ManagerCache] Failed to destroy store billing manager:', error);
+    });
     managerCache.delete(cacheKey);
     getLogger().debug('[ManagerCache] Removed managers from cache (refCount reached 0)');
   }
@@ -221,6 +251,11 @@ export function releaseManagers(
  * @internal
  */
 export function clearManagerCache(): void {
+  managerCache.forEach((cached) => {
+    void cached.storeBillingManager.destroy().catch((error) => {
+      getLogger().warn('[ManagerCache] Failed to destroy store billing manager:', error);
+    });
+  });
   managerCache.clear();
   getLogger().debug('[ManagerCache] Cache cleared');
 }

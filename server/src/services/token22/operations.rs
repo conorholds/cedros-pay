@@ -36,7 +36,11 @@ pub fn get_associated_token_address_2022(owner: &Pubkey, mint: &Pubkey) -> Pubke
 ///   5. []                 Token program (Token-22)
 ///
 /// Discriminator 1 = CreateIdempotent (no-op if account already exists).
-pub(super) fn build_create_ata_idempotent_ix(payer: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> Instruction {
+pub(super) fn build_create_ata_idempotent_ix(
+    payer: &Pubkey,
+    owner: &Pubkey,
+    mint: &Pubkey,
+) -> Instruction {
     let ata = get_associated_token_address_2022(owner, mint);
     Instruction {
         program_id: spl_associated_token_account::id(),
@@ -209,11 +213,7 @@ fn build_freeze_account_ix(
 ///
 /// Instruction data: discriminator 11 (ThawAccount).
 /// Accounts: token_account (writable), mint (read-only), authority (signer).
-fn build_thaw_account_ix(
-    token_account: &Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-) -> Instruction {
+fn build_thaw_account_ix(token_account: &Pubkey, mint: &Pubkey, authority: &Pubkey) -> Instruction {
     Instruction {
         program_id: TOKEN_2022_PROGRAM_ID,
         accounts: vec![

@@ -945,6 +945,9 @@ impl Store for InMemoryStore {
     async fn try_record_payment(&self, tx: PaymentTransaction) -> StorageResult<bool> {
         payments::try_record_payment(self, tx).await
     }
+    async fn upsert_payment(&self, tx: PaymentTransaction) -> StorageResult<()> {
+        payments::upsert_payment(self, tx).await
+    }
     async fn delete_payment(&self, tenant_id: &str, signature: &str) -> StorageResult<()> {
         payments::delete_payment(self, tenant_id, signature).await
     }
@@ -1371,8 +1374,16 @@ impl Store for InMemoryStore {
         limit: i32,
         offset: i32,
     ) -> StorageResult<Vec<TokenHolder>> {
-        compliance::list_token_holders(self, tenant_id, status, wallet, collection_id, limit, offset)
-            .await
+        compliance::list_token_holders(
+            self,
+            tenant_id,
+            status,
+            wallet,
+            collection_id,
+            limit,
+            offset,
+        )
+        .await
     }
     async fn list_unfrozen_token_holders(
         &self,

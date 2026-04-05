@@ -229,7 +229,7 @@ pub async fn update_status(
 /// POST /admin/asset-redemptions/:id/complete — mark redemption as completed.
 ///
 /// Requires the redemption to be in `approved` status. Transitions it to
-/// `completed`. Token burn (Phase 3) is not yet implemented.
+/// `completed` and records a best-effort token burn signature when available.
 pub async fn complete_redemption(
     State(state): State<Arc<AssetRedemptionAdminState>>,
     tenant: TenantContext,

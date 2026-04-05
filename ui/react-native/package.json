@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react-native",
-  "version": "1.1.14",
+  "version": "1.1.16",
   "description": "React Native library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./lib/index.js",
   "module": "./esm/index.js",
@@ -36,7 +36,10 @@
     "crypto",
     "react-native",
     "mobile",
-    "stablecoins"
+    "stablecoins",
+    "in-app-purchase",
+    "storekit",
+    "play-billing"
   ],
   "author": "Cedros Pay Team",
   "license": "MIT",
@@ -83,6 +86,7 @@
     "@react-native-async-storage/async-storage": "^2.0.0",
     "bs58": "^6.0.0",
     "js-base64": "^3.7.8",
+    "react-native-iap": "^13.0.4",
     "uuid": "^9.0.0",
     "zod": "^4.1.5"
   },
@@ -111,7 +115,7 @@
     "build:copy-translations": "cp -r src/i18n/translations lib/i18n/translations && cp -r src/i18n/translations esm/i18n/translations",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "jest",
+    "test": "npm run build:lib && node --test tests/*.test.cjs",
     "prepublishOnly": "npm run lint && npm run type-check && npm run build"
   }
 }

@@ -36,8 +36,10 @@ import { type IWalletManager } from './WalletManager';
 import { type ISubscriptionManager } from './SubscriptionManager';
 import { type ISubscriptionChangeManager } from './SubscriptionChangeManager';
 import { type ICreditsManager } from './CreditsManager';
+import { type IStoreBillingManager } from './StoreBillingManager';
 import { RouteDiscoveryManager } from './RouteDiscoveryManager';
 import type { SolanaCluster } from '../types';
+import type { CedrosStoreBillingConfig } from '../types/storePolicy';
 /**
  * Get or create managers for the given config
  *
@@ -46,13 +48,14 @@ import type { SolanaCluster } from '../types';
  *
  * @returns Cached or newly created manager instances
  */
-export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean): {
+export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, stripeReturnUrl?: string, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean, storeBillingConfig?: CedrosStoreBillingConfig): {
     stripeManager: IStripeManager;
     x402Manager: IX402Manager;
     walletManager: IWalletManager;
     subscriptionManager: ISubscriptionManager;
     subscriptionChangeManager: ISubscriptionChangeManager;
     creditsManager: ICreditsManager;
+    storeBillingManager: IStoreBillingManager;
     routeDiscovery: RouteDiscoveryManager;
 };
 /**
@@ -65,7 +68,7 @@ export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: 
  * because other providers may still be using them. Cleanup happens naturally
  * when all references are released and garbage collection runs.
  */
-export declare function releaseManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean): void;
+export declare function releaseManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, stripeReturnUrl?: string, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean, storeBillingConfig?: CedrosStoreBillingConfig): void;
 /**
  * Clear all cached managers (for testing)
  *

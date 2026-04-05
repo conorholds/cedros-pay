@@ -167,10 +167,7 @@ mod tests {
 
         assert!(svc.is_sanctioned("t1", "BadWallet123"));
         // Static wallet is NOT in the dynamic list, so dynamic returns false
-        assert!(!svc.is_sanctioned(
-            "t1",
-            "FW3g7yRSFCVPJsiBaKFbuiCfGHPPCKqBjP2rMXkmCjBr"
-        ));
+        assert!(!svc.is_sanctioned("t1", "FW3g7yRSFCVPJsiBaKFbuiCfGHPPCKqBjP2rMXkmCjBr"));
     }
 
     #[test]

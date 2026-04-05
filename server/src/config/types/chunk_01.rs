@@ -459,6 +459,8 @@ pub struct Config {
     #[serde(default)]
     pub stripe: StripeConfig,
     #[serde(default)]
+    pub native_store: NativeStoreConfig,
+    #[serde(default)]
     pub x402: X402Config,
     #[serde(default)]
     pub paywall: PaywallConfig,
@@ -753,19 +755,65 @@ impl Config {
 
         // HIGH-008: Validate Stripe redirect URLs for security when configured
         // Uses validate_redirect_url to block javascript:, data:, and private IPs
+        crate::errors::validation::validate_redirect_scheme_allowlist(
+            &self.stripe.allowed_redirect_schemes,
+        )
+        .map_err(|e| {
+            ConfigError::Validation(format!("stripe.allowed_redirect_schemes: {}", e.message))
+        })?;
+
         if !self.stripe.success_url.is_empty() {
-            crate::errors::validation::validate_redirect_url_with_env(
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
                 &self.stripe.success_url,
                 &self.logging.environment,
+                &self.stripe.allowed_redirect_schemes,
             )
             .map_err(|e| ConfigError::Validation(format!("stripe.success_url: {}", e.message)))?;
         }
         if !self.stripe.cancel_url.is_empty() {
-            crate::errors::validation::validate_redirect_url_with_env(
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
                 &self.stripe.cancel_url,
                 &self.logging.environment,
+                &self.stripe.allowed_redirect_schemes,
             )
             .map_err(|e| ConfigError::Validation(format!("stripe.cancel_url: {}", e.message)))?;
+        }
+
+        if self.native_store.enabled {
+            let google = &self.native_store.google;
+            let google_is_configured = !google.service_account_email.trim().is_empty()
+                || !google.private_key.trim().is_empty()
+                || !google.package_name.trim().is_empty()
+                || !google.push_service_account_email.trim().is_empty()
+                || !google.push_audience.trim().is_empty();
+
+            if google.enabled && google_is_configured {
+                if google.service_account_email.trim().is_empty() {
+                    return Err(ConfigError::Validation(
+                        "native_store.google.service_account_email is required when Google Play native billing is configured".into(),
+                    ));
+                }
+                if google.private_key.trim().is_empty() {
+                    return Err(ConfigError::Validation(
+                        "native_store.google.private_key is required when Google Play native billing is configured".into(),
+                    ));
+                }
+                if google.package_name.trim().is_empty() {
+                    return Err(ConfigError::Validation(
+                        "native_store.google.package_name is required when Google Play native billing is configured".into(),
+                    ));
+                }
+                if google.push_service_account_email.trim().is_empty() {
+                    return Err(ConfigError::Validation(
+                        "native_store.google.push_service_account_email is required for Google RTDN verification".into(),
+                    ));
+                }
+                if google.push_audience.trim().is_empty() {
+                    return Err(ConfigError::Validation(
+                        "native_store.google.push_audience is required for Google RTDN verification".into(),
+                    ));
+                }
+            }
         }
 
         // Validate monitoring threshold against wallet health thresholds when gasless is enabled
@@ -920,11 +968,59 @@ impl Config {
         if let Some(v) = env_var("CEDROS_STRIPE_CANCEL_URL") {
             self.stripe.cancel_url = v;
         }
+        if let Some(v) = env_var("CEDROS_STRIPE_ALLOWED_REDIRECT_SCHEMES") {
+            self.stripe.allowed_redirect_schemes = v
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
         if let Some(v) = env_var("CEDROS_STRIPE_TAX_RATE_ID") {
             self.stripe.tax_rate_id = v;
         }
         if let Some(v) = env_var("CEDROS_STRIPE_MODE") {
             self.stripe.mode = v;
+        }
+
+        // Native store billing
+        if let Some(v) = env_bool("CEDROS_NATIVE_STORE_ENABLED") {
+            self.native_store.enabled = v;
+        }
+        if let Some(v) = env_bool("CEDROS_NATIVE_STORE_APPLE_ENABLED") {
+            self.native_store.apple.enabled = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_APPLE_ISSUER_ID") {
+            self.native_store.apple.issuer_id = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_APPLE_KEY_ID") {
+            self.native_store.apple.key_id = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_APPLE_PRIVATE_KEY") {
+            self.native_store.apple.private_key = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_APPLE_BUNDLE_ID") {
+            self.native_store.apple.bundle_id = v;
+        }
+        if let Some(v) = env_bool("CEDROS_NATIVE_STORE_APPLE_ALLOW_SANDBOX_FALLBACK") {
+            self.native_store.apple.allow_sandbox_fallback = v;
+        }
+        if let Some(v) = env_bool("CEDROS_NATIVE_STORE_GOOGLE_ENABLED") {
+            self.native_store.google.enabled = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_GOOGLE_SERVICE_ACCOUNT_EMAIL") {
+            self.native_store.google.service_account_email = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_GOOGLE_PRIVATE_KEY") {
+            self.native_store.google.private_key = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_GOOGLE_PACKAGE_NAME") {
+            self.native_store.google.package_name = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL") {
+            self.native_store.google.push_service_account_email = v;
+        }
+        if let Some(v) = env_var("CEDROS_NATIVE_STORE_GOOGLE_PUSH_AUDIENCE") {
+            self.native_store.google.push_audience = v;
         }
 
         // X402
@@ -1106,6 +1202,10 @@ impl Config {
 
         if let Ok(entries) = repo.get_config(tenant_id, "stripe").await {
             self.merge_stripe_config(repo, &entries).await;
+        }
+
+        if let Ok(entries) = repo.get_config(tenant_id, "native_store").await {
+            self.merge_native_store_config(repo, &entries).await;
         }
 
         if let Ok(entries) = repo.get_config(tenant_id, "x402").await {
@@ -1309,6 +1409,20 @@ impl Config {
                         self.stripe.cancel_url = v.to_string();
                     }
                 }
+                "allowed_redirect_schemes" => {
+                    if let Some(values) = value.as_array() {
+                        self.stripe.allowed_redirect_schemes = values
+                            .iter()
+                            .filter_map(|v| v.as_str().map(str::to_string))
+                            .collect();
+                    } else if let Some(v) = value.as_str() {
+                        self.stripe.allowed_redirect_schemes = v
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                    }
+                }
                 "tax_rate_id" => {
                     if let Some(v) = value.as_str() {
                         self.stripe.tax_rate_id = v.to_string();
@@ -1317,6 +1431,99 @@ impl Config {
                 "mode" => {
                     if let Some(v) = value.as_str() {
                         self.stripe.mode = v.to_string();
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    async fn merge_native_store_config(
+        &mut self,
+        repo: &crate::config::PostgresConfigRepository,
+        entries: &[crate::config::ConfigEntry],
+    ) {
+        for entry in entries {
+            let value = if entry.encrypted {
+                match repo.decrypt_entry(entry).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!(error = %e, key = %entry.config_key, "Failed to decrypt native_store config");
+                        continue;
+                    }
+                }
+            } else {
+                entry.value.clone()
+            };
+
+            match entry.config_key.as_str() {
+                "enabled" => {
+                    if let Some(v) = value.as_bool() {
+                        self.native_store.enabled = v;
+                    }
+                }
+                "apple_enabled" => {
+                    if let Some(v) = value.as_bool() {
+                        self.native_store.apple.enabled = v;
+                    }
+                }
+                "apple_issuer_id" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.apple.issuer_id = v.to_string();
+                    }
+                }
+                "apple_key_id" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.apple.key_id = v.to_string();
+                    }
+                }
+                "apple_private_key" => {
+                    if let Some(v) = value.as_str() {
+                        if v != crate::config::REDACTED_PLACEHOLDER {
+                            self.native_store.apple.private_key = v.to_string();
+                        }
+                    }
+                }
+                "apple_bundle_id" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.apple.bundle_id = v.to_string();
+                    }
+                }
+                "apple_allow_sandbox_fallback" => {
+                    if let Some(v) = value.as_bool() {
+                        self.native_store.apple.allow_sandbox_fallback = v;
+                    }
+                }
+                "google_enabled" => {
+                    if let Some(v) = value.as_bool() {
+                        self.native_store.google.enabled = v;
+                    }
+                }
+                "google_service_account_email" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.google.service_account_email = v.to_string();
+                    }
+                }
+                "google_private_key" => {
+                    if let Some(v) = value.as_str() {
+                        if v != crate::config::REDACTED_PLACEHOLDER {
+                            self.native_store.google.private_key = v.to_string();
+                        }
+                    }
+                }
+                "google_package_name" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.google.package_name = v.to_string();
+                    }
+                }
+                "google_push_service_account_email" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.google.push_service_account_email = v.to_string();
+                    }
+                }
+                "google_push_audience" => {
+                    if let Some(v) = value.as_str() {
+                        self.native_store.google.push_audience = v.to_string();
                     }
                 }
                 _ => {}

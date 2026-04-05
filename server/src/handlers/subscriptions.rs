@@ -181,15 +181,52 @@ pub struct StripeSessionRequest {
     pub interval_days: Option<i32>,
     pub trial_days: Option<i32>,
     pub customer_email: Option<String>,
+    pub metadata: Option<std::collections::HashMap<String, String>>,
+    pub coupon_code: Option<String>,
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StripeMobileSessionRequest {
+    pub resource: String,
+    pub interval: String,
+    pub interval_days: Option<i32>,
+    pub trial_days: Option<i32>,
+    pub customer_email: Option<String>,
+    pub metadata: Option<std::collections::HashMap<String, String>>,
+    pub coupon_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeSessionFlow {
+    RedirectCheckout,
+    PaymentSheet,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StripeSessionResponse {
+    pub flow: StripeSessionFlow,
     pub session_id: String,
     pub url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StripeMobileSessionResponse {
+    pub flow: StripeSessionFlow,
+    pub subscription_id: String,
+    pub customer_id: String,
+    pub customer_ephemeral_key_secret: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_intent_client_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup_intent_client_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -951,6 +988,17 @@ pub async fn stripe_session<S: Store + 'static>(
         }
     }
 
+    if let Some(ref code) = req.coupon_code {
+        if let Err(e) = crate::errors::validation::validate_coupon_code(code) {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidCoupon,
+                Some(e.message),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
     if let Some(days) = req.trial_days {
         if days < 0 {
             let (status, body) = crate::errors::error_response(
@@ -962,12 +1010,38 @@ pub async fn stripe_session<S: Store + 'static>(
         }
     }
 
+    if let Some(ref metadata) = req.metadata {
+        match serde_json::to_value(metadata) {
+            Ok(value) => {
+                if let Err(msg) = super::validate_metadata_size(&value) {
+                    let (status, body) = crate::errors::error_response(
+                        crate::errors::ErrorCode::InvalidField,
+                        Some(msg),
+                        None,
+                    );
+                    return json_error(status, body);
+                }
+            }
+            Err(_) => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidField,
+                    Some("metadata must be a JSON object of string values".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        }
+    }
+
     // SEC-006: Validate redirect URLs to prevent SSRF
     if let Some(ref url) = req.success_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
-            url,
-            &state.paywall_service.config.logging.environment,
-        ) {
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
+                url,
+                &state.paywall_service.config.logging.environment,
+                &state.paywall_service.config.stripe.allowed_redirect_schemes,
+            )
+        {
             let (status, body) = crate::errors::error_response(
                 crate::errors::ErrorCode::InvalidField,
                 Some(format!("success_url: {}", e.message)),
@@ -977,10 +1051,13 @@ pub async fn stripe_session<S: Store + 'static>(
         }
     }
     if let Some(ref url) = req.cancel_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
-            url,
-            &state.paywall_service.config.logging.environment,
-        ) {
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
+                url,
+                &state.paywall_service.config.logging.environment,
+                &state.paywall_service.config.stripe.allowed_redirect_schemes,
+            )
+        {
             let (status, body) = crate::errors::error_response(
                 crate::errors::ErrorCode::InvalidField,
                 Some(format!("cancel_url: {}", e.message)),
@@ -1074,13 +1151,19 @@ pub async fn stripe_session<S: Store + 'static>(
         .filter(|v| !v.is_empty())
         .map(str::to_string);
 
-    let metadata = build_stripe_subscription_metadata(&tenant.tenant_id, user_id);
+    let mut metadata = build_stripe_subscription_metadata(&tenant.tenant_id, user_id);
+    if let Some(request_metadata) = req.metadata {
+        for (key, value) in request_metadata {
+            metadata.entry(key).or_insert(value);
+        }
+    }
 
     let checkout_req = crate::services::stripe::CreateSubscriptionRequest {
         product_id: req.resource.clone(),
         price_id,
         customer_email: req.customer_email,
         metadata,
+        coupon_code: req.coupon_code,
         success_url: req.success_url,
         cancel_url: req.cancel_url,
         trial_days,
@@ -1094,8 +1177,196 @@ pub async fn stripe_session<S: Store + 'static>(
     {
         Ok(session) => {
             let resp = StripeSessionResponse {
+                flow: StripeSessionFlow::RedirectCheckout,
                 session_id: session.session_id,
                 url: session.url,
+            };
+            json_ok(resp)
+        }
+        Err(e) => {
+            let (status, body) =
+                crate::errors::error_response(e.code(), Some(e.safe_message()), None);
+            json_error(status, body)
+        }
+    }
+}
+
+/// POST /paywall/v1/subscription/stripe-mobile-session - Create Stripe-native mobile subscription session
+pub async fn stripe_mobile_session<S: Store + 'static>(
+    State(state): State<Arc<SubscriptionAppState<S>>>,
+    tenant: TenantContext,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<StripeMobileSessionRequest>,
+) -> impl IntoResponse {
+    if let Some(ref email) = req.customer_email {
+        if let Err(e) = crate::errors::validation::validate_email(email) {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some(e.message),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
+    if let Some(ref code) = req.coupon_code {
+        if let Err(e) = crate::errors::validation::validate_coupon_code(code) {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidCoupon,
+                Some(e.message),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
+    if let Some(days) = req.trial_days {
+        if days < 0 {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidField,
+                Some("trialDays must be >= 0".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    }
+
+    if let Some(ref metadata) = req.metadata {
+        match serde_json::to_value(metadata) {
+            Ok(value) => {
+                if let Err(msg) = super::validate_metadata_size(&value) {
+                    let (status, body) = crate::errors::error_response(
+                        crate::errors::ErrorCode::InvalidField,
+                        Some(msg),
+                        None,
+                    );
+                    return json_error(status, body);
+                }
+            }
+            Err(_) => {
+                let (status, body) = crate::errors::error_response(
+                    crate::errors::ErrorCode::InvalidField,
+                    Some("metadata must be a JSON object of string values".to_string()),
+                    None,
+                );
+                return json_error(status, body);
+            }
+        }
+    }
+
+    let stripe_client = match &state.stripe_client {
+        Some(client) => client,
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ServiceUnavailable,
+                Some("Stripe is not configured".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let product = match state
+        .product_repo
+        .get_product(&tenant.tenant_id, &req.resource)
+        .await
+    {
+        Ok(product) => product,
+        Err(_) => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::ProductNotFound,
+                Some(format!("Product not found: {}", req.resource)),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let sub_config = match &product.subscription {
+        Some(cfg) => cfg,
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidResource,
+                Some("Product does not support subscriptions".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    if let Err(msg) =
+        validate_stripe_subscription_interval(&req.interval, req.interval_days, sub_config)
+    {
+        let (status, body) =
+            crate::errors::error_response(crate::errors::ErrorCode::InvalidField, Some(msg), None);
+        return json_error(status, body);
+    }
+
+    let price_id = match &sub_config.stripe_price_id {
+        Some(id) => id.clone(),
+        None => {
+            let (status, body) = crate::errors::error_response(
+                crate::errors::ErrorCode::InvalidResource,
+                Some("Product has no Stripe subscription price ID".to_string()),
+                None,
+            );
+            return json_error(status, body);
+        }
+    };
+
+    let trial_days = req
+        .trial_days
+        .or(if sub_config.trial_days > 0 {
+            Some(sub_config.trial_days)
+        } else {
+            None
+        })
+        .map(|days| days as i64);
+    let auth = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    let user_id = state
+        .paywall_service
+        .extract_user_id_from_auth_header(auth)
+        .await;
+    let idempotency_key = headers
+        .get(crate::constants::HEADER_IDEMPOTENCY_KEY)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+
+    let mut metadata = build_stripe_subscription_metadata(&tenant.tenant_id, user_id);
+    if let Some(request_metadata) = req.metadata {
+        for (key, value) in request_metadata {
+            metadata.entry(key).or_insert(value);
+        }
+    }
+
+    let mobile_req = crate::services::stripe::CreateMobileSubscriptionRequest {
+        product_id: req.resource.clone(),
+        price_id,
+        customer_id: None,
+        customer_email: req.customer_email,
+        metadata,
+        coupon_code: req.coupon_code,
+        trial_days,
+        idempotency_key,
+    };
+
+    match stripe_client
+        .create_mobile_subscription_session(mobile_req)
+        .await
+    {
+        Ok(session) => {
+            let resp = StripeMobileSessionResponse {
+                flow: StripeSessionFlow::PaymentSheet,
+                subscription_id: session.subscription_id,
+                customer_id: session.customer_id,
+                customer_ephemeral_key_secret: session.customer_ephemeral_key_secret,
+                payment_intent_client_secret: session.payment_intent_client_secret,
+                setup_intent_client_secret: session.setup_intent_client_secret,
+                status: session.status,
             };
             json_ok(resp)
         }
@@ -1194,9 +1465,10 @@ pub async fn portal<S: Store + 'static>(
     Json(req): Json<PortalRequest>,
 ) -> impl IntoResponse {
     // SEC-005: Validate return_url to prevent SSRF
-    if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
+    if let Err(e) = crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
         &req.return_url,
         &state.paywall_service.config.logging.environment,
+        &state.paywall_service.config.stripe.allowed_redirect_schemes,
     ) {
         let (status, body) = crate::errors::error_response(
             crate::errors::ErrorCode::InvalidField,
@@ -1631,10 +1903,12 @@ fn subscription_price_and_currency(
     payment_method: &PaymentMethod,
 ) -> (i64, String) {
     let preferred = match payment_method {
-        PaymentMethod::Stripe => product
-            .fiat_price
-            .as_ref()
-            .or(product.crypto_price.as_ref()),
+        PaymentMethod::Stripe | PaymentMethod::AppleIap | PaymentMethod::GooglePlayBilling => {
+            product
+                .fiat_price
+                .as_ref()
+                .or(product.crypto_price.as_ref())
+        }
         PaymentMethod::X402 | PaymentMethod::Credits => product
             .crypto_price
             .as_ref()
@@ -1654,6 +1928,7 @@ fn build_stripe_subscription_metadata(
     metadata.insert("tenant_id".to_string(), tenant_id.to_string());
     if let Some(uid) = user_id {
         metadata.insert("user_id".to_string(), uid);
+        metadata.insert("user_id_trusted".to_string(), "true".to_string());
     }
     metadata
 }
@@ -1670,11 +1945,19 @@ fn validate_stripe_checkout_interval(
     req: &StripeSessionRequest,
     sub_config: &crate::models::SubscriptionConfig,
 ) -> Result<(), String> {
+    validate_stripe_subscription_interval(&req.interval, req.interval_days, sub_config)
+}
+
+fn validate_stripe_subscription_interval(
+    interval: &str,
+    interval_days: Option<i32>,
+    sub_config: &crate::models::SubscriptionConfig,
+) -> Result<(), String> {
     let configured_period = parse_billing_period(&sub_config.billing_period)
         .map_err(|_| "product has invalid subscription billing period".to_string())?;
     let configured_interval = billing_period_to_interval(&configured_period);
 
-    if req.interval.to_lowercase() != configured_interval {
+    if interval.to_lowercase() != configured_interval {
         return Err(format!(
             "interval must match the product subscription interval: {}",
             configured_interval
@@ -1683,14 +1966,14 @@ fn validate_stripe_checkout_interval(
 
     match configured_period {
         BillingPeriod::Day => {
-            if req.interval_days != Some(sub_config.billing_interval) {
+            if interval_days != Some(sub_config.billing_interval) {
                 return Err(format!(
                     "intervalDays must match the product subscription interval: {}",
                     sub_config.billing_interval
                 ));
             }
         }
-        _ if req.interval_days.is_some() => {
+        _ if interval_days.is_some() => {
             return Err(
                 "intervalDays is only supported for custom day-based subscriptions".to_string(),
             )
@@ -2355,6 +2638,7 @@ mod tests {
         let m = build_stripe_subscription_metadata("tenant-1", Some("user-1".to_string()));
         assert_eq!(m.get("tenant_id").map(String::as_str), Some("tenant-1"));
         assert_eq!(m.get("user_id").map(String::as_str), Some("user-1"));
+        assert_eq!(m.get("user_id_trusted").map(String::as_str), Some("true"));
     }
 
     #[test]
@@ -2362,11 +2646,69 @@ mod tests {
         let err = serde_json::from_value::<StripeSessionRequest>(serde_json::json!({
             "resource": "prod-1",
             "interval": "monthly",
-            "couponCode": "SAVE20",
+            "unsupportedField": "SAVE20",
         }))
         .expect_err("unknown fields should be rejected");
 
         assert!(err.to_string().contains("unknown field"));
+    }
+
+    #[test]
+    fn test_stripe_session_request_accepts_coupon_code_and_metadata() {
+        let req = serde_json::from_value::<StripeSessionRequest>(serde_json::json!({
+            "resource": "prod-1",
+            "interval": "monthly",
+            "couponCode": "SAVE20",
+            "metadata": {
+                "campaign": "spring_launch"
+            }
+        }))
+        .expect("couponCode and metadata should be accepted");
+
+        assert_eq!(req.coupon_code.as_deref(), Some("SAVE20"));
+        assert_eq!(
+            req.metadata
+                .as_ref()
+                .and_then(|m| m.get("campaign"))
+                .map(String::as_str),
+            Some("spring_launch")
+        );
+    }
+
+    #[test]
+    fn test_stripe_mobile_session_request_rejects_unknown_fields() {
+        let err = serde_json::from_value::<StripeMobileSessionRequest>(serde_json::json!({
+            "resource": "prod-1",
+            "interval": "monthly",
+            "successUrl": "https://example.com/success",
+        }))
+        .expect_err("unknown fields should be rejected for mobile sessions");
+
+        assert!(err.to_string().contains("unknown field"));
+    }
+
+    #[tokio::test]
+    async fn test_stripe_mobile_session_requires_configured_stripe() {
+        let state = build_state();
+
+        let response = stripe_mobile_session(
+            State(state),
+            TenantContext::default(),
+            axum::http::HeaderMap::new(),
+            Json(StripeMobileSessionRequest {
+                resource: "prod-1".to_string(),
+                interval: "monthly".to_string(),
+                interval_days: None,
+                trial_days: None,
+                customer_email: Some("mobile@example.com".to_string()),
+                metadata: None,
+                coupon_code: None,
+            }),
+        )
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 
     #[tokio::test]
@@ -2383,6 +2725,8 @@ mod tests {
                 interval_days: None,
                 trial_days: None,
                 customer_email: None,
+                metadata: None,
+                coupon_code: None,
                 success_url: Some("https://example.com/success".to_string()),
                 cancel_url: Some("https://example.com/cancel".to_string()),
             }),
@@ -2407,6 +2751,8 @@ mod tests {
                 interval_days: Some(45),
                 trial_days: None,
                 customer_email: None,
+                metadata: None,
+                coupon_code: None,
                 success_url: Some("https://example.com/success".to_string()),
                 cancel_url: Some("https://example.com/cancel".to_string()),
             }),

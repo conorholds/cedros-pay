@@ -42,7 +42,9 @@ pub fn is_allowed_for_asset(country_code: &str, allowed_jurisdictions: &[String]
         return true;
     }
     let upper = country_code.to_uppercase();
-    allowed_jurisdictions.iter().any(|j| j.to_uppercase() == upper)
+    allowed_jurisdictions
+        .iter()
+        .any(|j| j.to_uppercase() == upper)
 }
 
 #[cfg(test)]

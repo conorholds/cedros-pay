@@ -85,6 +85,8 @@ pub struct ProductInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stripe_price_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub store_billing: Option<crate::models::StoreBillingConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub crypto_amount: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effective_crypto_amount: Option<f64>,
@@ -218,6 +220,7 @@ fn product_to_info(p: &crate::models::Product) -> ProductInfo {
         fiat_currency,
         compare_at_fiat_currency,
         stripe_price_id: p.stripe_price_id.clone(),
+        store_billing: p.store_billing.clone(),
         crypto_amount,
         effective_crypto_amount: crypto_amount,
         crypto_token,

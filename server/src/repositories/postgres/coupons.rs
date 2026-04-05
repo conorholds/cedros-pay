@@ -94,6 +94,8 @@ fn payment_method_name(payment_method: &PaymentMethod) -> &'static str {
         PaymentMethod::Stripe => "stripe",
         PaymentMethod::X402 => "x402",
         PaymentMethod::Credits => "credits",
+        PaymentMethod::AppleIap => "apple_iap",
+        PaymentMethod::GooglePlayBilling => "google_play_billing",
     }
 }
 

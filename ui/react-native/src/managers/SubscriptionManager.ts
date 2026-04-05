@@ -10,9 +10,13 @@ import {
   initPaymentSheet,
   presentPaymentSheet,
 } from '@stripe/stripe-react-native';
+import { Linking } from 'react-native';
 import { generateUUID } from '../utils/uuid';
 import type {
+  MobileSubscriptionSessionRequest,
   PaymentResult,
+  PaymentSheetSubscriptionSessionResponse,
+  RedirectCheckoutSubscriptionSessionResponse,
   SubscriptionSessionRequest,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
@@ -74,6 +78,13 @@ export interface ISubscriptionManager {
   ): Promise<SubscriptionSessionResponse>;
 
   /**
+   * Create a native Stripe PaymentSheet subscription session.
+   */
+  createMobileSubscriptionSession(
+    request: MobileSubscriptionSessionRequest
+  ): Promise<PaymentSheetSubscriptionSessionResponse>;
+
+  /**
    * Redirect to Stripe checkout page
    */
   redirectToCheckout(sessionId: string): Promise<PaymentResult>;
@@ -82,6 +93,11 @@ export interface ISubscriptionManager {
    * Complete subscription flow: create session and redirect (Stripe)
    */
   processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult>;
+
+  /**
+   * Complete the native Stripe PaymentSheet subscription flow.
+   */
+  processMobileSubscription(request: MobileSubscriptionSessionRequest): Promise<PaymentResult>;
 
   /**
    * Check subscription status (for x402 gating)
@@ -129,6 +145,7 @@ export class SubscriptionManager implements ISubscriptionManager {
   private isStripeInitialized = false;
   private readonly publicKey: string;
   private readonly routeDiscovery: RouteDiscoveryManager;
+  private readonly returnUrl?: string;
 
   // Separate rate limiters for different operation types
   private readonly sessionRateLimiter = createRateLimiter(RATE_LIMITER_PRESETS.PAYMENT);
@@ -140,9 +157,66 @@ export class SubscriptionManager implements ISubscriptionManager {
     name: 'subscription-manager',
   });
 
-  constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager) {
+  constructor(
+    publicKey: string,
+    routeDiscovery: RouteDiscoveryManager,
+    options?: { returnUrl?: string }
+  ) {
     this.publicKey = publicKey;
     this.routeDiscovery = routeDiscovery;
+    this.returnUrl = options?.returnUrl;
+  }
+
+  private resolveSubscriptionSessionFlow(
+    session: SubscriptionSessionResponse
+  ): RedirectCheckoutSubscriptionSessionResponse | PaymentSheetSubscriptionSessionResponse | null {
+    const record = session as unknown as Record<string, unknown>;
+    const flow =
+      typeof record.flow === 'string' ? record.flow : undefined;
+
+    if (
+      flow === 'payment_sheet' ||
+      typeof record.paymentIntentClientSecret === 'string' ||
+      typeof record.setupIntentClientSecret === 'string'
+    ) {
+      return {
+        flow: 'payment_sheet',
+        subscriptionId:
+          typeof record.subscriptionId === 'string'
+            ? record.subscriptionId
+            : undefined,
+        paymentIntentClientSecret:
+          typeof record.paymentIntentClientSecret === 'string'
+            ? record.paymentIntentClientSecret
+            : undefined,
+        setupIntentClientSecret:
+          typeof record.setupIntentClientSecret === 'string'
+            ? record.setupIntentClientSecret
+            : undefined,
+        customerId: typeof record.customerId === 'string' ? record.customerId : undefined,
+        customerEphemeralKeySecret:
+          typeof record.customerEphemeralKeySecret === 'string'
+            ? record.customerEphemeralKeySecret
+            : undefined,
+        sessionId: typeof record.sessionId === 'string' ? record.sessionId : undefined,
+        url: typeof record.url === 'string' ? record.url : undefined,
+        status: typeof record.status === 'string' ? record.status : undefined,
+      };
+    }
+
+    if (
+      (flow === undefined || flow === 'redirect_checkout') &&
+      typeof record.sessionId === 'string' &&
+      typeof record.url === 'string'
+    ) {
+      return {
+        flow: 'redirect_checkout',
+        sessionId: record.sessionId,
+        url: record.url,
+      };
+    }
+
+    return null;
   }
 
   /** Initialize Stripe React Native SDK */
@@ -192,6 +266,8 @@ export class SubscriptionManager implements ISubscriptionManager {
     }
 
     // Circuit breaker + retry logic
+    const idempotencyKey = generateUUID();
+    const requestBody = JSON.stringify(request);
     try {
       return await this.circuitBreaker.execute(async () => {
         return await retryWithBackoff(
@@ -208,9 +284,9 @@ export class SubscriptionManager implements ISubscriptionManager {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Idempotency-Key': generateUUID(),
+                'Idempotency-Key': idempotencyKey,
               },
-              body: JSON.stringify(request),
+              body: requestBody,
             });
 
             if (!response.ok) {
@@ -238,8 +314,72 @@ export class SubscriptionManager implements ISubscriptionManager {
   }
 
   /**
-   * Redirect to Stripe checkout — not supported on React Native.
-   * Use processSubscription() instead, which uses the native Payment Sheet.
+   * Create a native Stripe PaymentSheet subscription session.
+   */
+  async createMobileSubscriptionSession(
+    request: MobileSubscriptionSessionRequest
+  ): Promise<PaymentSheetSubscriptionSessionResponse> {
+    if (!this.sessionRateLimiter.tryConsume()) {
+      throw new Error('Rate limit exceeded for mobile subscription session creation. Please try again later.');
+    }
+
+    const idempotencyKey = generateUUID();
+    const requestBody = JSON.stringify(request);
+    try {
+      const session = await this.circuitBreaker.execute(async () => {
+        return await retryWithBackoff(
+          async () => {
+            const url = await this.routeDiscovery.buildUrl('/paywall/v1/subscription/stripe-mobile-session');
+
+            getLogger().debug('[SubscriptionManager] Creating mobile subscription session:', {
+              resource: request.resource,
+              interval: request.interval,
+              trialDays: request.trialDays,
+            });
+
+            const response = await fetchWithTimeout(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Idempotency-Key': idempotencyKey,
+              },
+              body: requestBody,
+            });
+
+            if (!response.ok) {
+              const errorMessage = await parseErrorResponse(
+                response,
+                'Failed to create mobile subscription session'
+              );
+              throw new Error(errorMessage);
+            }
+
+            return await response.json();
+          },
+          { ...RETRY_PRESETS.STANDARD, name: 'subscription-create-mobile-session' }
+        );
+      });
+
+      const resolvedSession = this.resolveSubscriptionSessionFlow(session);
+      if (!resolvedSession || resolvedSession.flow !== 'payment_sheet') {
+        throw new Error('Mobile subscription session response was missing PaymentSheet fields.');
+      }
+
+      return resolvedSession;
+    } catch (error) {
+      if (error instanceof CircuitBreakerOpenError) {
+        getLogger().error('[SubscriptionManager] Circuit breaker is OPEN - mobile subscription service unavailable');
+        throw new Error(
+          'Mobile subscription service is temporarily unavailable. Please try again in a few moments.'
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Redirect to Stripe checkout by session ID is not supported on React Native.
+   * Use processSubscription(), which opens hosted checkout URLs directly when needed.
    */
   async redirectToCheckout(_sessionId: string): Promise<PaymentResult> {
     getLogger().warn(
@@ -256,7 +396,9 @@ export class SubscriptionManager implements ISubscriptionManager {
    * Initialize and present the native Payment Sheet for a subscription.
    */
   private async presentPayment(options: {
-    paymentIntentClientSecret: string;
+    subscriptionId?: string;
+    paymentIntentClientSecret?: string;
+    setupIntentClientSecret?: string;
     customerId?: string;
     customerEphemeralKeySecret?: string;
   }): Promise<PaymentResult> {
@@ -265,11 +407,30 @@ export class SubscriptionManager implements ISubscriptionManager {
     }
 
     try {
+      const clientSecret =
+        options.paymentIntentClientSecret ?? options.setupIntentClientSecret;
+      if (!clientSecret) {
+        if (options.subscriptionId) {
+          return {
+            success: true,
+            transactionId: options.subscriptionId,
+          };
+        }
+        return {
+          success: false,
+          error: 'Payment sheet client secret was missing from the subscription session.',
+        };
+      }
+
       const sheetConfig: Record<string, unknown> = {
         paymentIntentClientSecret: options.paymentIntentClientSecret,
+        setupIntentClientSecret: options.setupIntentClientSecret,
         customerId: options.customerId,
         allowsDelayedPaymentMethods: true,
       };
+      if (this.returnUrl) {
+        sheetConfig.returnURL = this.returnUrl;
+      }
       if (options.customerEphemeralKeySecret) {
         sheetConfig.customerEphemeralKeySecret = options.customerEphemeralKeySecret;
       }
@@ -292,7 +453,7 @@ export class SubscriptionManager implements ISubscriptionManager {
 
       return {
         success: true,
-        transactionId: options.paymentIntentClientSecret.split('_secret_')[0],
+        transactionId: options.subscriptionId ?? clientSecret.split('_secret_')[0],
       };
     } catch (error) {
       getLogger().error('[SubscriptionManager] Payment sheet error:', error);
@@ -300,38 +461,75 @@ export class SubscriptionManager implements ISubscriptionManager {
     }
   }
 
+  private async openCheckoutUrl(url: string, sessionId: string): Promise<PaymentResult> {
+    try {
+      await Linking.openURL(url);
+      return {
+        success: true,
+        transactionId: sessionId,
+      };
+    } catch (error) {
+      getLogger().error('[SubscriptionManager] Failed to open Stripe checkout URL:', error);
+      return {
+        success: false,
+        error: formatError(error, 'Failed to open Stripe checkout'),
+      };
+    }
+  }
+
   /**
-   * Complete subscription flow: create session and present Payment Sheet.
-   * Backend must return paymentIntentClientSecret for React Native flows.
+   * Complete subscription flow for React Native.
+   * Supports both hosted redirect checkout and native PaymentSheet session payloads.
    */
   async processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult> {
     try {
       const session = await this.createSubscriptionSession(request);
+      const resolvedSession = this.resolveSubscriptionSessionFlow(session);
 
-      // For React Native, backend should return payment intent details
-      const sessionRecord = session as unknown as Record<string, unknown>;
-      if (sessionRecord.paymentIntentClientSecret) {
+      if (!resolvedSession) {
+        return {
+          success: false,
+          error: 'Subscription session response was missing required checkout fields.',
+        };
+      }
+
+      if (resolvedSession.flow === 'payment_sheet') {
         return await this.presentPayment({
-          paymentIntentClientSecret: sessionRecord.paymentIntentClientSecret as string,
-          customerId: sessionRecord.customerId as string | undefined,
-          customerEphemeralKeySecret: sessionRecord.customerEphemeralKeySecret as string | undefined,
+          subscriptionId: resolvedSession.subscriptionId ?? resolvedSession.sessionId,
+          paymentIntentClientSecret: resolvedSession.paymentIntentClientSecret,
+          setupIntentClientSecret: resolvedSession.setupIntentClientSecret,
+          customerId: resolvedSession.customerId,
+          customerEphemeralKeySecret: resolvedSession.customerEphemeralKeySecret,
         });
       }
 
-      // Fallback: backend only provides sessionId (web-style)
-      getLogger().warn(
-        '[SubscriptionManager] Backend returned sessionId but React Native requires ' +
-        'PaymentIntent client secret. Please update backend to return ' +
-        'paymentIntentClientSecret for mobile subscription flows.'
-      );
-      return {
-        success: false,
-        error: 'Mobile subscriptions require PaymentIntent client secret. Please contact support.',
-      };
+      return await this.openCheckoutUrl(resolvedSession.url, resolvedSession.sessionId);
     } catch (error) {
       return {
         success: false,
         error: formatError(error, 'Subscription failed'),
+      };
+    }
+  }
+
+  /**
+   * Complete the native PaymentSheet subscription flow.
+   */
+  async processMobileSubscription(request: MobileSubscriptionSessionRequest): Promise<PaymentResult> {
+    try {
+      const session = await this.createMobileSubscriptionSession(request);
+
+      return await this.presentPayment({
+        subscriptionId: session.subscriptionId ?? session.sessionId,
+        paymentIntentClientSecret: session.paymentIntentClientSecret,
+        setupIntentClientSecret: session.setupIntentClientSecret,
+        customerId: session.customerId,
+        customerEphemeralKeySecret: session.customerEphemeralKeySecret,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: formatError(error, 'Mobile subscription failed'),
       };
     }
   }

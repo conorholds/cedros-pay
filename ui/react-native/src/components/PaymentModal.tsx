@@ -11,8 +11,24 @@ import {
 import { StripeButton } from './StripeButton';
 import { CryptoButton } from './CryptoButton';
 import { CreditsButton } from './CreditsButton';
+import { NativeStoreButton } from './NativeStoreButton';
+import { RestorePurchasesButton } from './RestorePurchasesButton';
+import { ManageSubscriptionsButton } from './ManageSubscriptionsButton';
+import { useCedrosContext } from '../context';
 import { useTranslation } from '../i18n/useTranslation';
-import type { CartItem, PaymentMethod } from '../types';
+import { mergeCedrosProductDefinition } from '../policy/resolveStoreProductConfiguration';
+import {
+  isManageableStoreSubscription,
+  isRestorableStoreProduct,
+  resolveNativeStoreMethod,
+} from '../policy/nativeStoreSupport';
+import type {
+  CartItem,
+  CedrosProductDefinition,
+  DistributionChannel,
+  NativeStorePurchaseResult,
+  PaymentMethod,
+} from '../types';
 
 export interface PaymentModalProps {
   isOpen: boolean;
@@ -21,9 +37,19 @@ export interface PaymentModalProps {
   resource?: string;
   /** Multiple items (for cart purchases) - mutually exclusive with resource */
   items?: CartItem[];
+  product?: CedrosProductDefinition;
+  distributionChannel?: DistributionChannel;
+  appleIapLabel?: string;
+  googlePlayBillingLabel?: string;
+  restorePurchasesLabel?: string;
+  manageSubscriptionsLabel?: string;
   cardLabel?: string;
   cryptoLabel?: string;
   creditsLabel?: string;
+  showAppleIap?: boolean;
+  showGooglePlayBilling?: boolean;
+  showRestorePurchases?: boolean;
+  showManageSubscriptions?: boolean;
   showCard?: boolean;
   showCrypto?: boolean;
   showCredits?: boolean;
@@ -34,12 +60,20 @@ export interface PaymentModalProps {
   /** Legacy: used for auto-Stripe fallback only */
   onPaymentError?: (error: string) => void;
   /** Method-specific callbacks (new, preferred) */
+  onAppleIapSuccess?: (txId: string) => void;
+  onGooglePlayBillingSuccess?: (txId: string) => void;
   onStripeSuccess?: (txId: string) => void;
   onCryptoSuccess?: (txId: string) => void;
   onCreditsSuccess?: (txId: string) => void;
+  onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+  onManageSubscriptionsOpen?: () => void;
+  onAppleIapError?: (error: string) => void;
+  onGooglePlayBillingError?: (error: string) => void;
   onStripeError?: (error: string) => void;
   onCryptoError?: (error: string) => void;
   onCreditsError?: (error: string) => void;
+  onRestorePurchasesError?: (error: string) => void;
+  onManageSubscriptionsError?: (error: string) => void;
   customerEmail?: string;
   successUrl?: string;
   cancelUrl?: string;
@@ -57,21 +91,39 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   resource,
   items,
+  product,
+  distributionChannel,
+  appleIapLabel = 'Buy with Apple',
+  googlePlayBillingLabel = 'Buy with Google Play',
+  restorePurchasesLabel = 'Restore Purchases',
+  manageSubscriptionsLabel = 'Manage Subscription',
   cardLabel = 'Card',
   cryptoLabel = 'USDC (Solana)',
   creditsLabel = 'Pay with Credits',
+  showAppleIap = false,
+  showGooglePlayBilling = false,
+  showRestorePurchases,
+  showManageSubscriptions,
   showCard = true,
   showCrypto = true,
   showCredits = false,
   onPaymentAttempt,
   onPaymentSuccess,
   onPaymentError,
+  onAppleIapSuccess,
+  onGooglePlayBillingSuccess,
   onStripeSuccess,
   onCryptoSuccess,
   onCreditsSuccess,
+  onRestorePurchasesSuccess,
+  onManageSubscriptionsOpen,
+  onAppleIapError,
+  onGooglePlayBillingError,
   onStripeError,
   onCryptoError,
   onCreditsError,
+  onRestorePurchasesError,
+  onManageSubscriptionsError,
   customerEmail,
   successUrl,
   cancelUrl,
@@ -81,7 +133,43 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   hideMessages = false,
   contentStyle,
 }) => {
+  const { config } = useCedrosContext();
   const { t } = useTranslation();
+  const resolvedResource = resource ?? product?.id;
+  const resolvedProduct = React.useMemo(
+    () =>
+      mergeCedrosProductDefinition({
+        fallbackId: resolvedResource,
+        catalogProduct: resolvedResource
+          ? config.paymentPolicy?.productCatalog?.[resolvedResource]
+          : undefined,
+        explicitProduct: product,
+      }),
+    [config.paymentPolicy?.productCatalog, product, resolvedResource]
+  );
+  const nativeMethod = resolveNativeStoreMethod(distributionChannel);
+  const nativeHandler = nativeMethod
+    ? config.paymentPolicy?.nativeHandlers?.[nativeMethod]
+    : undefined;
+  const canRestorePurchases =
+    config.paymentPolicy?.storeBilling?.enabled !== false ||
+    Boolean(nativeHandler?.restorePurchases);
+  const canManageSubscriptions =
+    config.paymentPolicy?.storeBilling?.enabled !== false ||
+    Boolean(nativeHandler?.openManageSubscriptions);
+  const showNativeStoreLifecycleActions = Boolean(
+    resolvedProduct &&
+      distributionChannel &&
+      (showAppleIap || showGooglePlayBilling)
+  );
+  const shouldShowRestorePurchases =
+    showNativeStoreLifecycleActions &&
+    canRestorePurchases &&
+    (showRestorePurchases ?? isRestorableStoreProduct(resolvedProduct));
+  const shouldShowManageSubscriptions =
+    showNativeStoreLifecycleActions &&
+    canManageSubscriptions &&
+    (showManageSubscriptions ?? isManageableStoreSubscription(resolvedProduct));
 
   if (!isOpen) return null;
 
@@ -108,10 +196,86 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </View>
 
           <ScrollView style={styles.buttonsContainer}>
+            {showAppleIap && resolvedProduct && distributionChannel && (
+              <View style={styles.buttonWrapper}>
+                <NativeStoreButton
+                  method="apple_iap"
+                  product={resolvedProduct}
+                  distributionChannel={distributionChannel}
+                  checkout={{
+                    customerEmail,
+                    successUrl,
+                    cancelUrl,
+                    metadata,
+                    couponCode,
+                    authToken,
+                  }}
+                  label={appleIapLabel}
+                  onAttempt={onPaymentAttempt}
+                  onSuccess={onAppleIapSuccess || onPaymentSuccess}
+                  onError={onAppleIapError || onPaymentError}
+                />
+              </View>
+            )}
+            {showGooglePlayBilling && resolvedProduct && distributionChannel && (
+              <View style={styles.buttonWrapper}>
+                <NativeStoreButton
+                  method="google_play_billing"
+                  product={resolvedProduct}
+                  distributionChannel={distributionChannel}
+                  checkout={{
+                    customerEmail,
+                    successUrl,
+                    cancelUrl,
+                    metadata,
+                    couponCode,
+                    authToken,
+                  }}
+                  label={googlePlayBillingLabel}
+                  onAttempt={onPaymentAttempt}
+                  onSuccess={onGooglePlayBillingSuccess || onPaymentSuccess}
+                  onError={onGooglePlayBillingError || onPaymentError}
+                />
+              </View>
+            )}
+            {shouldShowRestorePurchases &&
+              resolvedProduct &&
+              distributionChannel && (
+                <View style={styles.secondaryButtonWrapper}>
+                  <RestorePurchasesButton
+                    product={resolvedProduct}
+                    distributionChannel={distributionChannel}
+                    checkout={{
+                      customerEmail,
+                      successUrl,
+                      cancelUrl,
+                      metadata,
+                      couponCode,
+                      authToken,
+                    }}
+                    label={restorePurchasesLabel}
+                    onSuccess={onRestorePurchasesSuccess}
+                    onError={onRestorePurchasesError}
+                  />
+                </View>
+              )}
+            {shouldShowManageSubscriptions &&
+              resolvedProduct &&
+              distributionChannel && (
+                <View style={styles.secondaryButtonWrapper}>
+                  <ManageSubscriptionsButton
+                    product={resolvedProduct}
+                    distributionChannel={distributionChannel}
+                    label={manageSubscriptionsLabel}
+                    onOpen={onManageSubscriptionsOpen}
+                    onError={onManageSubscriptionsError}
+                  />
+                </View>
+              )}
             {showCard && (
               <View style={styles.buttonWrapper}>
                 <StripeButton
-                  resource={resource}
+                  resource={resolvedResource}
                   items={items}
                   label={cardLabel}
                   onAttempt={onPaymentAttempt}
@@ -128,7 +292,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             {showCrypto && (
               <View style={styles.buttonWrapper}>
                 <CryptoButton
-                  resource={resource}
+                  resource={resolvedResource}
                   items={items}
                   label={cryptoLabel}
                   onAttempt={onPaymentAttempt}
@@ -143,7 +307,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             {showCredits && (
               <View style={styles.buttonWrapper}>
                 <CreditsButton
-                  resource={resource}
+                  resource={resolvedResource}
                   items={items}
                   label={creditsLabel}
                   authToken={authToken}
@@ -205,6 +369,10 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   buttonWrapper: {
+    marginBottom: 12,
+  },
+  secondaryButtonWrapper: {
+    marginTop: 4,
     marginBottom: 12,
   },
 });

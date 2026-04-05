@@ -1093,6 +1093,18 @@ impl<S: Store + 'static> Store for CachedStore<S> {
         Ok(inserted)
     }
 
+    async fn upsert_payment(&self, tx: PaymentTransaction) -> StorageResult<()> {
+        let cache_key = Self::tenant_key(&tx.tenant_id, &tx.signature);
+        let result = self.inner.upsert_payment(tx).await?;
+
+        if self.config.enabled {
+            self.payment_processed_cache
+                .set(cache_key, true, self.config.payment_ttl);
+        }
+
+        Ok(result)
+    }
+
     async fn delete_payment(&self, tenant_id: &str, signature: &str) -> StorageResult<()> {
         let cache_key = Self::tenant_key(tenant_id, signature);
         let result = self.inner.delete_payment(tenant_id, signature).await?;

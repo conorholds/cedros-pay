@@ -1,4 +1,4 @@
-import type { SubscriptionSessionRequest, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, PaymentResult } from '../types';
+import type { MobileSubscriptionSessionRequest, SubscriptionSessionRequest, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, PaymentResult } from '../types';
 import type { SubscriptionQuoteOptions } from '../managers/SubscriptionManager';
 /**
  * Hook for subscription management
@@ -30,6 +30,7 @@ import type { SubscriptionQuoteOptions } from '../managers/SubscriptionManager';
  */
 export declare function useSubscription(): {
     processSubscription: (request: SubscriptionSessionRequest) => Promise<PaymentResult>;
+    processMobileSubscription: (request: MobileSubscriptionSessionRequest) => Promise<PaymentResult>;
     checkStatus: (request: SubscriptionStatusRequest) => Promise<SubscriptionStatusResponse>;
     requestQuote: (resource: string, interval: BillingInterval, options?: SubscriptionQuoteOptions) => Promise<SubscriptionQuote>;
     reset: () => void;

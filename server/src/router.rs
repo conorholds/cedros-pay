@@ -58,6 +58,8 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
     let idempotency_state = Arc::new(middleware::IdempotencyState::new(states.store.clone()));
 
     let paywall_routes = build_paywall_routes(states.app_state.clone(), idempotency_state.clone());
+    let native_store_notification_routes =
+        build_native_store_notification_routes(states.app_state.clone());
     let gift_card_claim_routes = build_gift_card_claim_routes(states.app_state.clone());
     let stripe_redirects = build_stripe_redirect_routes(states.app_state.clone());
     let stripe_webhook = build_stripe_webhook_route(states.app_state.clone());
@@ -78,6 +80,7 @@ pub(crate) fn build_router<S: Store + 'static>(states: RouterStates<S>) -> Route
     let mut router = Router::new()
         .merge(health_routes)
         .nest(&paywall_prefix, paywall_routes)
+        .nest(&paywall_prefix, native_store_notification_routes)
         .nest(&paywall_prefix, gift_card_claim_routes)
         .nest(&paywall_prefix, asset_redemption_routes)
         .nest(&paywall_prefix, products_routes)
@@ -135,6 +138,10 @@ fn build_paywall_routes<S: Store + 'static>(
         .route(
             "/credits/authorize",
             post(handlers::credits::authorize_credits::<S>),
+        )
+        .route(
+            "/native-store/verify",
+            post(handlers::native_store::verify_native_store_purchase::<S>),
         )
         .route(
             "/credits/hold",
@@ -198,6 +205,21 @@ fn build_paywall_routes<S: Store + 'static>(
         .layer(axum::middleware::from_fn(
             middleware::timeout::payment_timeout_middleware,
         ))
+        .with_state(app_state)
+}
+
+fn build_native_store_notification_routes<S: Store + 'static>(
+    app_state: Arc<handlers::paywall::AppState<S>>,
+) -> Router {
+    Router::new()
+        .route(
+            "/native-store/apple/notifications",
+            post(handlers::native_store::apple_notification::<S>),
+        )
+        .route(
+            "/native-store/google/notifications",
+            post(handlers::native_store::google_notification::<S>),
+        )
         .with_state(app_state)
 }
 
@@ -270,6 +292,10 @@ fn build_subscription_routes<S: Store + 'static>(
         .route(
             "/stripe-session",
             post(handlers::subscriptions::stripe_session::<S>),
+        )
+        .route(
+            "/stripe-mobile-session",
+            post(handlers::subscriptions::stripe_mobile_session::<S>),
         )
         .route("/quote", post(handlers::subscriptions::quote::<S>))
         .route(

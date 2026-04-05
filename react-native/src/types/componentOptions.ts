@@ -14,16 +14,31 @@
 
 import type { WalletAdapter } from '@solana/wallet-adapter-base';
 import type { CartItem } from './index';
+import type {
+  CedrosProductDefinition,
+  DistributionChannel,
+  NativeStorePurchaseResult,
+} from './storePolicy';
 
 /**
  * Payment method types (extensible)
  */
-export type PaymentMethod = 'stripe' | 'crypto' | 'credits';
+export type PaymentMethod =
+  | 'apple_iap'
+  | 'google_play_billing'
+  | 'stripe'
+  | 'crypto'
+  | 'x402'
+  | 'credits';
 
 /**
  * Future payment methods (for type-safe extensibility)
  */
-export type FuturePaymentMethod = PaymentMethod | 'credits' | 'ach' | 'sepa' | 'bank-transfer';
+export type FuturePaymentMethod =
+  | PaymentMethod
+  | 'ach'
+  | 'sepa'
+  | 'bank-transfer';
 
 /**
  * Payment success result (extensible for future data)
@@ -90,6 +105,18 @@ export interface CheckoutOptions {
  * Handles labels, visibility, layout, and FUTURE: payment method selection
  */
 export interface DisplayOptions {
+  /** Label for Apple IAP button */
+  appleIapLabel?: string;
+
+  /** Label for Google Play Billing button */
+  googlePlayBillingLabel?: string;
+
+  /** Label for restore purchases button */
+  restorePurchasesLabel?: string;
+
+  /** Label for manage subscription button */
+  manageSubscriptionsLabel?: string;
+
   /** Label for card payment button */
   cardLabel?: string;
 
@@ -101,6 +128,18 @@ export interface DisplayOptions {
 
   /** Show card payment option */
   showCard?: boolean;
+
+  /** Show Apple IAP option */
+  showAppleIap?: boolean;
+
+  /** Show Google Play Billing option */
+  showGooglePlayBilling?: boolean;
+
+  /** Show restore purchases option for restorable store products */
+  showRestorePurchases?: boolean;
+
+  /** Show manage subscriptions option for store-managed subscriptions */
+  showManageSubscriptions?: boolean;
 
   /** Show crypto payment option */
   showCrypto?: boolean;
@@ -132,20 +171,35 @@ export interface DisplayOptions {
     onClose: () => void;
     resource?: string;
     items?: CartItem[];
+    product?: CedrosProductDefinition;
+    distributionChannel?: DistributionChannel;
+    appleIapLabel?: string;
+    googlePlayBillingLabel?: string;
+    restorePurchasesLabel?: string;
+    manageSubscriptionsLabel?: string;
     cardLabel?: string;
     cryptoLabel?: string;
     creditsLabel?: string;
+    showAppleIap?: boolean;
+    showGooglePlayBilling?: boolean;
+    showRestorePurchases?: boolean;
+    showManageSubscriptions?: boolean;
     showCard?: boolean;
     showCrypto?: boolean;
     showCredits?: boolean;
     onPaymentAttempt?: (method: PaymentMethod | 'credits') => void;
     onPaymentSuccess?: (txId: string) => void;
     onPaymentError?: (error: string) => void;
+    onAppleIapSuccess?: (txId: string) => void;
+    onGooglePlayBillingSuccess?: (txId: string) => void;
+    onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+    onManageSubscriptionsOpen?: () => void;
     customerEmail?: string;
     successUrl?: string;
     cancelUrl?: string;
     metadata?: Record<string, string>;
     couponCode?: string;
+    authToken?: string;
     testPageUrl?: string;
     hideMessages?: boolean;
   }) => React.ReactNode;
@@ -166,20 +220,33 @@ export interface ModalRenderProps {
   onClose: () => void;
   resource?: string;
   items?: CartItem[];
+  product?: CedrosProductDefinition;
+  distributionChannel?: DistributionChannel;
+  appleIapLabel?: string;
+  googlePlayBillingLabel?: string;
+  restorePurchasesLabel?: string;
+  manageSubscriptionsLabel?: string;
   cardLabel?: string;
   cryptoLabel?: string;
   creditsLabel?: string;
+  showAppleIap?: boolean;
+  showGooglePlayBilling?: boolean;
+  showRestorePurchases?: boolean;
+  showManageSubscriptions?: boolean;
   showCard?: boolean;
   showCrypto?: boolean;
   showCredits?: boolean;
   onPaymentAttempt?: (method: PaymentMethod | 'credits') => void;
   onPaymentSuccess?: (result: PaymentSuccessResult) => void;
   onPaymentError?: (error: PaymentErrorDetail) => void;
+  onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+  onManageSubscriptionsOpen?: () => void;
   customerEmail?: string;
   successUrl?: string;
   cancelUrl?: string;
   metadata?: Record<string, string>;
   couponCode?: string;
+  authToken?: string;
   testPageUrl?: string;
   hideMessages?: boolean;
 }

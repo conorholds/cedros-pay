@@ -6,7 +6,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::models::compliance::{ComplianceRequirements, KycStatus, TokenGate, UserComplianceStatus};
+use crate::models::compliance::{
+    ComplianceRequirements, KycStatus, TokenGate, UserComplianceStatus,
+};
 use crate::services::cedros_login::CedrosLoginClient;
 use crate::services::sanctions_list::SanctionsListService;
 use crate::services::token_gate::TokenGateChecker;
@@ -63,10 +65,9 @@ impl ComplianceChecker {
                 let merged_gates = merged.token_gates.get_or_insert_with(Vec::new);
                 for gate in gates {
                     // Dedup by (address, gate_type), taking max(min_amount)
-                    if let Some(existing) = merged_gates
-                        .iter_mut()
-                        .find(|g: &&mut TokenGate| g.address == gate.address && g.gate_type == gate.gate_type)
-                    {
+                    if let Some(existing) = merged_gates.iter_mut().find(|g: &&mut TokenGate| {
+                        g.address == gate.address && g.gate_type == gate.gate_type
+                    }) {
                         existing.min_amount = existing.min_amount.max(gate.min_amount);
                     } else {
                         merged_gates.push(gate.clone());
@@ -120,10 +121,8 @@ impl ComplianceChecker {
                         match &status {
                             Some(s) if s.kyc_status == KycStatus::Verified => {}
                             Some(s) => {
-                                reasons.push(format!(
-                                    "KYC not verified (status: {:?})",
-                                    s.kyc_status
-                                ));
+                                reasons
+                                    .push(format!("KYC not verified (status: {:?})", s.kyc_status));
                             }
                             None => {
                                 reasons

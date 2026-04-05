@@ -57,7 +57,11 @@ pub async fn create_nft_mint(
         .map_err(|e| format!("rent exemption query failed: {e}"))?;
 
     let create_account_ix = system_instruction::create_account(
-        &authority, &mint, lamports, space as u64, &TOKEN_2022_PROGRAM_ID,
+        &authority,
+        &mint,
+        lamports,
+        space as u64,
+        &TOKEN_2022_PROGRAM_ID,
     );
 
     let mut ixs = vec![
@@ -69,12 +73,17 @@ pub async fn create_nft_mint(
 
     if let Some(ref fee) = transfer_fee {
         ixs.push(build_init_transfer_fee_config_ix(
-            &mint, &authority, fee.basis_points, fee.max_fee,
+            &mint,
+            &authority,
+            fee.basis_points,
+            fee.max_fee,
         ));
     }
 
     ixs.push(build_init_mint2_ix(&mint, &authority, 0));
-    ixs.push(build_init_token_metadata_ix(&mint, &authority, name, symbol, uri));
+    ixs.push(build_init_token_metadata_ix(
+        &mint, &authority, name, symbol, uri,
+    ));
 
     let ata = super::operations::get_associated_token_address_2022(owner, &mint);
     ixs.push(build_create_ata_idempotent_ix(&authority, owner, &mint));
@@ -86,11 +95,13 @@ pub async fn create_nft_mint(
         .get_blockhash()
         .await
         .map_err(|e| format!("blockhash fetch failed: {e}"))?;
-    let blockhash =
-        Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
+    let blockhash = Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
 
     let tx = Transaction::new_signed_with_payer(
-        &ixs, Some(&authority), &[&*service.authority, &mint_kp], blockhash,
+        &ixs,
+        Some(&authority),
+        &[&*service.authority, &mint_kp],
+        blockhash,
     );
 
     let sig = service
@@ -125,8 +136,7 @@ pub async fn burn_nft(
         .get_blockhash()
         .await
         .map_err(|e| format!("blockhash fetch failed: {e}"))?;
-    let blockhash =
-        Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
+    let blockhash = Hash::from_str(&bh.blockhash).map_err(|e| format!("invalid blockhash: {e}"))?;
 
     let tx = Transaction::new_signed_with_payer(
         &[burn_ix, close_ix],
@@ -191,13 +201,18 @@ fn build_init_mint_close_authority_ix(mint: &Pubkey, authority: &Pubkey) -> Inst
 
 /// InitializeTransferFeeConfig (disc 26, sub 0).
 fn build_init_transfer_fee_config_ix(
-    mint: &Pubkey, authority: &Pubkey, fee_bps: u16, max_fee: u64,
+    mint: &Pubkey,
+    authority: &Pubkey,
+    fee_bps: u16,
+    max_fee: u64,
 ) -> Instruction {
     let mut data = Vec::with_capacity(80);
     data.push(26u8);
     data.push(0u8); // sub: InitializeTransferFeeConfig
-    data.push(1u8); data.extend_from_slice(&authority.to_bytes()); // config authority
-    data.push(1u8); data.extend_from_slice(&authority.to_bytes()); // withdraw authority
+    data.push(1u8);
+    data.extend_from_slice(&authority.to_bytes()); // config authority
+    data.push(1u8);
+    data.extend_from_slice(&authority.to_bytes()); // withdraw authority
     data.extend_from_slice(&fee_bps.to_le_bytes());
     data.extend_from_slice(&max_fee.to_le_bytes());
     Instruction {
@@ -226,7 +241,11 @@ fn build_init_mint2_ix(mint: &Pubkey, authority: &Pubkey, decimals: u8) -> Instr
 ///
 /// Discriminator: sha256("spl_token_metadata_interface:initialize_account")[0..8].
 fn build_init_token_metadata_ix(
-    mint: &Pubkey, authority: &Pubkey, name: &str, symbol: &str, uri: &str,
+    mint: &Pubkey,
+    authority: &Pubkey,
+    name: &str,
+    symbol: &str,
+    uri: &str,
 ) -> Instruction {
     let disc = token_metadata_init_discriminator();
     let mut data = Vec::with_capacity(8 + 12 + name.len() + symbol.len() + uri.len());
@@ -239,9 +258,9 @@ fn build_init_token_metadata_ix(
     Instruction {
         program_id: TOKEN_2022_PROGRAM_ID,
         accounts: vec![
-            AccountMeta::new(*mint, false),           // metadata (self-ref)
+            AccountMeta::new(*mint, false),               // metadata (self-ref)
             AccountMeta::new_readonly(*authority, false), // update authority
-            AccountMeta::new(*mint, false),            // mint
+            AccountMeta::new(*mint, false),               // mint
             AccountMeta::new_readonly(*authority, true),  // mint authority (signer)
         ],
         data,
@@ -250,14 +269,23 @@ fn build_init_token_metadata_ix(
 
 /// SetAuthority (disc 6). authority_type: 0=MintTokens, 2=CloseAccount, etc.
 fn build_set_authority_ix(
-    account: &Pubkey, current: &Pubkey, new_auth: Option<&Pubkey>, auth_type: u8,
+    account: &Pubkey,
+    current: &Pubkey,
+    new_auth: Option<&Pubkey>,
+    auth_type: u8,
 ) -> Instruction {
     let mut data = Vec::with_capacity(35);
     data.push(6u8);
     data.push(auth_type);
     match new_auth {
-        Some(pk) => { data.push(1u8); data.extend_from_slice(&pk.to_bytes()); }
-        None => { data.push(0u8); data.extend_from_slice(&[0u8; 32]); }
+        Some(pk) => {
+            data.push(1u8);
+            data.extend_from_slice(&pk.to_bytes());
+        }
+        None => {
+            data.push(0u8);
+            data.extend_from_slice(&[0u8; 32]);
+        }
     }
     Instruction {
         program_id: TOKEN_2022_PROGRAM_ID,
@@ -271,7 +299,9 @@ fn build_set_authority_ix(
 
 /// CloseAccount (disc 9).
 fn build_close_account_ix(
-    account: &Pubkey, destination: &Pubkey, authority: &Pubkey,
+    account: &Pubkey,
+    destination: &Pubkey,
+    authority: &Pubkey,
 ) -> Instruction {
     Instruction {
         program_id: TOKEN_2022_PROGRAM_ID,

@@ -4,7 +4,7 @@
  * Handles subscription-related operations for both Stripe and x402 crypto subscriptions.
  * Follows the same patterns as StripeManager for consistency.
  */
-import type { PaymentResult, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse } from '../types';
+import type { MobileSubscriptionSessionRequest, PaymentResult, PaymentSheetSubscriptionSessionResponse, SubscriptionSessionRequest, SubscriptionSessionResponse, SubscriptionStatusRequest, SubscriptionStatusResponse, SubscriptionQuote, BillingInterval, CancelSubscriptionRequest, CancelSubscriptionResponse, BillingPortalRequest, BillingPortalResponse, ActivateX402SubscriptionRequest, ActivateX402SubscriptionResponse } from '../types';
 import { RouteDiscoveryManager } from './RouteDiscoveryManager';
 /**
  * Options for requesting a subscription quote (x402)
@@ -41,6 +41,10 @@ export interface ISubscriptionManager {
      */
     createSubscriptionSession(request: SubscriptionSessionRequest): Promise<SubscriptionSessionResponse>;
     /**
+     * Create a native Stripe PaymentSheet subscription session.
+     */
+    createMobileSubscriptionSession(request: MobileSubscriptionSessionRequest): Promise<PaymentSheetSubscriptionSessionResponse>;
+    /**
      * Redirect to Stripe checkout page
      */
     redirectToCheckout(sessionId: string): Promise<PaymentResult>;
@@ -48,6 +52,10 @@ export interface ISubscriptionManager {
      * Complete subscription flow: create session and redirect (Stripe)
      */
     processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult>;
+    /**
+     * Complete the native Stripe PaymentSheet subscription flow.
+     */
+    processMobileSubscription(request: MobileSubscriptionSessionRequest): Promise<PaymentResult>;
     /**
      * Check subscription status (for x402 gating)
      */
@@ -81,10 +89,14 @@ export declare class SubscriptionManager implements ISubscriptionManager {
     private isStripeInitialized;
     private readonly publicKey;
     private readonly routeDiscovery;
+    private readonly returnUrl?;
     private readonly sessionRateLimiter;
     private readonly statusRateLimiter;
     private readonly circuitBreaker;
-    constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager);
+    constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager, options?: {
+        returnUrl?: string;
+    });
+    private resolveSubscriptionSessionFlow;
     /** Initialize Stripe React Native SDK */
     initialize(): Promise<void>;
     /** Internal helper: execute with rate limiting, circuit breaker, and retry */
@@ -94,19 +106,28 @@ export declare class SubscriptionManager implements ISubscriptionManager {
      */
     createSubscriptionSession(request: SubscriptionSessionRequest): Promise<SubscriptionSessionResponse>;
     /**
-     * Redirect to Stripe checkout — not supported on React Native.
-     * Use processSubscription() instead, which uses the native Payment Sheet.
+     * Create a native Stripe PaymentSheet subscription session.
+     */
+    createMobileSubscriptionSession(request: MobileSubscriptionSessionRequest): Promise<PaymentSheetSubscriptionSessionResponse>;
+    /**
+     * Redirect to Stripe checkout by session ID is not supported on React Native.
+     * Use processSubscription(), which opens hosted checkout URLs directly when needed.
      */
     redirectToCheckout(_sessionId: string): Promise<PaymentResult>;
     /**
      * Initialize and present the native Payment Sheet for a subscription.
      */
     private presentPayment;
+    private openCheckoutUrl;
     /**
-     * Complete subscription flow: create session and present Payment Sheet.
-     * Backend must return paymentIntentClientSecret for React Native flows.
+     * Complete subscription flow for React Native.
+     * Supports both hosted redirect checkout and native PaymentSheet session payloads.
      */
     processSubscription(request: SubscriptionSessionRequest): Promise<PaymentResult>;
+    /**
+     * Complete the native PaymentSheet subscription flow.
+     */
+    processMobileSubscription(request: MobileSubscriptionSessionRequest): Promise<PaymentResult>;
     /**
      * Check subscription status (for x402 gating)
      */

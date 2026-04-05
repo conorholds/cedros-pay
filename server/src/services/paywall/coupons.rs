@@ -27,6 +27,8 @@ pub async fn select_coupons_for_payment(
         PaymentMethod::Stripe => "stripe",
         PaymentMethod::X402 => "x402",
         PaymentMethod::Credits => "credits",
+        PaymentMethod::AppleIap => "apple_iap",
+        PaymentMethod::GooglePlayBilling => "google_play_billing",
     };
 
     // Get auto-apply coupons based on scope

@@ -84,6 +84,8 @@ pub struct CreateProductRequest {
     #[serde(default)]
     pub gift_card_config: Option<crate::models::GiftCardConfig>,
     #[serde(default)]
+    pub store_billing: Option<crate::models::StoreBillingConfig>,
+    #[serde(default)]
     pub tokenized_asset_config: Option<crate::models::TokenizedAssetConfig>,
     #[serde(default)]
     pub compliance_requirements: Option<crate::models::compliance::ComplianceRequirements>,

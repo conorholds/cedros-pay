@@ -165,8 +165,9 @@ impl<S: Store> SubscriptionService<S> {
         };
 
         let user_id = self.resolve_user_id_from_wallet(wallet).await;
-        if let ComplianceResult::Blocked { reasons } =
-            checker.check_compliance(tenant_id, wallet, user_id.as_deref(), &reqs).await
+        if let ComplianceResult::Blocked { reasons } = checker
+            .check_compliance(tenant_id, wallet, user_id.as_deref(), &reqs)
+            .await
         {
             warn!(
                 tenant_id = %tenant_id,
@@ -547,7 +548,8 @@ impl<S: Store> SubscriptionService<S> {
         }
 
         // Compliance gate: sanctions, KYC, accredited investor
-        self.check_subscription_compliance(&tenant_id, &wallet, &product_id).await?;
+        self.check_subscription_compliance(&tenant_id, &wallet, &product_id)
+            .await?;
 
         // SECURITY (H-004): Check if payment signature already used for a subscription.
         // This prevents creating duplicate subscriptions for the same payment.
@@ -707,7 +709,8 @@ impl<S: Store> SubscriptionService<S> {
         }
 
         // Compliance gate: sanctions, KYC, accredited investor
-        self.check_subscription_compliance(tenant_id, wallet, product_id).await?;
+        self.check_subscription_compliance(tenant_id, wallet, product_id)
+            .await?;
 
         if let Some(active_sub) = self
             .find_active_wallet_subscription(tenant_id, wallet, product_id)

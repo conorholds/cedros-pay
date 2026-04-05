@@ -852,6 +852,8 @@ pub trait Store: Send + Sync {
     /// Returns false if payment with same signature already exists (prevents double-spend).
     /// This prevents TOCTOU race conditions in payment verification.
     async fn try_record_payment(&self, tx: PaymentTransaction) -> StorageResult<bool>;
+    /// Insert or overwrite a payment record by signature with tenant isolation.
+    async fn upsert_payment(&self, tx: PaymentTransaction) -> StorageResult<()>;
     /// Delete a payment record by signature with tenant isolation (used for webhook idempotency).
     async fn delete_payment(&self, tenant_id: &str, signature: &str) -> StorageResult<()>;
     /// Check if payment has been processed with tenant isolation

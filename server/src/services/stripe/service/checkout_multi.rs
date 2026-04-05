@@ -144,7 +144,11 @@ impl StripeClient {
             form.push(("discounts[0][promotion_code]".into(), promo.clone()));
         }
 
-        let response = self.stripe_post("checkout/sessions", &form).await?;
+        // Server-generated idempotency key to prevent duplicate sessions from HTTP retries
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let response = self
+            .stripe_post_with_idempotency("checkout/sessions", &form, Some(&idempotency_key))
+            .await?;
         let session: StripeCheckoutSession =
             serde_json::from_value(response).map_err(|e| ServiceError::Coded {
                 code: ErrorCode::StripeError,
@@ -175,6 +179,9 @@ impl StripeClient {
         let mut metadata = req.metadata.clone();
         metadata.insert("subscription".into(), "true".into());
         metadata.insert("product_id".into(), req.product_id.clone());
+        if let Some(code) = &req.coupon_code {
+            metadata.insert("coupon_code".into(), code.clone());
+        }
 
         // Use (String, String) to avoid memory leaks
         let mut form: Vec<(String, String)> = vec![
@@ -227,6 +234,12 @@ impl StripeClient {
         // Without this, tenant_id would be missing from subscription webhooks.
         for (k, v) in &metadata {
             form.push((format!("subscription_data[metadata][{}]", k), v.clone()));
+        }
+
+        if let Some(code) = &req.coupon_code {
+            if let Some(promo_id) = self.lookup_promotion_code_id(code).await? {
+                form.push(("discounts[0][promotion_code]".into(), promo_id));
+            }
         }
 
         let response = self

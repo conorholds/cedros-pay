@@ -37,6 +37,15 @@ pub(super) async fn try_record_payment(
     }
 }
 
+pub(super) async fn upsert_payment(
+    store: &InMemoryStore,
+    tx: PaymentTransaction,
+) -> StorageResult<()> {
+    let key = tenant_key(&tx.tenant_id, &tx.signature);
+    store.payments.lock().insert(key, tx);
+    Ok(())
+}
+
 pub(super) async fn delete_payment(
     store: &InMemoryStore,
     tenant_id: &str,

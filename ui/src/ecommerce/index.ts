@@ -1,5 +1,22 @@
 export type { CedrosShopConfig } from './config/types';
 export { CedrosShopProvider, useCedrosShop } from './config/context';
+export {
+  FEATURE_FLAG_REGISTRY,
+  FEATURE_FLAG_NAMES,
+  getFeatureFlagDefinition,
+  getFeatureFlagDefinitions,
+  parseFeatureFlagBoolean,
+  resolveFeatureFlags,
+  isFeatureEnabled,
+} from '../featureFlags';
+export type {
+  FeatureFlagEnv,
+  ResolveFeatureFlagsOptions,
+  FeatureFlagName,
+  FeatureFlagDefinition,
+  FeatureFlagOverrides,
+  ResolvedFeatureFlags,
+} from '../featureFlags';
 
 export type {
   Product,

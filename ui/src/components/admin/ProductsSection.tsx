@@ -8,7 +8,13 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Icons } from './icons';
 import { ErrorBanner } from './ErrorBanner';
 import { StatsBar } from './StatsBar';
-import type { SectionProps, Product } from './types';
+import type {
+  SectionProps,
+  Product,
+  StoreBillingConfig,
+  StoreManagedProductKind,
+  StorePolicyFulfillmentType,
+} from './types';
 import { ProductVariationsEditor } from './ProductVariationsEditor';
 import { ComplianceRequirementsEditor } from './ComplianceRequirementsEditor';
 import { NftMetadataPreview } from './NftMetadataPreview';
@@ -45,6 +51,13 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
     checkoutShippingAddress: false,
     checkoutBillingAddress: false,
     fulfillmentType: 'shipping' as 'digital_download' | 'shipping' | 'service',
+    storePolicyFulfillment: 'physical_goods' as StorePolicyFulfillmentType,
+    storeManagedKind: 'none' as StoreManagedProductKind | 'none',
+    appleProductId: '',
+    googleProductId: '',
+    googlePackageName: '',
+    googleBasePlanId: '',
+    googleOfferId: '',
     fulfillmentNotes: '',
     shippingCountriesCsv: '',
     inventoryQuantity: '' as '' | number,
@@ -81,6 +94,7 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
       inventory_status: p.inventoryStatus,
       checkout_requirements: JSON.stringify(checkoutRequirements),
       fulfillment_type: p.fulfillmentType,
+      store_policy_fulfillment_type: p.storePolicyFulfillment,
     };
 
     if (p.imageUrl) metadata.image_url = p.imageUrl;
@@ -104,8 +118,108 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
 
   const [assetCollections, setAssetCollections] = useState<Array<{ id: string; name: string }>>([]);
 
-  const getProductTitle = (p: Product) => p.metadata?.title || p.description || p.id;
-  const getProductImageUrl = (p: Product) => p.metadata?.image_url;
+  const getProductTitle = (p: Product) => p.title || p.metadata?.title || p.description || p.id;
+  const getProductImageUrl = (p: Product) => p.imageUrl || p.images?.[0]?.url || p.metadata?.image_url;
+  const getStorePolicyFulfillment = (p: Product): StorePolicyFulfillmentType | undefined => {
+    const value = p.metadata?.store_policy_fulfillment_type;
+    if (
+      value === 'digital_in_app' ||
+      value === 'physical_goods' ||
+      value === 'real_world_service' ||
+      value === 'reader_content' ||
+      value === 'other'
+    ) {
+      return value;
+    }
+
+    switch (p.fulfillment?.type) {
+      case 'shipping':
+        return 'physical_goods';
+      case 'service':
+        return 'real_world_service';
+      case 'digital_download':
+        return 'digital_in_app';
+      default:
+        return undefined;
+    }
+  };
+  const formatStorePolicyFulfillment = (value?: StorePolicyFulfillmentType) => {
+    switch (value) {
+      case 'digital_in_app':
+        return 'Digital in-app';
+      case 'physical_goods':
+        return 'Physical goods';
+      case 'real_world_service':
+        return 'Real-world service';
+      case 'reader_content':
+        return 'Reader content';
+      case 'other':
+        return 'Other';
+      default:
+        return 'Not set';
+    }
+  };
+  const formatStoreManagedKind = (value?: StoreManagedProductKind) => {
+    switch (value) {
+      case 'consumable':
+        return 'Consumable';
+      case 'non_consumable':
+        return 'Non-consumable';
+      case 'auto_renewable_subscription':
+        return 'Auto-renewing subscription';
+      default:
+        return 'External billing only';
+    }
+  };
+  const buildStoreBillingPayload = (p: typeof newProduct): StoreBillingConfig | undefined => {
+    if (p.storeManagedKind === 'none') {
+      return undefined;
+    }
+
+    const trimmedAppleProductId = p.appleProductId.trim();
+    const trimmedGoogleProductId = p.googleProductId.trim();
+    const trimmedGooglePackageName = p.googlePackageName.trim();
+    const trimmedGoogleBasePlanId = p.googleBasePlanId.trim();
+    const trimmedGoogleOfferId = p.googleOfferId.trim();
+
+    if (!trimmedAppleProductId && !trimmedGoogleProductId) {
+      return undefined;
+    }
+
+    return {
+      kind: p.storeManagedKind,
+      apple: trimmedAppleProductId
+        ? {
+            productId: trimmedAppleProductId,
+          }
+        : undefined,
+      google: trimmedGoogleProductId
+        ? {
+            productId: trimmedGoogleProductId,
+            packageName: trimmedGooglePackageName || undefined,
+            basePlanId: trimmedGoogleBasePlanId || undefined,
+            offerId: trimmedGoogleOfferId || undefined,
+          }
+        : undefined,
+    };
+  };
+  const getStoreSetupSummary = (p: Product) => {
+    const parts: string[] = [];
+    const policyType = getStorePolicyFulfillment(p);
+    if (policyType) {
+      parts.push(formatStorePolicyFulfillment(policyType));
+    }
+    if (p.storeBilling?.kind) {
+      parts.push(formatStoreManagedKind(p.storeBilling.kind));
+    }
+    if (p.storeBilling?.apple?.productId) {
+      parts.push(`Apple ${p.storeBilling.apple.productId}`);
+    }
+    if (p.storeBilling?.google?.productId) {
+      parts.push(`Google ${p.storeBilling.google.productId}`);
+    }
+    return parts.join(' • ');
+  };
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -169,6 +283,29 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
       }
     }
 
+    if (
+      newProduct.storeManagedKind !== 'none' &&
+      !newProduct.appleProductId.trim() &&
+      !newProduct.googleProductId.trim()
+    ) {
+      setAddProductError('Add at least one Apple or Google store product ID for store-managed products.');
+      return;
+    }
+
+    if (newProduct.googleBasePlanId.trim() && !newProduct.googleProductId.trim()) {
+      setAddProductError('Google base plan ID requires a Google product ID.');
+      return;
+    }
+
+    if (
+      newProduct.storeManagedKind === 'auto_renewable_subscription' &&
+      newProduct.googleProductId.trim() &&
+      !newProduct.googleBasePlanId.trim()
+    ) {
+      setAddProductError('Google Play subscriptions require a base plan ID.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { productType } = newProduct;
@@ -184,15 +321,55 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
       const priceUsdNum = Number(newProduct.priceUsd) || 0;
       const fiatAmountCents = Math.round(priceUsdNum * 100);
       const cryptoAtomicAmount = Math.round(priceUsdNum * 1_000_000);
+      const tags = newProduct.tagsCsv
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const categoryIds = newProduct.categoryIdsCsv
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const checkoutRequirements = {
+        email: newProduct.checkoutEmail,
+        name: newProduct.checkoutName,
+        phone: newProduct.checkoutPhone,
+        shippingAddress: newProduct.checkoutShippingAddress,
+        billingAddress: newProduct.checkoutBillingAddress,
+      };
+      const storeBilling = buildStoreBillingPayload(newProduct);
+      const compareAtFiatAmountCents =
+        newProduct.compareAtUsd === ''
+          ? undefined
+          : Math.round(Number(newProduct.compareAtUsd) * 100);
 
       const payload: Record<string, unknown> = {
         id: newProduct.id,
+        title: newProduct.title || undefined,
+        slug: newProduct.slug || undefined,
         description: newProduct.description,
+        tags,
+        categoryIds,
+        images: newProduct.imageUrl
+          ? [{ url: newProduct.imageUrl, alt: newProduct.title || newProduct.id }]
+          : [],
+        shippingProfile: newProduct.fulfillmentType === 'shipping' ? 'physical' : 'digital',
+        checkoutRequirements,
+        fulfillment: {
+          type: newProduct.fulfillmentType,
+          notes: newProduct.fulfillmentNotes || undefined,
+        },
         fiatAmountCents,
         fiatCurrency: newProduct.fiatCurrency,
+        compareAtFiatAmountCents,
+        compareAtFiatCurrency: compareAtFiatAmountCents ? newProduct.fiatCurrency : undefined,
         cryptoAtomicAmount,
         cryptoToken: newProduct.cryptoToken,
+        inventoryStatus:
+          newProduct.fulfillmentType === 'shipping'
+            ? newProduct.inventoryStatus
+            : undefined,
         ...(inventoryQuantity !== undefined ? { inventoryQuantity } : {}),
+        ...(storeBilling ? { storeBilling } : {}),
         metadata: {
           ...(productType ? { product_type: productType } : {}),
           ...buildCatalogMetadata(newProduct),
@@ -248,6 +425,13 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         checkoutShippingAddress: false,
         checkoutBillingAddress: false,
         fulfillmentType: 'shipping',
+        storePolicyFulfillment: 'physical_goods',
+        storeManagedKind: 'none',
+        appleProductId: '',
+        googleProductId: '',
+        googlePackageName: '',
+        googleBasePlanId: '',
+        googleOfferId: '',
         fulfillmentNotes: '',
         shippingCountriesCsv: '',
         inventoryQuantity: '',
@@ -279,6 +463,12 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
         return 'One-time purchase';
     }
   };
+  const showStoreBillingFields =
+    newProduct.storePolicyFulfillment === 'digital_in_app' ||
+    newProduct.storePolicyFulfillment === 'reader_content' ||
+    newProduct.storePolicyFulfillment === 'other' ||
+    newProduct.productType === 'subscription' ||
+    newProduct.storeManagedKind !== 'none';
 
   // Memoize expensive calculations to prevent unnecessary re-renders
   const stats = useMemo(() => {
@@ -439,6 +629,12 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
               onChange={(val) => setNewProduct(p => ({
                 ...p,
                 productType: val as 'one_time' | 'pay_per_access' | 'subscription' | 'gift_card' | 'tokenized_asset',
+                storeManagedKind:
+                  val === 'subscription'
+                    ? 'auto_renewable_subscription'
+                    : p.storeManagedKind === 'auto_renewable_subscription'
+                      ? 'non_consumable'
+                      : p.storeManagedKind,
                 giftCardConfig: val === 'gift_card'
                   ? (p.giftCardConfig ?? { faceValueCents: 0, currency: 'usd', secondaryMarket: false, expiresInDays: null })
                   : null,
@@ -462,6 +658,20 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
                 setNewProduct(p => ({
                   ...p,
                   fulfillmentType: fulfillment,
+                  storePolicyFulfillment:
+                    fulfillment === 'shipping'
+                      ? 'physical_goods'
+                      : fulfillment === 'service'
+                        ? 'real_world_service'
+                        : 'digital_in_app',
+                  storeManagedKind:
+                    fulfillment === 'shipping' || fulfillment === 'service'
+                      ? 'none'
+                      : p.productType === 'subscription'
+                        ? 'auto_renewable_subscription'
+                        : p.storeManagedKind === 'none'
+                          ? 'non_consumable'
+                          : p.storeManagedKind,
                   checkoutShippingAddress: fulfillment === 'shipping' ? p.checkoutShippingAddress : false,
                 }));
               }}
@@ -473,6 +683,137 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
               label="Fulfillment"
             />
           </div>
+
+          <div
+            style={{
+              padding: '0.9rem 1rem',
+              borderRadius: '0.75rem',
+              border: '1px solid var(--cedros-admin-border, #e5e7eb)',
+              background: 'var(--cedros-admin-surface, #ffffff)',
+              marginBottom: '1rem',
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Store policy and app billing</div>
+            <div style={{ fontSize: '0.9rem', lineHeight: 1.6, opacity: 0.8 }}>
+              This controls how Cedros routes payments across the web, Apple App Store, and Google Play. For digital app functionality, choose the explicit store policy classification here instead of relying on generic product type labels.
+            </div>
+          </div>
+
+          <div className="cedros-admin__form-row">
+            <FormDropdown
+              value={newProduct.storePolicyFulfillment}
+              onChange={(val) =>
+                setNewProduct((p) => ({
+                  ...p,
+                  storePolicyFulfillment: val as StorePolicyFulfillmentType,
+                  storeManagedKind:
+                    val === 'physical_goods' || val === 'real_world_service'
+                      ? 'none'
+                      : p.storeManagedKind,
+                }))
+              }
+              options={[
+                { value: 'digital_in_app', label: 'Digital in-app' },
+                { value: 'physical_goods', label: 'Physical goods' },
+                { value: 'real_world_service', label: 'Real-world service' },
+                { value: 'reader_content', label: 'Reader content' },
+                { value: 'other', label: 'Other / review manually' },
+              ]}
+              label="Store policy classification"
+            />
+            <FormDropdown
+              value={newProduct.storeManagedKind}
+              onChange={(val) =>
+                setNewProduct((p) => ({
+                  ...p,
+                  storeManagedKind: val as StoreManagedProductKind | 'none',
+                }))
+              }
+              options={[
+                { value: 'none', label: 'External billing only' },
+                { value: 'consumable', label: 'Consumable' },
+                { value: 'non_consumable', label: 'Non-consumable' },
+                { value: 'auto_renewable_subscription', label: 'Auto-renewing subscription' },
+              ]}
+              label="Store-managed product kind"
+            />
+          </div>
+
+          {showStoreBillingFields && (
+            <>
+              <div className="cedros-admin__form-row">
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">Apple product ID</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={newProduct.appleProductId}
+                    onChange={(e) =>
+                      setNewProduct((p) => ({ ...p, appleProductId: e.target.value }))
+                    }
+                    placeholder="e.g., com.cedros.pro.monthly"
+                  />
+                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                    Create the matching product in App Store Connect and paste the product ID here.
+                  </div>
+                </div>
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">Google product ID</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={newProduct.googleProductId}
+                    onChange={(e) =>
+                      setNewProduct((p) => ({ ...p, googleProductId: e.target.value }))
+                    }
+                    placeholder="e.g., pro_monthly"
+                  />
+                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                    Create the matching one-time product or subscription in Google Play Console.
+                  </div>
+                </div>
+              </div>
+
+              <div className="cedros-admin__form-row">
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">Google package name</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={newProduct.googlePackageName}
+                    onChange={(e) =>
+                      setNewProduct((p) => ({ ...p, googlePackageName: e.target.value }))
+                    }
+                    placeholder="e.g., com.cedros.app"
+                  />
+                </div>
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">Google base plan ID</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={newProduct.googleBasePlanId}
+                    onChange={(e) =>
+                      setNewProduct((p) => ({ ...p, googleBasePlanId: e.target.value }))
+                    }
+                    placeholder="Required for Google subscriptions"
+                  />
+                </div>
+                <div className="cedros-admin__field">
+                  <label className="cedros-admin__field-label">Google offer ID</label>
+                  <input
+                    type="text"
+                    className="cedros-admin__input"
+                    value={newProduct.googleOfferId}
+                    onChange={(e) =>
+                      setNewProduct((p) => ({ ...p, googleOfferId: e.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {newProduct.productType === 'gift_card' && (<>
           <div className="cedros-admin__form-row">
@@ -923,6 +1264,11 @@ export function ProductsSection({ serverUrl, apiKey, pageSize = 20, authManager 
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: 600 }}>{getProductTitle(product)}</span>
                         <span style={{ opacity: 0.8 }}>{product.description}</span>
+                        {getStoreSetupSummary(product) ? (
+                          <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>
+                            {getStoreSetupSummary(product)}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </td>

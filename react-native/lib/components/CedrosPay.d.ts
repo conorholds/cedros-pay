@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewStyle } from 'react-native';
-import type { CheckoutOptions, DisplayOptions, CallbackOptions, AdvancedOptions, CartItem } from '../types';
+import type { CedrosProductDefinition, CedrosPayPolicyOverrides, CheckoutOptions, DisplayOptions, CallbackOptions, AdvancedOptions, CartItem, FulfillmentType } from '../types';
 /**
  * Props for CedrosPay component
  *
@@ -16,7 +16,7 @@ import type { CheckoutOptions, DisplayOptions, CallbackOptions, AdvancedOptions,
  *   resource="item-1"
  *   checkout={{ customerEmail: "user@example.com", couponCode: "SAVE20" }}
  *   display={{ cardLabel: "Pay with Card", layout: "horizontal" }}
- *   callbacks={{ onPaymentSuccess: (result) => console.log(result) }}
+ *   callbacks={{ onPaymentSuccess: handlePaymentSuccess }}
  * />
  *
  * @example
@@ -43,6 +43,12 @@ export interface CedrosPayProps {
     resource?: string;
     /** Multiple items for cart checkout (mutually exclusive with resource) */
     items?: CartItem[];
+    /** Explicit product metadata for store-aware orchestration */
+    product?: CedrosProductDefinition;
+    /** Convenience classification for legacy resource-based usage */
+    fulfillmentType?: FulfillmentType;
+    /** Per-component policy overrides */
+    policy?: CedrosPayPolicyOverrides;
     /** Checkout options: customer info, coupons, redirects, metadata */
     checkout?: CheckoutOptions;
     /** Display options: labels, visibility, layout, className */
@@ -55,4 +61,5 @@ export interface CedrosPayProps {
     style?: ViewStyle;
 }
 export declare function CedrosPay(props: CedrosPayProps): React.JSX.Element;
+export declare const CedrosPayButton: typeof CedrosPay;
 //# sourceMappingURL=CedrosPay.d.ts.map

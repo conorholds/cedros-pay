@@ -18,7 +18,13 @@
 /**
  * Payment method type
  */
-export type PaymentMethod = 'stripe' | 'crypto' | 'credits';
+export type PaymentMethod =
+  | 'apple_iap'
+  | 'google_play_billing'
+  | 'stripe'
+  | 'crypto'
+  | 'x402'
+  | 'credits';
 
 /**
  * Wallet provider type

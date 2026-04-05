@@ -452,9 +452,11 @@ pub async fn cart_checkout<S: Store + 'static>(
 
     // Validate redirect URLs if provided (SSRF prevention)
     if let Some(ref url) = req.success_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
             url,
             &state.paywall_service.config.logging.environment,
+            &state.paywall_service.config.stripe.allowed_redirect_schemes,
         ) {
             let (status, body) = error_response(
                 ErrorCode::InvalidField,
@@ -465,9 +467,11 @@ pub async fn cart_checkout<S: Store + 'static>(
         }
     }
     if let Some(ref url) = req.cancel_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
             url,
             &state.paywall_service.config.logging.environment,
+            &state.paywall_service.config.stripe.allowed_redirect_schemes,
         ) {
             let (status, body) = error_response(
                 ErrorCode::InvalidField,
@@ -1324,6 +1328,7 @@ mod tests {
             product_repo,
             stripe_client: None,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         })
@@ -1383,9 +1388,15 @@ mod tests {
             cart_id,
         );
         let tenant = TenantContext::default();
-        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), None, headers)
-            .await
-            .into_response();
+        let response = verify_cart(
+            State(state),
+            tenant,
+            Path(cart_id.to_string()),
+            None,
+            headers,
+        )
+        .await
+        .into_response();
 
         assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
         let body = response.into_body().collect().await.unwrap().to_bytes();
@@ -1429,9 +1440,15 @@ mod tests {
             cart_id,
         );
         let tenant = TenantContext::default();
-        let response = verify_cart(State(state), tenant, Path(cart_id.to_string()), None, headers)
-            .await
-            .into_response();
+        let response = verify_cart(
+            State(state),
+            tenant,
+            Path(cart_id.to_string()),
+            None,
+            headers,
+        )
+        .await
+        .into_response();
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
@@ -1656,6 +1673,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
@@ -1744,6 +1762,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
@@ -1831,6 +1850,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });

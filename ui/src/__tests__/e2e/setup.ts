@@ -78,6 +78,16 @@ export function mockBackendAPIs() {
       }));
     }
 
+    // Stripe cart quote
+    if (urlString.includes('/cart/quote')) {
+      return Promise.resolve(new Response(JSON.stringify({
+        cartId: 'cart_test_123',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }
+
     // Stripe cart checkout
     if (urlString.includes('/cart/checkout')) {
       return Promise.resolve(new Response(JSON.stringify({

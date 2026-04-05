@@ -32,6 +32,10 @@ static EMAIL_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid regex pattern")
 });
 
+/// URI schemes allowed by RFC 3986.
+static URI_SCHEME_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z][a-zA-Z0-9+.-]*$").expect("valid regex pattern"));
+
 /// Validation result with detailed error information
 #[derive(Debug, Clone)]
 pub struct ValidationError {
@@ -155,6 +159,18 @@ const DNS_REBINDING_DOMAINS: &[&str] = &[
     ".localtest.me",
     ".lvh.me",
     ".vcap.me",
+];
+
+/// Schemes handled by the standard web redirect rules and therefore not valid in the
+/// custom mobile deep-link allowlist.
+const RESERVED_REDIRECT_SCHEMES: &[&str] = &[
+    "http",
+    "https",
+    "javascript",
+    "data",
+    "file",
+    "about",
+    "blob",
 ];
 
 /// Check if an IP address is private/internal (SSRF risk)
@@ -287,20 +303,44 @@ fn parse_octet(s: &str) -> Option<u8> {
 /// - Not contain dangerous characters
 pub fn validate_redirect_url(value: &str) -> Result<(), ValidationError> {
     // Backwards-compatible default: allow http://localhost.
-    validate_redirect_url_with_policy(value, true)
+    validate_redirect_url_with_policy(value, true, &[])
 }
 
 pub fn validate_redirect_url_with_env(
     value: &str,
     environment: &str,
 ) -> Result<(), ValidationError> {
+    validate_redirect_url_with_env_and_allowed_schemes(value, environment, &[])
+}
+
+pub fn validate_redirect_url_with_env_and_allowed_schemes(
+    value: &str,
+    environment: &str,
+    allowed_custom_schemes: &[String],
+) -> Result<(), ValidationError> {
     let allow_http_localhost = !environment.eq_ignore_ascii_case("production");
-    validate_redirect_url_with_policy(value, allow_http_localhost)
+    let normalized_allowed_schemes =
+        validate_redirect_scheme_allowlist(allowed_custom_schemes)?;
+    validate_redirect_url_with_policy(value, allow_http_localhost, &normalized_allowed_schemes)
+}
+
+pub fn validate_redirect_scheme_allowlist(
+    values: &[String],
+) -> Result<Vec<String>, ValidationError> {
+    let mut normalized = Vec::with_capacity(values.len());
+    for value in values {
+        let scheme = normalize_redirect_scheme(value)?;
+        if !normalized.contains(&scheme) {
+            normalized.push(scheme);
+        }
+    }
+    Ok(normalized)
 }
 
 fn validate_redirect_url_with_policy(
     value: &str,
     allow_http_localhost: bool,
+    allowed_custom_schemes: &[String],
 ) -> Result<(), ValidationError> {
     if value.is_empty() {
         return Err(ValidationError {
@@ -342,7 +382,25 @@ fn validate_redirect_url_with_policy(
         message: "invalid URL format".to_string(),
     })?;
 
-    let scheme = parsed.scheme();
+    let scheme = parsed.scheme().to_ascii_lowercase();
+
+    if allowed_custom_schemes.iter().any(|allowed| allowed == &scheme) {
+        if parsed.host_str().is_none() && parsed.path().trim().is_empty() {
+            return Err(ValidationError {
+                field: "url".to_string(),
+                message: "custom redirect URL must include a host or path".to_string(),
+            });
+        }
+        return Ok(());
+    }
+
+    if scheme != "https" && scheme != "http" {
+        return Err(ValidationError {
+            field: "url".to_string(),
+            message: "redirect URL must use https:// scheme".to_string(),
+        });
+    }
+
     let host = parsed.host().ok_or_else(|| ValidationError {
         field: "url".to_string(),
         message: "URL must have a host".to_string(),
@@ -420,6 +478,35 @@ fn validate_redirect_url_with_policy(
     }
 
     Ok(())
+}
+
+fn normalize_redirect_scheme(value: &str) -> Result<String, ValidationError> {
+    let scheme = value.trim().to_ascii_lowercase();
+    if scheme.is_empty() {
+        return Err(ValidationError {
+            field: "allowed_redirect_schemes".to_string(),
+            message: "redirect scheme cannot be empty".to_string(),
+        });
+    }
+
+    if !URI_SCHEME_PATTERN.is_match(&scheme) {
+        return Err(ValidationError {
+            field: "allowed_redirect_schemes".to_string(),
+            message: format!("invalid redirect scheme: {}", value.trim()),
+        });
+    }
+
+    if RESERVED_REDIRECT_SCHEMES.contains(&scheme.as_str()) {
+        return Err(ValidationError {
+            field: "allowed_redirect_schemes".to_string(),
+            message: format!(
+                "redirect scheme {} is reserved and does not belong in the allowlist",
+                scheme
+            ),
+        });
+    }
+
+    Ok(scheme)
 }
 
 #[cfg(test)]
@@ -512,6 +599,47 @@ mod tests {
         assert!(
             validate_redirect_url_with_env("http://localhost:3000/success", "development").is_ok()
         );
+    }
+
+    #[test]
+    fn test_redirect_urls_allow_configured_mobile_app_schemes() {
+        let allowlist = vec!["covenant".to_string()];
+
+        assert!(
+            validate_redirect_url_with_env_and_allowed_schemes(
+                "covenant://subscription/success",
+                "production",
+                &allowlist
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_redirect_url_with_env_and_allowed_schemes(
+                "covenant:/subscription/success",
+                "production",
+                &allowlist
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_redirect_url_with_env_and_allowed_schemes(
+                "otherapp://subscription/success",
+                "production",
+                &allowlist
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_redirect_scheme_allowlist_rejects_reserved_schemes() {
+        let err = validate_redirect_scheme_allowlist(&[
+            "https".to_string(),
+            "myapp".to_string(),
+        ])
+        .expect_err("reserved schemes should be rejected");
+
+        assert!(err.message.contains("reserved"));
     }
 
     #[test]

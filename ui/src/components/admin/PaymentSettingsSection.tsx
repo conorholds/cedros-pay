@@ -9,9 +9,11 @@
 
 import { useState, type ReactNode } from 'react';
 import { SingleCategorySettings } from './SingleCategorySettings';
+import { PaymentSetupGuide } from './PaymentSetupGuide';
+import { PaymentReadinessChecklist } from './PaymentReadinessChecklist';
 import type { SectionProps } from './types';
 
-type PaymentTab = 'stripe' | 'crypto' | 'credits';
+type PaymentTab = 'app_stores' | 'stripe' | 'crypto' | 'credits';
 
 /** External link component */
 function ExtLink({ href, children }: { href: string; children: ReactNode }) {
@@ -28,6 +30,16 @@ function ExtLink({ href, children }: { href: string; children: ReactNode }) {
 }
 
 const TABS: { id: PaymentTab; label: string; category: string; description: ReactNode }[] = [
+  {
+    id: 'app_stores',
+    label: 'App Stores',
+    category: 'native_store',
+    description: (
+      <>
+        Configure Apple App Store and Google Play verification, lifecycle notifications, and server credentials. Use the setup guide below to connect App Store Connect and Google Play Console to Cedros.
+      </>
+    ),
+  },
   {
     id: 'stripe',
     label: 'Stripe',
@@ -67,7 +79,7 @@ const TABS: { id: PaymentTab; label: string; category: string; description: Reac
 ];
 
 export function PaymentSettingsSection({ serverUrl, apiKey, authManager }: SectionProps) {
-  const [activeTab, setActiveTab] = useState<PaymentTab>('stripe');
+  const [activeTab, setActiveTab] = useState<PaymentTab>('app_stores');
 
   const currentTab = TABS.find((t) => t.id === activeTab)!;
 
@@ -77,7 +89,7 @@ export function PaymentSettingsSection({ serverUrl, apiKey, authManager }: Secti
       <div className="cedros-admin__page-header">
         <h2 className="cedros-admin__page-title">Payment Options</h2>
         <p className="cedros-admin__page-description">
-          Configure payment methods including Stripe, crypto, and credits.
+          Configure the payment rails Cedros can use across web, iOS, Android, and crypto flows.
         </p>
       </div>
 
@@ -97,6 +109,16 @@ export function PaymentSettingsSection({ serverUrl, apiKey, authManager }: Secti
 
       {/* Tab Content */}
       <div style={{ marginTop: '1rem' }}>
+        {activeTab === 'app_stores' && (
+          <>
+            <PaymentSetupGuide serverUrl={serverUrl} />
+            <PaymentReadinessChecklist
+              serverUrl={serverUrl}
+              apiKey={apiKey}
+              authManager={authManager}
+            />
+          </>
+        )}
         <SingleCategorySettings
           key={currentTab.category}
           serverUrl={serverUrl}

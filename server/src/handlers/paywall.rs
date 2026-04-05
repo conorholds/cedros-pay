@@ -13,7 +13,9 @@ use crate::errors::validation::{validate_coupon_code, validate_resource_id};
 use crate::errors::{error_response, ErrorCode};
 use crate::middleware::tenant::TenantContext;
 use crate::repositories::ProductRepository;
-use crate::services::{BlockhashCache, PaywallService, StripeClient, StripeWebhookProcessor};
+use crate::services::{
+    BlockhashCache, NativeStoreService, PaywallService, StripeClient, StripeWebhookProcessor,
+};
 use crate::storage::Store;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +29,7 @@ pub struct AppState<S: Store> {
     pub product_repo: Arc<dyn ProductRepository>,
     pub stripe_client: Option<Arc<StripeClient>>,
     pub stripe_webhook_processor: Option<Arc<StripeWebhookProcessor<S>>>,
+    pub native_store_service: Option<Arc<NativeStoreService<S>>>,
     /// Admin public keys for signature verification
     pub admin_public_keys: Vec<String>,
     /// Cached blockhash for transaction building

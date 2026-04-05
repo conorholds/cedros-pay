@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::State,
-    http::header::HeaderMap,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::header::HeaderMap, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
 use super::response::json_ok;
@@ -47,7 +42,12 @@ pub async fn check<S: Store + 'static>(
     // No compliance checker configured → always cleared
     let checker = match &state.paywall_service.compliance_checker {
         Some(c) => c,
-        None => return json_ok(ComplianceCheckResponse { cleared: true, reasons: None }),
+        None => {
+            return json_ok(ComplianceCheckResponse {
+                cleared: true,
+                reasons: None,
+            })
+        }
     };
 
     // Collect compliance requirements from all requested products
@@ -58,23 +58,20 @@ pub async fn check<S: Store + 'static>(
             .get_product(&tenant.tenant_id, resource_id)
             .await
         {
-            reqs_list.push(
-                product
-                    .compliance_requirements
-                    .clone()
-                    .unwrap_or_default(),
-            );
+            reqs_list.push(product.compliance_requirements.clone().unwrap_or_default());
         }
     }
 
     if reqs_list.is_empty() {
         // No products found or none have requirements → cleared
-        return json_ok(ComplianceCheckResponse { cleared: true, reasons: None });
+        return json_ok(ComplianceCheckResponse {
+            cleared: true,
+            reasons: None,
+        });
     }
 
     let refs: Vec<&crate::models::compliance::ComplianceRequirements> = reqs_list.iter().collect();
-    let merged =
-        crate::services::compliance_checker::ComplianceChecker::merge_requirements(&refs);
+    let merged = crate::services::compliance_checker::ComplianceChecker::merge_requirements(&refs);
 
     // Extract user_id from Authorization header (same as stripe.rs create_session)
     let auth = headers
@@ -89,17 +86,15 @@ pub async fn check<S: Store + 'static>(
     // Use provided wallet for token-gate checks; default to empty for Stripe-only.
     let wallet = req.wallet.as_deref().unwrap_or("");
     let result = checker
-        .check_compliance(
-            &tenant.tenant_id,
-            wallet,
-            user_id.as_deref(),
-            &merged,
-        )
+        .check_compliance(&tenant.tenant_id, wallet, user_id.as_deref(), &merged)
         .await;
 
     match result {
         crate::services::compliance_checker::ComplianceResult::Cleared => {
-            json_ok(ComplianceCheckResponse { cleared: true, reasons: None })
+            json_ok(ComplianceCheckResponse {
+                cleared: true,
+                reasons: None,
+            })
         }
         crate::services::compliance_checker::ComplianceResult::Blocked { reasons } => {
             json_ok(ComplianceCheckResponse {

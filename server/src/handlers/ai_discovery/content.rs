@@ -76,8 +76,7 @@ pub fn get_skills_with_base(base_path: &str) -> Vec<SkillReference> {
             id: "subscriptions".to_string(),
             name: "Subscriptions".to_string(),
             path: format!("{}/skills/subscriptions.md", prefix),
-            description: "Recurring payment subscriptions via Stripe, x402, or credits"
-                .to_string(),
+            description: "Recurring payment subscriptions via Stripe, x402, or credits".to_string(),
             requires_auth: Some(true),
             requires_admin: None,
         },

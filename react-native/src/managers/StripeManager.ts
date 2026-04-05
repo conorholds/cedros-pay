@@ -121,6 +121,7 @@ export class StripeManager implements IStripeManager {
   private isStripeInitialized = false;
   private readonly publicKey: string;
   private readonly routeDiscovery: RouteDiscoveryManager;
+  private readonly returnUrl?: string;
   private readonly rateLimiter = createRateLimiter(RATE_LIMITER_PRESETS.PAYMENT);
   private readonly circuitBreaker = createCircuitBreaker({
     failureThreshold: 5,
@@ -128,9 +129,14 @@ export class StripeManager implements IStripeManager {
     name: 'stripe-manager',
   });
 
-  constructor(publicKey: string, routeDiscovery: RouteDiscoveryManager) {
+  constructor(
+    publicKey: string,
+    routeDiscovery: RouteDiscoveryManager,
+    options?: { returnUrl?: string }
+  ) {
     this.publicKey = publicKey;
     this.routeDiscovery = routeDiscovery;
+    this.returnUrl = options?.returnUrl;
   }
 
   /**
@@ -221,6 +227,9 @@ export class StripeManager implements IStripeManager {
         customerId: options.customerId,
         allowsDelayedPaymentMethods: true,
       };
+      if (this.returnUrl) {
+        sheetConfig.returnURL = this.returnUrl;
+      }
       if (options.customerEphemeralKeySecret) {
         sheetConfig.customerEphemeralKeySecret = options.customerEphemeralKeySecret;
       }

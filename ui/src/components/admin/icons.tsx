@@ -4,52 +4,92 @@
  * SVG icons (Lucide-style, 16x16) for the admin dashboard.
  */
 
-export const Icons = {
-  overview: (
+import type { ReactNode } from 'react';
+
+function OverviewIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="9" rx="1" />
       <rect x="14" y="3" width="7" height="5" rx="1" />
       <rect x="14" y="12" width="7" height="9" rx="1" />
       <rect x="3" y="16" width="7" height="5" rx="1" />
     </svg>
-  ),
-  products: (
+  );
+}
+
+function ProductsIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 7.5v9l-4 2.25M4 7.5v9l4 2.25" />
       <path d="m20 7.5-8-4.5-8 4.5" />
       <path d="m12 12 8-4.5M12 12v9.5M12 12 4 7.5" />
     </svg>
-  ),
-  transactions: (
+  );
+}
+
+function TransactionsIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </svg>
-  ),
-  coupons: (
+  );
+}
+
+function CouponsIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
       <path d="M13 5v2M13 17v2M13 11v2" />
     </svg>
-  ),
-  refunds: (
+  );
+}
+
+function RefundsIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
       <path d="M12 7v5l4 2" />
     </svg>
-  ),
-  settings: (
+  );
+}
+
+function SettingsIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
-  ),
-  wallet: (
+  );
+}
+
+function WalletIcon() {
+  return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
       <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
     </svg>
-  ),
+  );
+}
+
+export const AdminPluginIcons: Record<string, () => ReactNode> = {
+  overview: () => <OverviewIcon />,
+  products: () => <ProductsIcon />,
+  transactions: () => <TransactionsIcon />,
+  coupons: () => <CouponsIcon />,
+  refunds: () => <RefundsIcon />,
+  settings: () => <SettingsIcon />,
+  wallet: () => <WalletIcon />,
+};
+
+export const Icons: Record<string, ReactNode> = {
+  overview: <OverviewIcon />,
+  products: <ProductsIcon />,
+  transactions: <TransactionsIcon />,
+  coupons: <CouponsIcon />,
+  refunds: <RefundsIcon />,
+  settings: <SettingsIcon />,
+  wallet: <WalletIcon />,
   chevronRight: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m9 18 6-6-6-6" />

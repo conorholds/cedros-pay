@@ -203,7 +203,9 @@ impl AssetFulfillmentService {
 
         // Compliance check: sanctions, KYC, accredited investor
         if let Some(ref checker) = self.compliance_checker {
-            let reqs = self.load_compliance_requirements(tenant_id, collection_id).await;
+            let reqs = self
+                .load_compliance_requirements(tenant_id, collection_id)
+                .await;
             if let ComplianceResult::Blocked { reasons } = checker
                 .check_compliance(tenant_id, &wallet_address, Some(user), &reqs)
                 .await
@@ -214,7 +216,13 @@ impl AssetFulfillmentService {
                     ?reasons,
                     "Compliance check failed; skipping token mint"
                 );
-                self.record_mint_blocked(tenant_id, &wallet_address, &mint_config.mint_address, &reasons).await;
+                self.record_mint_blocked(
+                    tenant_id,
+                    &wallet_address,
+                    &mint_config.mint_address,
+                    &reasons,
+                )
+                .await;
                 return None;
             }
         } else if crate::services::sanctions::is_sanctioned(&wallet_address) {
@@ -329,7 +337,8 @@ impl AssetFulfillmentService {
         if let Some(ref checker) = self.compliance_checker {
             let reqs = ComplianceRequirements::default();
             if let ComplianceResult::Blocked { reasons } = checker
-                .check_compliance(tenant_id, &wallet_address, Some(user), &reqs).await
+                .check_compliance(tenant_id, &wallet_address, Some(user), &reqs)
+                .await
             {
                 warn!(%tenant_id, %order_id, ?reasons, "Compliance blocked NFT mint");
                 return None;
@@ -341,24 +350,41 @@ impl AssetFulfillmentService {
 
         let owner_pubkey = match wallet_address.parse::<Pubkey>() {
             Ok(pk) => pk,
-            Err(e) => { warn!(error = %e, "Invalid wallet pubkey for NFT mint"); return None; }
+            Err(e) => {
+                warn!(error = %e, "Invalid wallet pubkey for NFT mint");
+                return None;
+            }
         };
 
         let name = format!("Cedros Asset #{}", &product_id[..8.min(product_id.len())]);
         let symbol = tokenization.token_symbol.as_deref().unwrap_or("ASSET");
-        let uri = if self.metadata_base_url.is_empty() { String::new() } else {
-            format!("{}/paywall/v1/products/{}/nft-metadata", self.metadata_base_url, product_id)
+        let uri = if self.metadata_base_url.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "{}/paywall/v1/products/{}/nft-metadata",
+                self.metadata_base_url, product_id
+            )
         };
         let transfer_fee = if tokenization.transfer_fee_bps > 0 {
             Some(crate::services::token22::NftTransferFee {
                 basis_points: tokenization.transfer_fee_bps as u16,
                 max_fee: tokenization.max_transfer_fee as u64,
             })
-        } else { None };
+        } else {
+            None
+        };
 
         match crate::services::token22::create_nft_mint(
-            token22, &owner_pubkey, &name, symbol, &uri, transfer_fee,
-        ).await {
+            token22,
+            &owner_pubkey,
+            &name,
+            symbol,
+            &uri,
+            transfer_fee,
+        )
+        .await
+        {
             Ok(result) => {
                 info!(
                     tenant_id = %tenant_id,
@@ -460,40 +486,73 @@ impl AssetFulfillmentService {
         let token22 = self.token22.as_ref()?;
         let mint_pubkey = match mint_address.parse::<Pubkey>() {
             Ok(pk) => pk,
-            Err(e) => { warn!(error = %e, "Invalid mint pubkey for NFT burn"); return None; }
+            Err(e) => {
+                warn!(error = %e, "Invalid mint pubkey for NFT burn");
+                return None;
+            }
         };
         let wallet_address = match self.cedros_login.get_embedded_wallet(user_id).await {
             Ok(Some(a)) => a,
-            Ok(None) => { warn!(user_id = %user_id, "No embedded wallet; skipping NFT burn"); return None; }
-            Err(e) => { warn!(error = %e, "Failed to get wallet for NFT burn"); return None; }
+            Ok(None) => {
+                warn!(user_id = %user_id, "No embedded wallet; skipping NFT burn");
+                return None;
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to get wallet for NFT burn");
+                return None;
+            }
         };
         let owner_pubkey = match wallet_address.parse::<Pubkey>() {
             Ok(pk) => pk,
-            Err(e) => { warn!(error = %e, "Invalid wallet pubkey for NFT burn"); return None; }
+            Err(e) => {
+                warn!(error = %e, "Invalid wallet pubkey for NFT burn");
+                return None;
+            }
         };
         match crate::services::token22::burn_nft(token22, &mint_pubkey, &owner_pubkey).await {
             Ok(sig) => Some(sig),
-            Err(e) => { warn!(error = %e, "Failed to burn Token-22 NFT"); None }
+            Err(e) => {
+                warn!(error = %e, "Failed to burn Token-22 NFT");
+                None
+            }
         }
     }
 
     async fn burn_fungible_tokens(
-        &self, tenant_id: &str, collection_id: &str, user_id: &str, amount: u64,
+        &self,
+        tenant_id: &str,
+        collection_id: &str,
+        user_id: &str,
+        amount: u64,
     ) -> Option<String> {
         let token22 = self.token22.as_ref()?;
-        let mc = match self.store.get_token22_mint_for_collection(tenant_id, collection_id).await {
+        let mc = match self
+            .store
+            .get_token22_mint_for_collection(tenant_id, collection_id)
+            .await
+        {
             Ok(Some(m)) => m,
-            Ok(None) => { warn!(%tenant_id, %collection_id, "No Token-22 mint; skipping burn"); return None; }
-            Err(e) => { warn!(error = %e, "Failed to get mint config for burn"); return None; }
+            Ok(None) => {
+                warn!(%tenant_id, %collection_id, "No Token-22 mint; skipping burn");
+                return None;
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to get mint config for burn");
+                return None;
+            }
         };
         let mint_pk = mc.mint_address.parse::<Pubkey>().ok()?;
         let wallet = match self.cedros_login.get_embedded_wallet(user_id).await {
-            Ok(Some(a)) => a, _ => return None,
+            Ok(Some(a)) => a,
+            _ => return None,
         };
         let owner_pk = wallet.parse::<Pubkey>().ok()?;
         match crate::services::token22::burn_tokens(token22, &mint_pk, &owner_pk, amount).await {
             Ok(sig) => Some(sig),
-            Err(e) => { warn!(error = %e, "Failed to burn redemption tokens"); None }
+            Err(e) => {
+                warn!(error = %e, "Failed to burn redemption tokens");
+                None
+            }
         }
     }
 }

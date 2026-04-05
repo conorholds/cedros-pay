@@ -118,6 +118,74 @@ describe('paywall adapter fallback pagination', () => {
   });
 });
 
+describe('listCategories', () => {
+  it('prefers public collections when available', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/paywall/v1/collections?limit=100&offset=0')) {
+        return jsonResponse({
+          collections: [{ id: 'featured', name: 'Featured', description: 'Top picks' }],
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const categories = await adapter.listCategories();
+
+    expect(categories).toEqual([
+      { id: 'featured', slug: 'featured', name: 'Featured', description: 'Top picks' },
+    ]);
+  });
+
+  it('falls back to product-derived category IDs when collections are unavailable', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/paywall/v1/collections?limit=100&offset=0')) {
+        return jsonResponse({ error: 'not found' }, 404);
+      }
+      if (url.includes('/paywall/v1/products?limit=500&offset=0')) {
+        return jsonResponse({
+          products: [
+            { id: 'p-1', categoryIds: ['new_arrivals', 'staff_picks'] },
+            { id: 'p-2', categoryIds: ['staff_picks'] },
+          ],
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const categories = await adapter.listCategories();
+
+    expect(categories).toEqual([
+      { id: 'new_arrivals', slug: 'new_arrivals', name: 'New Arrivals' },
+      { id: 'staff_picks', slug: 'staff_picks', name: 'Staff Picks' },
+    ]);
+  });
+});
+
+describe('listProducts', () => {
+  it('maps category filters to collection_id for storefront collection navigation', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      jsonResponse({ products: [], total: 0 })
+    );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    await adapter.listProducts({ category: 'featured', page: 1, pageSize: 24 });
+
+    const urls = fetchMock.mock.calls.map(([arg]) => String(arg));
+    expect(urls[0]).toContain('collection_id=featured');
+    expect(urls[0]).toContain('category=featured');
+  });
+});
+
 describe('getStorefrontSettings', () => {
   it('calls /paywall/v1/storefront and returns parsed config', async () => {
     const config = { shopPage: { title: 'My Store', description: 'Welcome' }, catalog: { layout: 'grid' } };
@@ -180,7 +248,7 @@ describe('getPaymentMethodsConfig', () => {
     const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
     const result = await adapter.getPaymentMethodsConfig!();
 
-    expect(result).toEqual({ card: true, crypto: false, credits: true });
+    expect(result).toEqual({ card: true, crypto: false, credits: false });
     const urls = fetchMock.mock.calls.map(([arg]) => String(arg));
     expect(urls).toContain('https://api.example.com/paywall/v1/storefront');
   });
@@ -193,6 +261,72 @@ describe('getPaymentMethodsConfig', () => {
     const result = await adapter.getPaymentMethodsConfig!();
 
     expect(result).toBeNull();
+  });
+});
+
+describe('createCheckoutSession', () => {
+  it('quotes the cart then creates a checkout session and returns a redirect URL', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/paywall/v1/cart/quote')) {
+        const body = JSON.parse(String(init?.body));
+        expect(body.items).toEqual([{ resource: 'product-1', quantity: 2, variantId: 'blue' }]);
+        expect(body.couponCode).toBe('SAVE10');
+        return jsonResponse({ cartId: 'cart_123' });
+      }
+      if (url.endsWith('/paywall/v1/cart/checkout')) {
+        const body = JSON.parse(String(init?.body));
+        expect(body.cartId).toBe('cart_123');
+        expect(body.items).toEqual([{ resource: 'product-1', quantity: 2, variantId: 'blue' }]);
+        expect(body.customerEmail).toBe('buyer@example.com');
+        expect(body.successUrl).toBe('https://example.com/success');
+        return jsonResponse({
+          sessionId: 'cs_test_123',
+          url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+    const result = await adapter.createCheckoutSession({
+      cart: [{ resource: 'product-1', quantity: 2, variantId: 'blue' }],
+      customer: { email: 'buyer@example.com', name: 'Buyer' },
+      options: {
+        currency: 'USD',
+        successUrl: 'https://example.com/success',
+        cancelUrl: 'https://example.com/cancel',
+        discountCode: 'SAVE10',
+      },
+    });
+
+    expect(result).toEqual({
+      kind: 'redirect',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects unsupported non-card payment methods', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = createPaywallCommerceAdapter({ serverUrl: 'https://api.example.com' });
+
+    await expect(
+      adapter.createCheckoutSession({
+        cart: [{ resource: 'product-1', quantity: 1 }],
+        customer: {},
+        options: {
+          currency: 'USD',
+          paymentMethodId: 'crypto',
+        },
+      })
+    ).rejects.toThrow('Payment method "crypto" is not supported');
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

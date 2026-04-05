@@ -254,7 +254,11 @@ pub const OPENAPI_SPEC: &str = r##"{
     },
     "/paywall/v1/subscription/stripe-session": {
       "post": { "tags": ["Subscriptions"], "operationId": "subscriptionStripeSession", "summary": "Create Stripe subscription session",
-        "responses": { "200": { "description": "Stripe session URL" } } }
+        "responses": { "200": { "description": "Stripe subscription session details (current stock flow: redirect_checkout)" } } }
+    },
+    "/paywall/v1/subscription/stripe-mobile-session": {
+      "post": { "tags": ["Subscriptions"], "operationId": "subscriptionStripeMobileSession", "summary": "Create Stripe-native mobile subscription session",
+        "responses": { "200": { "description": "Stripe PaymentSheet session details for mobile subscriptions" } } }
     },
     "/paywall/v1/subscription/quote": {
       "post": { "tags": ["Subscriptions"], "operationId": "subscriptionQuote", "summary": "Get subscription x402 quote",

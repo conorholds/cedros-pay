@@ -28,6 +28,7 @@ impl<S: Store + 'static> BuiltServices<S> {
             product_repo: self.product_repo.clone(),
             stripe_client: self.stripe_client.clone(),
             stripe_webhook_processor: self.stripe_webhook_processor,
+            native_store_service: Some(self.native_store_service),
             admin_public_keys: self.config.admin.public_keys.clone(),
             blockhash_cache: self.blockhash_cache.clone(),
         });
@@ -193,9 +194,7 @@ fn build_pg_dependent_states<S: Store + 'static>(
             let storefront_state =
                 Arc::new(handlers::storefront::StorefrontState { repo: repo.clone() });
             let image_service = Arc::new(services::ImageStorageService::new(repo.clone()));
-            let images_state = Arc::new(handlers::admin_images::ImageUploadState {
-                image_service,
-            });
+            let images_state = Arc::new(handlers::admin_images::ImageUploadState { image_service });
             let chat_state = Arc::new(handlers::chat::ChatState::new(
                 store,
                 repo,

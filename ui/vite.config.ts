@@ -30,6 +30,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
+        admin: resolve(__dirname, 'src/admin.ts'),
         index: resolve(__dirname, 'src/index.ts'),
         'stripe-only': resolve(__dirname, 'src/stripe-only.ts'),
         'crypto-only': resolve(__dirname, 'src/crypto-only.ts'),
@@ -45,6 +46,7 @@ export default defineConfig({
         'react-dom',
         'react/jsx-runtime',
         // Externalize peer dependencies
+        '@cedros/data-react/admin',
         '@cedros/login-react',
         '@solana/web3.js',
         '@solana/wallet-adapter-base',

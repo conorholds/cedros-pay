@@ -1,3 +1,5 @@
+import type { FeatureFlagOverrides } from '../featureFlags';
+
 /**
  * Core types for Cedros Pay
  *
@@ -53,6 +55,15 @@ export namespace v1 {
     unstyled?: boolean; // Disable all default styles (for custom design systems)
     logLevel?: number; // Log level (LogLevel enum) - defaults to WARN in production, DEBUG in development
     /**
+     * Feature flag overrides.
+     *
+     * Flags resolve with this precedence:
+     * 1. `featureFlags`
+     * 2. environment variable override
+     * 3. central registry default
+     */
+    featureFlags?: FeatureFlagOverrides;
+    /**
      * Whether to show the card (Stripe) payment button. Defaults to `true`.
      * When set to `false`, `stripePublicKey` is not required.
      *
@@ -84,6 +95,8 @@ export namespace v1 {
      * regardless of this setting (belt + suspenders).
      *
      * @default false
+     *
+     * Prefer `featureFlags.complianceCheck` for new integrations.
      */
     complianceCheck?: boolean;
   }
@@ -429,6 +442,12 @@ export type CreditsHoldRequest = v1.CreditsHoldRequest;
 export type CreditsHoldResponse = v1.CreditsHoldResponse;
 export type CreditsAuthorizeRequest = v1.CreditsAuthorizeRequest;
 export type CreditsPaymentResult = v1.CreditsPaymentResult;
+export type {
+  FeatureFlagName,
+  FeatureFlagDefinition,
+  FeatureFlagOverrides,
+  ResolvedFeatureFlags,
+} from '../featureFlags';
 
 // Error handling types
 export { PaymentErrorCode, PaymentError, ERROR_CATEGORIES, type ErrorResponse } from './errors';
@@ -450,7 +469,11 @@ export type {
 export type {
   BillingInterval,
   SubscriptionStatus,
+  SubscriptionSessionFlow,
   SubscriptionSessionRequest,
+  MobileSubscriptionSessionRequest,
+  RedirectCheckoutSubscriptionSessionResponse,
+  PaymentSheetSubscriptionSessionResponse,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
   SubscriptionStatusResponse,

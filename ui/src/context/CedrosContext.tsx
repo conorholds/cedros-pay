@@ -7,6 +7,7 @@ import { type ISubscriptionManager } from '../managers/SubscriptionManager';
 import { type ISubscriptionChangeManager } from '../managers/SubscriptionChangeManager';
 import { type ICreditsManager } from '../managers/CreditsManager';
 import { getOrCreateManagers, releaseManagers } from '../managers/ManagerCache';
+import { resolveFeatureFlags, type ResolvedFeatureFlags } from '../featureFlags';
 import { validateConfig } from '../utils';
 import { CedrosThemeProvider } from './ThemeContext';
 import { createLogger, setLogger as setGlobalLogger, getLogger } from '../utils/logger';
@@ -47,6 +48,7 @@ function getDefaultLogLevel(): number {
  */
 export interface CedrosContextValue {
   config: CedrosConfig;
+  featureFlags: ResolvedFeatureFlags;
   stripeManager: IStripeManager;
   x402Manager: IX402Manager;
   walletManager: IWalletManager;
@@ -79,6 +81,16 @@ const CedrosContext = createContext<CedrosContextValue | null>(null);
  */
 export function CedrosProvider({ config, children }: CedrosProviderProps) {
   const validatedConfig = useMemo(() => validateConfig(config), [config]);
+  const featureFlags = useMemo(
+    () =>
+      resolveFeatureFlags({
+        featureFlags: validatedConfig.featureFlags,
+        fallbackFlags: validatedConfig.complianceCheck != null
+          ? { complianceCheck: validatedConfig.complianceCheck }
+          : undefined,
+      }),
+    [validatedConfig.featureFlags, validatedConfig.complianceCheck]
+  );
   const [initError, setInitError] = useState<string | null>(null);
 
   // Lazy-load wallet pool via dynamic import (avoids @solana/* in default entry)
@@ -186,7 +198,7 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     const cluster = validatedConfig.solanaCluster;
     const endpoint = validatedConfig.solanaEndpoint;
     const allowUnknownMint = validatedConfig.dangerouslyAllowUnknownMint;
-    const complianceCheck = validatedConfig.complianceCheck;
+    const complianceCheck = featureFlags.complianceCheck;
 
     getOrCreateManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint, complianceCheck)
       .then((result) => {
@@ -217,7 +229,7 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     validatedConfig.solanaCluster,
     validatedConfig.solanaEndpoint,
     validatedConfig.dangerouslyAllowUnknownMint,
-    validatedConfig.complianceCheck,
+    featureFlags.complianceCheck,
   ]);
 
   // Build context value (null until managers are loaded)
@@ -226,11 +238,12 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
 
     return {
       config: validatedConfig,
+      featureFlags,
       ...managers,
       walletPool,
       solanaError,
     };
-  }, [validatedConfig, managers, walletPool, solanaError]);
+  }, [validatedConfig, featureFlags, managers, walletPool, solanaError]);
 
   if (initError) {
     return <div role="alert">{initError}</div>;

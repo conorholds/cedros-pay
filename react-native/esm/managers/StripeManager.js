@@ -37,7 +37,7 @@ import { retryWithBackoff, RETRY_PRESETS } from '../utils/exponentialBackoff';
  * @see API_STABILITY.md for our API stability policy
  */
 export class StripeManager {
-    constructor(publicKey, routeDiscovery) {
+    constructor(publicKey, routeDiscovery, options) {
         this.isStripeInitialized = false;
         this.rateLimiter = createRateLimiter(RATE_LIMITER_PRESETS.PAYMENT);
         this.circuitBreaker = createCircuitBreaker({
@@ -47,6 +47,7 @@ export class StripeManager {
         });
         this.publicKey = publicKey;
         this.routeDiscovery = routeDiscovery;
+        this.returnUrl = options?.returnUrl;
     }
     /**
      * Initialize Stripe React Native SDK
@@ -126,6 +127,9 @@ export class StripeManager {
                 customerId: options.customerId,
                 allowsDelayedPaymentMethods: true,
             };
+            if (this.returnUrl) {
+                sheetConfig.returnURL = this.returnUrl;
+            }
             if (options.customerEphemeralKeySecret) {
                 sheetConfig.customerEphemeralKeySecret = options.customerEphemeralKeySecret;
             }

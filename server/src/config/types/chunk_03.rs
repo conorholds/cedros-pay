@@ -67,8 +67,45 @@ impl Default for StripeConfig {
             publishable_key: String::new(),
             success_url: String::new(),
             cancel_url: String::new(),
+            allowed_redirect_schemes: Vec::new(),
             tax_rate_id: String::new(),
             mode: default_stripe_mode(),
+        }
+    }
+}
+
+impl Default for AppleNativeStoreConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            issuer_id: String::new(),
+            key_id: String::new(),
+            private_key: String::new(),
+            bundle_id: String::new(),
+            allow_sandbox_fallback: true,
+        }
+    }
+}
+
+impl Default for GoogleNativeStoreConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            service_account_email: String::new(),
+            private_key: String::new(),
+            package_name: String::new(),
+            push_service_account_email: String::new(),
+            push_audience: String::new(),
+        }
+    }
+}
+
+impl Default for NativeStoreConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            apple: AppleNativeStoreConfig::default(),
+            google: GoogleNativeStoreConfig::default(),
         }
     }
 }
@@ -408,6 +445,27 @@ mod tests {
     }
 
     #[test]
+    fn test_google_native_store_requires_push_auth_config_when_enabled() {
+        let mut cfg = base_config();
+        cfg.native_store.enabled = true;
+        cfg.native_store.google.enabled = true;
+        cfg.native_store.google.service_account_email =
+            "billing@cedros-pay.iam.gserviceaccount.com".to_string();
+        cfg.native_store.google.private_key =
+            "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----".to_string();
+        cfg.native_store.google.package_name = "com.cedros.pay".to_string();
+
+        let result = cfg.validate();
+        assert!(matches!(result, Err(ConfigError::Validation(_))));
+
+        cfg.native_store.google.push_service_account_email =
+            "pubsub-push@cedros-pay.iam.gserviceaccount.com".to_string();
+        cfg.native_store.google.push_audience =
+            "https://pay.cedros.dev/paywall/v1/native-store/google/notifications".to_string();
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
     fn test_callbacks_webhook_url_rejects_private_hostname() {
         let mut cfg = base_config();
         cfg.logging.environment = "production".to_string();
@@ -479,6 +537,7 @@ mod tests {
             publishable_key: "pk_live_public".to_string(),
             success_url: "https://example.com/success".to_string(),
             cancel_url: "https://example.com/cancel".to_string(),
+            allowed_redirect_schemes: vec!["covenant".to_string()],
             tax_rate_id: "taxr_123".to_string(),
             mode: "live".to_string(),
         };

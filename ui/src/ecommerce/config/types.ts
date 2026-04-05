@@ -1,4 +1,5 @@
 import type { CommerceAdapter } from '../adapters/CommerceAdapter';
+import type { FeatureFlagOverrides } from '../../featureFlags';
 import type { CheckoutMode } from '../types';
 
 export type CedrosShopConfig = {
@@ -35,5 +36,6 @@ export type CedrosShopConfig = {
     storageKey?: string;
     syncDebounceMs?: number;
   };
+  featureFlags?: FeatureFlagOverrides;
   adapter: CommerceAdapter;
 };

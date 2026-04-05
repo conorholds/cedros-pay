@@ -156,8 +156,12 @@ impl StripeClient {
             form.push(("discounts[0][promotion_code]".into(), promo_code.clone()));
         }
 
-        // Call Stripe API
-        let response = self.stripe_post("checkout/sessions", &form).await?;
+        // Call Stripe API with server-generated idempotency key to prevent
+        // duplicate sessions from HTTP-level retries.
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let response = self
+            .stripe_post_with_idempotency("checkout/sessions", &form, Some(&idempotency_key))
+            .await?;
 
         // Parse response
         let session: StripeCheckoutSession =

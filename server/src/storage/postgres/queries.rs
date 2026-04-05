@@ -771,6 +771,19 @@ pub mod payment {
         ON CONFLICT (tenant_id, signature) DO NOTHING
     "#;
 
+    pub const UPSERT: &str = r#"
+        INSERT INTO payment_transactions (signature, tenant_id, resource_id, wallet, user_id, amount, amount_asset, created_at, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (tenant_id, signature) DO UPDATE SET
+            resource_id = EXCLUDED.resource_id,
+            wallet = EXCLUDED.wallet,
+            user_id = EXCLUDED.user_id,
+            amount = EXCLUDED.amount,
+            amount_asset = EXCLUDED.amount_asset,
+            created_at = EXCLUDED.created_at,
+            metadata = EXCLUDED.metadata
+    "#;
+
     /// Per spec (08-storage.md): Query must filter by tenant_id for isolation
     /// Note: Signature is globally unique, but we still filter by tenant for isolation
     pub const EXISTS: &str = r#"

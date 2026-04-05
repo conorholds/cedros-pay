@@ -95,8 +95,11 @@ pub async fn delete_image(
     axum::Json(body): axum::Json<DeleteRequest>,
 ) -> impl IntoResponse {
     if body.url.is_empty() {
-        let (status, body) =
-            error_response(ErrorCode::MissingField, Some("url is required".into()), None);
+        let (status, body) = error_response(
+            ErrorCode::MissingField,
+            Some("url is required".into()),
+            None,
+        );
         return json_error(status, body);
     }
 

@@ -717,6 +717,10 @@ impl Store for FailingCompleteIdempotencyStore {
         unimplemented!()
     }
 
+    async fn upsert_payment(&self, _tx: PaymentTransaction) -> StorageResult<()> {
+        unimplemented!()
+    }
+
     async fn delete_payment(&self, _tenant_id: &str, _signature: &str) -> StorageResult<()> {
         unimplemented!()
     }

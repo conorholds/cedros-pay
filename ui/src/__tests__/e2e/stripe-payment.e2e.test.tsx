@@ -353,6 +353,13 @@ describe('E2E: Stripe Payment Flow', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/cart/quote'),
+          expect.objectContaining({
+            method: 'POST',
+          })
+        );
+
+        expect(global.fetch).toHaveBeenCalledWith(
           expect.stringContaining('/cart/checkout'),
           expect.objectContaining({
             method: 'POST',
@@ -366,6 +373,7 @@ describe('E2E: Stripe Payment Flow', () => {
 
         if (cartCall) {
           const body = JSON.parse(cartCall[1].body as string);
+          expect(body.cartId).toBe('cart_test_123');
           expect(body.items).toHaveLength(2);
           expect(body.items[0].resource).toBe('product-1');
           expect(body.items[0].quantity).toBe(2);

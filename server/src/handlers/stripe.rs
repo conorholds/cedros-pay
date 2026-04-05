@@ -242,9 +242,11 @@ pub async fn create_session<S: Store + 'static>(
 
     // Validate redirect URLs if provided (SSRF prevention)
     if let Some(ref url) = req.success_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
             url,
             &state.paywall_service.config.logging.environment,
+            &state.paywall_service.config.stripe.allowed_redirect_schemes,
         ) {
             let (status, body) = crate::errors::error_response(
                 crate::errors::ErrorCode::InvalidField,
@@ -255,9 +257,11 @@ pub async fn create_session<S: Store + 'static>(
         }
     }
     if let Some(ref url) = req.cancel_url {
-        if let Err(e) = crate::errors::validation::validate_redirect_url_with_env(
+        if let Err(e) =
+            crate::errors::validation::validate_redirect_url_with_env_and_allowed_schemes(
             url,
             &state.paywall_service.config.logging.environment,
+            &state.paywall_service.config.stripe.allowed_redirect_schemes,
         ) {
             let (status, body) = crate::errors::error_response(
                 crate::errors::ErrorCode::InvalidField,
@@ -391,16 +395,12 @@ pub async fn create_session<S: Store + 'static>(
 
     // Compliance gate: sanctions, KYC, accredited investor (server-side security boundary).
     if let Some(ref checker) = state.paywall_service.compliance_checker {
-        let reqs = product
-            .compliance_requirements
-            .clone()
-            .unwrap_or_default();
+        let reqs = product.compliance_requirements.clone().unwrap_or_default();
         // Stripe users have no wallet — pass empty string for wallet check.
         let result = checker
             .check_compliance(&tenant.tenant_id, "", user_id.as_deref(), &reqs)
             .await;
-        if let crate::services::compliance_checker::ComplianceResult::Blocked { reasons } = result
-        {
+        if let crate::services::compliance_checker::ComplianceResult::Blocked { reasons } = result {
             let (status, body) = crate::errors::error_response(
                 crate::errors::ErrorCode::InvalidField,
                 Some(format!("purchase blocked: {}", reasons.join("; "))),
@@ -853,6 +853,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
@@ -932,6 +933,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
@@ -1012,6 +1014,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
@@ -1097,6 +1100,7 @@ mod tests {
             product_repo,
             stripe_client,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });

@@ -160,7 +160,15 @@ export class ConfigApiClient {
 
 /** Field metadata for special input types */
 export interface FieldMeta {
-  type?: 'dropdown' | 'number' | 'boolean' | 'token_mint' | 'toggle' | 'secret_array' | 'solana_address';
+  type?:
+    | 'dropdown'
+    | 'number'
+    | 'boolean'
+    | 'array'
+    | 'token_mint'
+    | 'toggle'
+    | 'secret_array'
+    | 'solana_address';
   options?: string[];
   unit?: string;
   /** Description text shown below the field label */
@@ -246,11 +254,65 @@ export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
       webhook_secret: {
         description: 'Stripe Dashboard → Developers → Webhooks → "Create an event destination" → select events: checkout.session.completed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed → Continue → choose "Webhook endpoint" → enter your server\'s webhook endpoint, e.g. https://example.com/webhook/stripe (your server URL + /webhook/stripe) → after creating, click the endpoint and "Click to reveal" the signing secret. Starts with whsec_...',
       },
+      allowed_redirect_schemes: {
+        type: 'array',
+        description: 'Optional mobile deep-link URI schemes Cedros should allow for Stripe success/cancel/portal redirects, for example ["covenant"]. Only add your app\'s custom schemes here. HTTPS links do not need to be listed.',
+      },
       tax_rate_id: {
         description: 'Stripe Dashboard → More → Product catalog → Tax rates → "+ New" → set the percentage, region, and whether tax is inclusive or exclusive → Save → copy the tax rate ID from the detail page (starts with txr_...). Leave empty if you don\'t collect tax.',
       },
       success_url: { hidden: true }, // Library provides default pages
       cancel_url: { hidden: true }, // Library provides default pages
+    },
+  },
+  native_store: {
+    label: 'App Stores',
+    description: 'Configure Apple App Store and Google Play billing credentials, notification endpoints, and server-side verification.',
+    secrets: ['apple_private_key', 'google_private_key'],
+    icon: '📱',
+    fields: {
+      enabled: {
+        hidden: true,
+      },
+      apple_enabled: {
+        type: 'toggle',
+        description: 'Enable Apple App Store verification and lifecycle handling for this tenant.',
+      },
+      apple_issuer_id: {
+        description: 'App Store Connect → Users and Access → Integrations → App Store Server API → Issuer ID.',
+      },
+      apple_key_id: {
+        description: 'App Store Connect → Users and Access → Integrations → App Store Server API → Key ID.',
+      },
+      apple_private_key: {
+        description: 'The contents of your App Store Server API private key (.p8). Keep this secret.',
+      },
+      apple_bundle_id: {
+        description: 'The bundle identifier of the app that ships with Apple In-App Purchase enabled.',
+      },
+      apple_allow_sandbox_fallback: {
+        type: 'toggle',
+        description: 'When enabled, Cedros will fall back to Apple sandbox verification where appropriate.',
+      },
+      google_enabled: {
+        type: 'toggle',
+        description: 'Enable Google Play purchase verification, acknowledgment, and RTDN processing.',
+      },
+      google_service_account_email: {
+        description: 'Google Cloud service-account email with Android Publisher API access.',
+      },
+      google_private_key: {
+        description: 'The private key for the Google service account used to call the Play Developer API.',
+      },
+      google_package_name: {
+        description: 'Default Android package name for this tenant’s Google Play app.',
+      },
+      google_push_service_account_email: {
+        description: 'Expected Google-signed Pub/Sub push identity for RTDN requests.',
+      },
+      google_push_audience: {
+        description: 'Expected RTDN push audience. This should match the audience configured on your Pub/Sub push subscription.',
+      },
     },
   },
   x402: {

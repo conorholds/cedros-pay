@@ -136,6 +136,51 @@ pub struct SubscriptionConfig {
     pub grace_period_hours: i32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StoreManagedProductKind {
+    Consumable,
+    NonConsumable,
+    AutoRenewableSubscription,
+}
+
+impl Default for StoreManagedProductKind {
+    fn default() -> Self {
+        Self::NonConsumable
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AppleStoreProductConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePlayStoreProductConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_plan_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreBillingConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<StoreManagedProductKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub apple: Option<AppleStoreProductConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google: Option<GooglePlayStoreProductConfig>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GiftCardConfig {
@@ -197,6 +242,8 @@ pub struct Product {
     pub stripe_product_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stripe_price_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store_billing: Option<StoreBillingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub crypto_price: Option<Money>,
     /// Minimal inventory status (string enum; e.g. "in_stock")

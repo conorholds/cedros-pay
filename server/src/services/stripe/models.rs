@@ -78,10 +78,37 @@ pub struct CreateSubscriptionRequest {
     pub price_id: String,
     pub customer_email: Option<String>,
     pub metadata: HashMap<String, String>,
+    pub coupon_code: Option<String>,
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,
     pub trial_days: Option<i64>,
     pub idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CreateMobileSubscriptionRequest {
+    pub product_id: String,
+    pub price_id: String,
+    pub customer_id: Option<String>,
+    pub customer_email: Option<String>,
+    pub metadata: HashMap<String, String>,
+    pub coupon_code: Option<String>,
+    pub trial_days: Option<i64>,
+    pub idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MobileSubscriptionSession {
+    pub subscription_id: String,
+    pub customer_id: String,
+    pub customer_ephemeral_key_secret: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_intent_client_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup_intent_client_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

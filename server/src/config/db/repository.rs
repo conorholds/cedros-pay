@@ -76,6 +76,7 @@ pub const KNOWN_CATEGORIES: &[&str] = &[
     "server",
     "logging",
     "stripe",
+    "native_store",
     "x402",
     "paywall",
     "shop",
@@ -116,8 +117,24 @@ pub fn default_keys_for_category(category: &str) -> &'static [&'static str] {
             "publishable_key",
             "success_url",
             "cancel_url",
+            "allowed_redirect_schemes",
             "tax_rate_id",
             "mode",
+        ],
+        "native_store" => &[
+            "enabled",
+            "apple_enabled",
+            "apple_issuer_id",
+            "apple_key_id",
+            "apple_private_key",
+            "apple_bundle_id",
+            "apple_allow_sandbox_fallback",
+            "google_enabled",
+            "google_service_account_email",
+            "google_private_key",
+            "google_package_name",
+            "google_push_service_account_email",
+            "google_push_audience",
         ],
         "x402" => &[
             "payment_address",
@@ -222,15 +239,16 @@ pub fn default_keys_for_category(category: &str) -> &'static [&'static str] {
 pub fn secret_fields_for_category(category: &str) -> HashSet<&'static str> {
     match category {
         "stripe" => ["secret_key", "webhook_secret"].into_iter().collect(),
+        "native_store" => ["apple_private_key", "google_private_key"]
+            .into_iter()
+            .collect(),
         "x402" => ["server_wallets"].into_iter().collect(),
         "callbacks" => ["hmac_secret"].into_iter().collect(),
         "cedros_login" => ["api_key"].into_iter().collect(),
         "api_keys" => ["keys"].into_iter().collect(),
         "server" => ["admin_metrics_api_key"].into_iter().collect(),
         "ai" => ["gemini_api_key", "openai_api_key"].into_iter().collect(),
-        "storage" => ["access_key_id", "secret_access_key"]
-            .into_iter()
-            .collect(),
+        "storage" => ["access_key_id", "secret_access_key"].into_iter().collect(),
         _ => HashSet::new(),
     }
 }

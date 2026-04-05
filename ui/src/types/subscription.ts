@@ -43,14 +43,66 @@ export interface SubscriptionSessionRequest {
 }
 
 /**
+ * Request to create a native Stripe PaymentSheet subscription session.
+ *
+ * This remains separate from redirect checkout so consumers can choose the
+ * contract intentionally.
+ */
+export interface MobileSubscriptionSessionRequest {
+  /** Resource/plan ID for the subscription */
+  resource: string;
+  /** Billing interval */
+  interval: BillingInterval;
+  /** Custom interval in days (only used when interval is 'custom') */
+  intervalDays?: number;
+  /** Number of trial days (0 for no trial) */
+  trialDays?: number;
+  /** Customer email for Stripe customer reuse/bootstrap */
+  customerEmail?: string;
+  /** Metadata for tracking */
+  metadata?: Record<string, string>;
+  /** Coupon code for discount */
+  couponCode?: string;
+}
+
+/**
  * Response from subscription session creation
  */
-export interface SubscriptionSessionResponse {
+export type SubscriptionSessionFlow = 'redirect_checkout' | 'payment_sheet';
+
+export interface RedirectCheckoutSubscriptionSessionResponse {
+  /** Flow discriminator for browser/mobile redirect checkout */
+  flow?: 'redirect_checkout';
   /** Stripe checkout session ID */
   sessionId: string;
   /** Stripe checkout URL */
   url: string;
 }
+
+export interface PaymentSheetSubscriptionSessionResponse {
+  /** Flow discriminator for native Stripe PaymentSheet flows */
+  flow: 'payment_sheet';
+  /** Stripe subscription ID created server-side */
+  subscriptionId?: string;
+  /** Stripe PaymentIntent client secret for immediate payment flows */
+  paymentIntentClientSecret?: string;
+  /** Stripe SetupIntent client secret for setup-first subscription flows */
+  setupIntentClientSecret?: string;
+  /** Stripe customer ID for PaymentSheet customer context */
+  customerId?: string;
+  /** Ephemeral key secret for PaymentSheet customer context */
+  customerEphemeralKeySecret?: string;
+  /** Optional server session ID for analytics or follow-up verification */
+  sessionId?: string;
+  /** Optional hosted URL when the backend also creates a fallback redirect flow */
+  url?: string;
+  /** Stripe subscription status when no client confirmation is required */
+  status?: string;
+}
+
+export type SubscriptionSessionResponse =
+  | RedirectCheckoutSubscriptionSessionResponse
+  | PaymentSheetSubscriptionSessionResponse;
 
 /**
  * Request to check subscription status

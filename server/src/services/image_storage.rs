@@ -150,10 +150,7 @@ impl ImageStorageService {
     ) -> Result<(), ImageStorageError> {
         let (client, bucket, cdn_url) = self.get_client(tenant_id).await?;
 
-        let base = cdn_url
-            .as_deref()
-            .unwrap_or("")
-            .trim_end_matches('/');
+        let base = cdn_url.as_deref().unwrap_or("").trim_end_matches('/');
 
         // Extract object key from URL
         let key = extract_object_key(image_url, base, &bucket)?;
@@ -233,19 +230,19 @@ impl ImageStorageService {
             .get("bucket_name")
             .filter(|s| !s.is_empty())
             .cloned()
-            .ok_or_else(|| {
-                ImageStorageError::NotConfigured("bucket_name not set".into())
-            })?;
+            .ok_or_else(|| ImageStorageError::NotConfigured("bucket_name not set".into()))?;
 
-        let access_key = config.get("access_key_id").filter(|s| !s.is_empty()).cloned()
-            .ok_or_else(|| {
-                ImageStorageError::NotConfigured("access_key_id not set".into())
-            })?;
+        let access_key = config
+            .get("access_key_id")
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .ok_or_else(|| ImageStorageError::NotConfigured("access_key_id not set".into()))?;
 
-        let secret_key = config.get("secret_access_key").filter(|s| !s.is_empty()).cloned()
-            .ok_or_else(|| {
-                ImageStorageError::NotConfigured("secret_access_key not set".into())
-            })?;
+        let secret_key = config
+            .get("secret_access_key")
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .ok_or_else(|| ImageStorageError::NotConfigured("secret_access_key not set".into()))?;
 
         let region = config
             .get("region")
@@ -253,7 +250,10 @@ impl ImageStorageService {
             .cloned()
             .unwrap_or_else(|| "us-east-1".to_string());
 
-        let endpoint_url = config.get("endpoint_url").filter(|s| !s.is_empty()).cloned();
+        let endpoint_url = config
+            .get("endpoint_url")
+            .filter(|s| !s.is_empty())
+            .cloned();
         let cdn_url = config.get("cdn_url").filter(|s| !s.is_empty()).cloned();
 
         // Build S3 client
@@ -265,9 +265,7 @@ impl ImageStorageService {
             .behavior_version_latest();
 
         if let Some(ep) = &endpoint_url {
-            s3_config = s3_config
-                .endpoint_url(ep)
-                .force_path_style(false);
+            s3_config = s3_config.endpoint_url(ep).force_path_style(false);
         }
 
         let client = S3Client::from_conf(s3_config.build());
@@ -339,7 +337,11 @@ async fn upload_object(
     Ok(())
 }
 
-fn extract_object_key(url: &str, cdn_base: &str, bucket: &str) -> Result<String, ImageStorageError> {
+fn extract_object_key(
+    url: &str,
+    cdn_base: &str,
+    bucket: &str,
+) -> Result<String, ImageStorageError> {
     // Try CDN URL prefix
     if !cdn_base.is_empty() {
         if let Some(key) = url.strip_prefix(cdn_base) {

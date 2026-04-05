@@ -5,6 +5,7 @@
 mod checkout;
 mod checkout_multi;
 mod coupons;
+mod mobile_subscriptions;
 mod products;
 mod refunds;
 mod subscriptions;
@@ -170,6 +171,17 @@ impl StripeClient {
         form: &[(String, String)],
         idempotency_key: Option<&str>,
     ) -> ServiceResult<serde_json::Value> {
+        self.stripe_post_with_headers(endpoint, form, idempotency_key, &[])
+            .await
+    }
+
+    pub(super) async fn stripe_post_with_headers(
+        &self,
+        endpoint: &str,
+        form: &[(String, String)],
+        idempotency_key: Option<&str>,
+        extra_headers: &[(&str, &str)],
+    ) -> ServiceResult<serde_json::Value> {
         use crate::errors::ErrorCode;
         let url = format!("https://api.stripe.com/v1/{}", endpoint);
 
@@ -188,6 +200,10 @@ impl StripeClient {
                 if let Some(key) = idempotency_key {
                     // https://docs.stripe.com/idempotency
                     req = req.header("Idempotency-Key", key);
+                }
+
+                for (name, value) in extra_headers {
+                    req = req.header(*name, *value);
                 }
 
                 req.send().await.map_err(|e| ServiceError::Coded {

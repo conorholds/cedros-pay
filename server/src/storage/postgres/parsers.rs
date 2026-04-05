@@ -622,6 +622,8 @@ pub fn parse_subscription(row: PgRow) -> StorageResult<Subscription> {
         "stripe" => PaymentMethod::Stripe,
         "x402" => PaymentMethod::X402,
         "credits" => PaymentMethod::Credits,
+        "apple_iap" => PaymentMethod::AppleIap,
+        "google_play_billing" => PaymentMethod::GooglePlayBilling,
         unknown => {
             tracing::warn!(
                 payment_method = %unknown,

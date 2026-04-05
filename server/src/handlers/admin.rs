@@ -180,6 +180,8 @@ pub struct AdminProductInfo {
     pub stripe_product_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stripe_price_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store_billing: Option<crate::models::StoreBillingConfig>,
     pub crypto_atomic_amount: Option<i64>,
     pub crypto_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -230,6 +232,7 @@ impl From<&Product> for AdminProductInfo {
                 .map(|m| m.asset.code.clone()),
             stripe_product_id: p.stripe_product_id.clone(),
             stripe_price_id: p.stripe_price_id.clone(),
+            store_billing: p.store_billing.clone(),
             crypto_atomic_amount: p.crypto_price.as_ref().map(|m| m.atomic),
             crypto_token: p.crypto_price.as_ref().map(|m| m.asset.code.clone()),
             inventory_status: p.inventory_status.clone(),

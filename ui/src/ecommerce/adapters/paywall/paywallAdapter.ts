@@ -1,4 +1,15 @@
-import type { CommerceAdapter, ProductListParams, CheckoutSessionPayload, CheckoutSessionResult, StorefrontConfig, PaymentMethodsConfig, AIRelatedProductsParams, AIRelatedProductsResult, ChatMessageParams, ChatMessageResult } from '../CommerceAdapter';
+import type {
+  CommerceAdapter,
+  ProductListParams,
+  CheckoutSessionPayload,
+  CheckoutSessionResult,
+  StorefrontConfig,
+  PaymentMethodsConfig,
+  AIRelatedProductsParams,
+  AIRelatedProductsResult,
+  ChatMessageParams,
+  ChatMessageResult,
+} from '../CommerceAdapter';
 import type { Category, ListResult, Product } from '../../types';
 import { retryWithBackoff } from '../../../utils/exponentialBackoff';
 import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
@@ -42,9 +53,39 @@ type PaywallProductsResponse =
       offset?: number;
     };
 
+type PaywallCollection = {
+  id: string;
+  name?: string;
+  description?: string;
+  slug?: string;
+};
+
+type PaywallCollectionsResponse =
+  | PaywallCollection[]
+  | {
+      collections?: PaywallCollection[];
+      items?: PaywallCollection[];
+      total?: number;
+      count?: number;
+      limit?: number;
+      offset?: number;
+    };
+
+type PaywallCartQuoteResponse = {
+  cartId?: string;
+  cart_id?: string;
+};
+
+type PaywallCartCheckoutResponse = {
+  sessionId?: string;
+  session_id?: string;
+  url?: string;
+};
+
 const FALLBACK_PAGE_SIZE = 50;
 const FALLBACK_MAX_PAGES_SINGLE_LOOKUP = 4;
 const FALLBACK_MAX_PAGES_BATCH_LOOKUP = 5;
+const COLLECTIONS_PAGE_SIZE = 100;
 const PAYWALL_FETCH_TIMEOUT_MS = 10000;
 const PAYWALL_READ_RETRY_CONFIG = {
   maxRetries: 2,
@@ -162,6 +203,16 @@ function extractProducts(data: PaywallProductsResponse): {
   return { products, total };
 }
 
+function extractCollections(data: PaywallCollectionsResponse): {
+  collections: PaywallCollection[];
+  total?: number;
+} {
+  if (Array.isArray(data)) return { collections: data };
+  const collections = data.collections ?? data.items ?? [];
+  const total = data.total ?? data.count;
+  return { collections, total };
+}
+
 interface FetchError extends Error {
   status: number;
 }
@@ -269,7 +320,12 @@ export function createPaywallCommerceAdapter(opts: {
     qs.set('limit', String(limit));
     qs.set('offset', String(offset));
     if (params.search) qs.set('search', params.search);
-    if (params.category) qs.set('category', params.category);
+    if (params.category) {
+      // Storefront categories are backed by public collections; keep `category`
+      // for compatibility with older endpoints that may still inspect it.
+      qs.set('collection_id', params.category);
+      qs.set('category', params.category);
+    }
     if (params.sort) qs.set('sort', params.sort);
 
     // These query params are best-effort; server may ignore.
@@ -431,7 +487,26 @@ export function createPaywallCommerceAdapter(opts: {
   };
 
   const listCategories = async (): Promise<Category[]> => {
-    // Server doesn’t yet expose category details. Derive from products as a pragmatic fallback.
+    try {
+      const data = (await fetchJson(
+        opts.serverUrl,
+        `/paywall/v1/collections?limit=${COLLECTIONS_PAGE_SIZE}&offset=0`,
+        opts.apiKey,
+        { retryableRead: true }
+      )) as PaywallCollectionsResponse;
+      const { collections } = extractCollections(data);
+      if (collections.length > 0) {
+        return collections.map((collection) => ({
+          id: collection.id,
+          slug: collection.slug ?? collection.id,
+          name: collection.name ?? titleCaseId(collection.id),
+          description: collection.description,
+        }));
+      }
+    } catch {
+      // Fall back to product-derived category IDs for older servers.
+    }
+
     const data = (await fetchJson(
       opts.serverUrl,
       `/paywall/v1/products?limit=500&offset=0`,
@@ -446,9 +521,76 @@ export function createPaywallCommerceAdapter(opts: {
     return Array.from(ids).map((id) => ({ id, slug: id, name: titleCaseId(id) }));
   };
 
-  // This adapter is catalog-only. Checkout/session creation stays provider-specific.
-  const createCheckoutSession = async (_payload: CheckoutSessionPayload): Promise<CheckoutSessionResult> => {
-    throw new Error('createCheckoutSession is not implemented for paywall adapter');
+  const createCheckoutSession = async (
+    payload: CheckoutSessionPayload
+  ): Promise<CheckoutSessionResult> => {
+    const paymentMethodId = payload.options.paymentMethodId ?? 'card';
+    if (paymentMethodId !== 'card') {
+      throw new Error(
+        `Payment method "${paymentMethodId}" is not supported by the paywall commerce adapter`
+      );
+    }
+
+    const items = payload.cart.map((item) => ({
+      resource: item.resource,
+      quantity: item.quantity,
+      variantId: item.variantId,
+    }));
+
+    const quotePayload = {
+      items,
+      metadata: payload.options.metadata,
+      coupon: payload.options.discountCode,
+      couponCode: payload.options.discountCode,
+    };
+    const quote = (await fetchJson(
+      opts.serverUrl,
+      '/paywall/v1/cart/quote',
+      opts.apiKey,
+      {
+        method: 'POST',
+        body: JSON.stringify(quotePayload),
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )) as PaywallCartQuoteResponse;
+
+    const cartId = quote.cartId ?? quote.cart_id;
+    if (!cartId) {
+      throw new Error('Cart quote response did not include cartId');
+    }
+
+    const checkoutPayload = {
+      cartId,
+      items,
+      customerEmail: payload.customer.email,
+      customerName: payload.customer.name,
+      customerPhone: payload.customer.phone,
+      shippingAddress: payload.customer.shippingAddress,
+      billingAddress: payload.customer.billingAddress,
+      metadata: payload.options.metadata,
+      successUrl: payload.options.successUrl,
+      cancelUrl: payload.options.cancelUrl,
+      coupon: payload.options.discountCode,
+      couponCode: payload.options.discountCode,
+      tipAmount: payload.options.tipAmount,
+      shippingMethodId: payload.options.shippingMethodId,
+    };
+    const checkout = (await fetchJson(
+      opts.serverUrl,
+      '/paywall/v1/cart/checkout',
+      opts.apiKey,
+      {
+        method: 'POST',
+        body: JSON.stringify(checkoutPayload),
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )) as PaywallCartCheckoutResponse;
+
+    if (!checkout.url) {
+      throw new Error('Checkout session response did not include a redirect URL');
+    }
+
+    return { kind: 'redirect', url: checkout.url };
   };
 
   const getStorefrontSettings = async (): Promise<StorefrontConfig | null> => {
@@ -476,7 +618,8 @@ export function createPaywallCommerceAdapter(opts: {
       )) as { paymentMethods?: { stripe?: boolean; x402?: boolean; credits?: boolean } };
       const pm = data.paymentMethods;
       if (!pm) return null;
-      return { card: Boolean(pm.stripe), crypto: Boolean(pm.x402), credits: Boolean(pm.credits) };
+      // Generic ecommerce checkout is currently wired for redirect card checkout only.
+      return { card: Boolean(pm.stripe), crypto: false, credits: false };
     } catch {
       return null;
     }

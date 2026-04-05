@@ -4,7 +4,7 @@
  * Main library exports - NO ADMIN functionality
  */
 // Components
-export { StripeButton, CryptoButton, CreditsButton, PurchaseButton, SubscribeButton, CryptoSubscribeButton, CreditsSubscribeButton, SubscriptionManagementPanel, PaymentModal, ProductPrice, CedrosPay, } from './components';
+export { StripeButton, CryptoButton, CreditsButton, PurchaseButton, NativeStoreButton, RestorePurchasesButton, ManageSubscriptionsButton, SubscribeButton, CryptoSubscribeButton, CreditsSubscribeButton, SubscriptionManagementPanel, PaymentModal, ProductPrice, CedrosPay, CedrosPayButton, } from './components';
 // Context
 export { CedrosProvider, useCedrosContext, useCedrosTheme, } from './context';
 // Hooks
@@ -17,6 +17,9 @@ export { useSubscription } from './hooks/useSubscription';
 export { useCryptoSubscription } from './hooks/useCryptoSubscription';
 export { useCreditsSubscription } from './hooks/useCreditsSubscription';
 export { useSubscriptionManagement } from './hooks/useSubscriptionManagement';
+export { useStoreAwarePaymentPolicy } from './hooks/useStoreAwarePaymentPolicy';
+// Policy
+export { resolveAllowedPaymentMethods, resolvePaymentPolicy, collapseRenderablePaymentMethods, detectDistributionChannel, mergeCedrosProductDefinition, resolveStoreProductConfiguration, selectGooglePlayOffer, mapPaywallProductToCedrosProductDefinition, createCedrosProductCatalogFromPaywallProducts, fetchCedrosProductCatalog, resolveNativeStoreMethod, isRestorableStoreProduct, isManageableStoreSubscription, } from './policy';
 // Error code categories (for bulk error handling)
 export { ERROR_CATEGORIES } from './types/errors';
 // Managers (for advanced usage)
@@ -26,6 +29,7 @@ export { X402Manager } from './managers/X402Manager';
 export { WalletManager } from './managers/WalletManager';
 export { SubscriptionManager, } from './managers/SubscriptionManager';
 export { SubscriptionChangeManager, } from './managers/SubscriptionChangeManager';
+export { StoreBillingManager, } from './managers/StoreBillingManager';
 export { RouteDiscoveryManager, } from './managers/RouteDiscoveryManager';
 // Utilities
 export { LogLevel, Logger, getLogger, createLogger, } from './utils/logger';

@@ -9,7 +9,7 @@ use sqlx::{FromRow, PgPool};
 use crate::models::money::{get_asset, Money};
 use crate::models::{
     CheckoutRequirements, FulfillmentInfo, GiftCardConfig, Product, ProductImage, ProductVariant,
-    ProductVariationConfig, SubscriptionConfig,
+    ProductVariationConfig, StoreBillingConfig, SubscriptionConfig,
 };
 use crate::repositories::{
     AiCatalogProduct, DiscoveryProduct, ProductRepository, ProductRepositoryError,
@@ -43,6 +43,7 @@ struct ProductRow {
     compare_at_fiat_currency: Option<String>,
     stripe_product_id: Option<String>,
     stripe_price_id: Option<String>,
+    store_billing: Option<serde_json::Value>,
     crypto_amount_atomic: Option<i64>,
     crypto_token: Option<String>,
     inventory_status: Option<String>,
@@ -121,7 +122,7 @@ const PRODUCT_SELECT_COLUMNS: &str = r#"
     tags, category_ids, images, featured, sort_order,
     shipping_profile, checkout_requirements, fulfillment,
     fiat_amount_atomic, fiat_currency, compare_at_fiat_amount_atomic, compare_at_fiat_currency,
-    stripe_product_id, stripe_price_id,
+    stripe_product_id, stripe_price_id, store_billing,
     crypto_amount_atomic, crypto_token, inventory_status, inventory_quantity, inventory_policy,
     variants, variation_config, crypto_account, memo_template,
     metadata, active, subscription_billing_period, subscription_billing_interval,
@@ -172,6 +173,9 @@ impl ProductRow {
             .metadata
             .and_then(|v| serde_json::from_value(v).ok())
             .unwrap_or_default();
+        let store_billing: Option<StoreBillingConfig> = self
+            .store_billing
+            .and_then(|v| serde_json::from_value(v).ok());
 
         let tags: Vec<String> = self
             .tags
@@ -230,6 +234,7 @@ impl ProductRow {
             compare_at_fiat_price,
             stripe_product_id: self.stripe_product_id,
             stripe_price_id: self.stripe_price_id,
+            store_billing,
             crypto_price,
             inventory_status: self.inventory_status,
             inventory_quantity: self.inventory_quantity,
@@ -877,6 +882,12 @@ impl ProductRepository for PostgresProductRepository {
             .map(serde_json::to_value)
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+        let store_billing: Option<serde_json::Value> = product
+            .store_billing
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
         let tokenized_asset_config: Option<serde_json::Value> = product
             .tokenized_asset_config
@@ -913,7 +924,7 @@ impl ProductRepository for PostgresProductRepository {
                 tags, category_ids, images, featured, sort_order,
                 shipping_profile, checkout_requirements, fulfillment,
                 fiat_amount_atomic, fiat_currency, compare_at_fiat_amount_atomic, compare_at_fiat_currency,
-                stripe_product_id, stripe_price_id,
+                stripe_product_id, stripe_price_id, store_billing,
                 crypto_amount_atomic, crypto_token, inventory_status, variants, variation_config,
                 crypto_account, memo_template,
                 metadata, active, subscription_billing_period, subscription_billing_interval,
@@ -927,11 +938,11 @@ impl ProductRepository for PostgresProductRepository {
                 $9, $10, $11, $12, $13,
                 $14, $15, $16,
                 $17, $18, $19, $20,
-                $21, $22,
-                $23, $24, $25, $26, $27,
-                $28, $29,
-                $30, $31, $32, $33, $34, $35, $36, $37,
-                $38, $39, $40, $41, $42, $43, $44
+                $21, $22, $23,
+                $24, $25, $26, $27, $28,
+                $29, $30,
+                $31, $32, $33, $34, $35, $36, $37, $38,
+                $39, $40, $41, $42, $43, $44, $45
             )
             "#,
             self.table_name
@@ -960,6 +971,7 @@ impl ProductRepository for PostgresProductRepository {
             .bind(compare_at_fiat_currency)
             .bind(&product.stripe_product_id)
             .bind(&product.stripe_price_id)
+            .bind(&store_billing)
             .bind(crypto_amount_atomic)
             .bind(crypto_token)
             .bind(&product.inventory_status)
@@ -1057,6 +1069,12 @@ impl ProductRepository for PostgresProductRepository {
             .map(serde_json::to_value)
             .transpose()
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
+        let store_billing: Option<serde_json::Value> = product
+            .store_billing
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;
 
         let tokenized_asset_config: Option<serde_json::Value> = product
             .tokenized_asset_config
@@ -1109,28 +1127,29 @@ impl ProductRepository for PostgresProductRepository {
                 compare_at_fiat_currency = $19,
                 stripe_product_id = $20,
                 stripe_price_id = $21,
-                crypto_amount_atomic = $22,
-                crypto_token = $23,
-                inventory_status = $24,
-                variants = $25,
-                variation_config = $26,
-                crypto_account = $27,
-                memo_template = $28,
-                metadata = $29,
-                active = $30,
-                subscription_billing_period = $31,
-                subscription_billing_interval = $32,
-                subscription_trial_days = $33,
-                subscription_stripe_price_id = $34,
-                subscription_allow_x402 = $35,
-                subscription_grace_period_hours = $36,
-                inventory_quantity = $37,
-                inventory_policy = $38,
-                gift_card_config = $39,
-                tokenized_asset_config = $40,
-                compliance_requirements = $41,
-                updated_at = $42
-            WHERE id = $1 AND tenant_id = $43
+                store_billing = $22,
+                crypto_amount_atomic = $23,
+                crypto_token = $24,
+                inventory_status = $25,
+                variants = $26,
+                variation_config = $27,
+                crypto_account = $28,
+                memo_template = $29,
+                metadata = $30,
+                active = $31,
+                subscription_billing_period = $32,
+                subscription_billing_interval = $33,
+                subscription_trial_days = $34,
+                subscription_stripe_price_id = $35,
+                subscription_allow_x402 = $36,
+                subscription_grace_period_hours = $37,
+                inventory_quantity = $38,
+                inventory_policy = $39,
+                gift_card_config = $40,
+                tokenized_asset_config = $41,
+                compliance_requirements = $42,
+                updated_at = $43
+            WHERE id = $1 AND tenant_id = $44
             "#,
             self.table_name
         );
@@ -1157,6 +1176,7 @@ impl ProductRepository for PostgresProductRepository {
             .bind(compare_at_fiat_currency)
             .bind(&product.stripe_product_id)
             .bind(&product.stripe_price_id)
+            .bind(&store_billing)
             .bind(crypto_amount_atomic)
             .bind(crypto_token)
             .bind(&product.inventory_status)
@@ -1178,7 +1198,7 @@ impl ProductRepository for PostgresProductRepository {
             .bind(&tokenized_asset_config)
             .bind(&compliance_requirements_json)
             .bind(Utc::now())
-            .bind(&product.tenant_id) // $43: tenant isolation
+            .bind(&product.tenant_id) // $44: tenant isolation
             .execute(&self.pool)
             .await
             .map_err(|e| ProductRepositoryError::Storage(e.to_string()))?;

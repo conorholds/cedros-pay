@@ -394,7 +394,11 @@ pub async fn get_gift_card_balance<S: Store + 'static>(
         return (status, Json(body)).into_response();
     }
 
-    match state.store.get_gift_card(&tenant.tenant_id, &normalized).await {
+    match state
+        .store
+        .get_gift_card(&tenant.tenant_id, &normalized)
+        .await
+    {
         Ok(Some(card)) => {
             let now = chrono::Utc::now();
             let expired = card.expires_at.is_some_and(|exp| exp <= now);

@@ -1,15 +1,26 @@
 import React from 'react';
 import { ViewStyle, TextStyle } from 'react-native';
-import type { CartItem, PaymentMethod } from '../types';
+import { type PaymentModalProps } from './PaymentModal';
+import type { CartItem, CedrosProductDefinition, DistributionChannel, NativeStorePurchaseResult, PaymentMethod } from '../types';
 export interface PurchaseButtonProps {
     /** Single resource ID (for single-item payments) */
     resource?: string;
     /** Multiple items (for cart purchases) - mutually exclusive with resource */
     items?: CartItem[];
+    product?: CedrosProductDefinition;
+    distributionChannel?: DistributionChannel;
     label?: string;
+    appleIapLabel?: string;
+    googlePlayBillingLabel?: string;
+    restorePurchasesLabel?: string;
+    manageSubscriptionsLabel?: string;
     cardLabel?: string;
     cryptoLabel?: string;
     creditsLabel?: string;
+    showAppleIap?: boolean;
+    showGooglePlayBilling?: boolean;
+    showRestorePurchases?: boolean;
+    showManageSubscriptions?: boolean;
     showCard?: boolean;
     showCrypto?: boolean;
     showCredits?: boolean;
@@ -20,12 +31,20 @@ export interface PurchaseButtonProps {
     /** Legacy: used for auto-Stripe fallback only */
     onPaymentError?: (error: string) => void;
     /** Method-specific callbacks (new, preferred) */
+    onAppleIapSuccess?: (txId: string) => void;
+    onGooglePlayBillingSuccess?: (txId: string) => void;
     onStripeSuccess?: (txId: string) => void;
     onCryptoSuccess?: (txId: string) => void;
     onCreditsSuccess?: (txId: string) => void;
+    onRestorePurchasesSuccess?: (results: NativeStorePurchaseResult[]) => void;
+    onManageSubscriptionsOpen?: () => void;
+    onAppleIapError?: (error: string) => void;
+    onGooglePlayBillingError?: (error: string) => void;
     onStripeError?: (error: string) => void;
     onCryptoError?: (error: string) => void;
     onCreditsError?: (error: string) => void;
+    onRestorePurchasesError?: (error: string) => void;
+    onManageSubscriptionsError?: (error: string) => void;
     customerEmail?: string;
     successUrl?: string;
     cancelUrl?: string;
@@ -42,34 +61,7 @@ export interface PurchaseButtonProps {
     /** Loading indicator color */
     loadingColor?: string;
     /** Custom modal renderer */
-    renderModal?: (props: {
-        isOpen: boolean;
-        onClose: () => void;
-        resource?: string;
-        items?: CartItem[];
-        cardLabel?: string;
-        cryptoLabel?: string;
-        creditsLabel?: string;
-        showCard?: boolean;
-        showCrypto?: boolean;
-        showCredits?: boolean;
-        onPaymentAttempt?: (method: PaymentMethod) => void;
-        onPaymentSuccess?: (txId: string) => void;
-        onPaymentError?: (error: string) => void;
-        onStripeSuccess?: (txId: string) => void;
-        onCryptoSuccess?: (txId: string) => void;
-        onCreditsSuccess?: (txId: string) => void;
-        onStripeError?: (error: string) => void;
-        onCryptoError?: (error: string) => void;
-        onCreditsError?: (error: string) => void;
-        customerEmail?: string;
-        successUrl?: string;
-        cancelUrl?: string;
-        metadata?: Record<string, string>;
-        couponCode?: string;
-        authToken?: string;
-        hideMessages?: boolean;
-    }) => React.ReactNode;
+    renderModal?: (props: PaymentModalProps) => React.ReactNode;
 }
 export declare const PurchaseButton: React.FC<PurchaseButtonProps>;
 //# sourceMappingURL=PurchaseButton.d.ts.map

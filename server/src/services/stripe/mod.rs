@@ -9,9 +9,10 @@ mod webhook_signature;
 
 // Re-export public types
 pub use models::{
-    CartLineItem, CreateCartSessionRequest, CreateSessionRequest, CreateSubscriptionRequest,
-    ProrationLine, ProrationPreview, SessionVerifyInfo, StripeSession, SubscriptionChangeResult,
-    SubscriptionWebhookEvent, UpdateSubscriptionRequest, UpdateSubscriptionResult, WebhookEvent,
+    CartLineItem, CreateCartSessionRequest, CreateMobileSubscriptionRequest, CreateSessionRequest,
+    CreateSubscriptionRequest, MobileSubscriptionSession, ProrationLine, ProrationPreview,
+    SessionVerifyInfo, StripeSession, SubscriptionChangeResult, SubscriptionWebhookEvent,
+    UpdateSubscriptionRequest, UpdateSubscriptionResult, WebhookEvent,
 };
 
 // Re-export the client and functions

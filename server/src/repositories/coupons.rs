@@ -54,6 +54,8 @@ pub trait CouponRepository: Send + Sync {
                             PaymentMethod::Stripe => "stripe",
                             PaymentMethod::X402 => "x402",
                             PaymentMethod::Credits => "credits",
+                            PaymentMethod::AppleIap => "apple_iap",
+                            PaymentMethod::GooglePlayBilling => "google_play_billing",
                         };
                         coupon.payment_method.is_empty()
                             || coupon.payment_method == "any"
@@ -83,6 +85,8 @@ pub trait CouponRepository: Send + Sync {
             PaymentMethod::Stripe => "stripe",
             PaymentMethod::X402 => "x402",
             PaymentMethod::Credits => "credits",
+            PaymentMethod::AppleIap => "apple_iap",
+            PaymentMethod::GooglePlayBilling => "google_play_billing",
         };
         Ok(all
             .into_iter()
@@ -154,6 +158,8 @@ pub trait CouponRepository: Send + Sync {
             PaymentMethod::Stripe => "stripe",
             PaymentMethod::X402 => "x402",
             PaymentMethod::Credits => "credits",
+            PaymentMethod::AppleIap => "apple_iap",
+            PaymentMethod::GooglePlayBilling => "google_play_billing",
         };
         let now = chrono::Utc::now();
         Ok(all

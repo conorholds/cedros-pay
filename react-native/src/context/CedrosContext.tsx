@@ -1,17 +1,21 @@
 import { createContext, type ReactNode, useContext, useMemo, useEffect, useRef, useState } from 'react';
-import type { CedrosConfig } from '../types';
+import { Linking } from 'react-native';
+import { handleURLCallback } from '@stripe/stripe-react-native';
+import type { CedrosConfig, CedrosProductCatalog } from '../types';
 import { type IStripeManager } from '../managers/StripeManager';
 import { type IX402Manager } from '../managers/X402Manager';
 import { type IWalletManager } from '../managers/WalletManager';
 import { type ISubscriptionManager } from '../managers/SubscriptionManager';
 import { type ISubscriptionChangeManager } from '../managers/SubscriptionChangeManager';
 import { type ICreditsManager } from '../managers/CreditsManager';
+import { type IStoreBillingManager } from '../managers/StoreBillingManager';
 import { getOrCreateManagers, releaseManagers } from '../managers/ManagerCache';
 import { validateConfig } from '../utils';
 import { CedrosThemeProvider } from './ThemeContext';
 import { createLogger, setLogger as setGlobalLogger, getLogger } from '../utils/logger';
 import { createWalletPool, type WalletPool } from '../utils/walletPool';
 import { checkSolanaAvailability } from '../utils/solanaCheck';
+import { fetchCedrosProductCatalog } from '../policy/paywallProductCatalog';
 
 // Get default log level based on environment
 function getDefaultLogLevel(): number {
@@ -37,6 +41,7 @@ export interface CedrosContextValue {
   subscriptionManager: ISubscriptionManager;
   subscriptionChangeManager: ISubscriptionChangeManager;
   creditsManager: ICreditsManager;
+  storeBillingManager: IStoreBillingManager;
   /** Context-scoped wallet pool (for internal use by CedrosPay component) */
   walletPool: WalletPool;
   /** Cached Solana availability check result (null = not checked yet, string = error message, undefined = available) */
@@ -64,6 +69,9 @@ const CedrosContext = createContext<CedrosContextValue | null>(null);
 export function CedrosProvider({ config, children }: CedrosProviderProps) {
   const validatedConfig = useMemo(() => validateConfig(config), [config]);
   const [initError, setInitError] = useState<string | null>(null);
+  const [syncedProductCatalog, setSyncedProductCatalog] = useState<
+    CedrosProductCatalog | undefined
+  >(undefined);
 
   // Create context-scoped wallet pool (one per CedrosProvider instance)
   // Using useRef to ensure it's only created once per component lifecycle
@@ -113,6 +121,46 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     setGlobalLogger(logger);
   }, [validatedConfig.logLevel]);
 
+  useEffect(() => {
+    const syncEnabled =
+      validatedConfig.paymentPolicy?.productCatalogSync?.enabled !== false;
+
+    if (!syncEnabled || !validatedConfig.serverUrl) {
+      setSyncedProductCatalog(undefined);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void fetchCedrosProductCatalog({
+      serverUrl: validatedConfig.serverUrl,
+      limit: validatedConfig.paymentPolicy?.productCatalogSync?.limit,
+      signal: controller.signal,
+    })
+      .then((catalog) => {
+        setSyncedProductCatalog(catalog);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        getLogger().warn(
+          '[CedrosProvider] Failed to sync payment policy product catalog from paywall products:',
+          error
+        );
+        setSyncedProductCatalog(undefined);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    validatedConfig.paymentPolicy?.productCatalogSync?.enabled,
+    validatedConfig.paymentPolicy?.productCatalogSync?.limit,
+    validatedConfig.serverUrl,
+  ]);
+
   // Cleanup wallet pool on unmount
   // CRITICAL FIX: Separate wallet pool cleanup from manager cleanup to avoid race conditions
   useEffect(() => {
@@ -129,6 +177,33 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Handle Stripe deep links centrally so PaymentSheet can resume app-based auth flows.
+  useEffect(() => {
+    let cancelled = false;
+
+    const maybeHandleStripeUrl = async (url: string | null | undefined) => {
+      if (!url || cancelled) {
+        return;
+      }
+
+      try {
+        await handleURLCallback(url);
+      } catch (error) {
+        getLogger().warn('[CedrosProvider] Stripe URL callback handling failed:', error);
+      }
+    };
+
+    void Linking.getInitialURL().then(maybeHandleStripeUrl);
+    const subscription = Linking.addEventListener('url', (event) => {
+      void maybeHandleStripeUrl(event.url);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.remove();
+    };
+  }, []);
+
   // Release manager cache reference when config changes or on unmount
   // CRITICAL FIX: Capture config values in closure to ensure correct managers are released
   useEffect(() => {
@@ -136,46 +211,92 @@ export function CedrosProvider({ config, children }: CedrosProviderProps) {
     const stripeKey = validatedConfig.stripePublicKey;
     const serverUrl = validatedConfig.serverUrl ?? '';
     const cluster = validatedConfig.solanaCluster;
+    const stripeReturnUrl = validatedConfig.stripeReturnUrl;
     const endpoint = validatedConfig.solanaEndpoint;
     const allowUnknownMint = validatedConfig.dangerouslyAllowUnknownMint;
+    const storeBillingConfig = validatedConfig.paymentPolicy?.storeBilling;
 
     return () => {
       // Release the exact managers that were created with these config values
-      releaseManagers(stripeKey, serverUrl, cluster, endpoint, allowUnknownMint);
+      releaseManagers(
+        stripeKey,
+        serverUrl,
+        cluster,
+        stripeReturnUrl,
+        endpoint,
+        allowUnknownMint,
+        storeBillingConfig
+      );
     };
   }, [
     validatedConfig.stripePublicKey,
     validatedConfig.serverUrl,
     validatedConfig.solanaCluster,
+    validatedConfig.stripeReturnUrl,
     validatedConfig.solanaEndpoint,
     validatedConfig.dangerouslyAllowUnknownMint,
+    validatedConfig.paymentPolicy?.storeBilling,
   ]);
 
   // Get or create managers from global cache
   // Multiple providers with identical configs share manager instances (e.g., same Stripe.js load)
   // Wallet pools remain isolated per provider for multi-tenant security
-  const contextValue = useMemo(() => {
-    const { stripeManager, x402Manager, walletManager, subscriptionManager, subscriptionChangeManager, creditsManager } =
-      getOrCreateManagers(
-        validatedConfig.stripePublicKey,
-        validatedConfig.serverUrl ?? '',
-        validatedConfig.solanaCluster,
-        validatedConfig.solanaEndpoint,
-        validatedConfig.dangerouslyAllowUnknownMint
-      );
+  const resolvedConfig = useMemo(() => {
+    const manualCatalog = validatedConfig.paymentPolicy?.productCatalog;
+    const hasSyncedCatalog =
+      syncedProductCatalog && Object.keys(syncedProductCatalog).length > 0;
+    const hasManualCatalog =
+      manualCatalog && Object.keys(manualCatalog).length > 0;
+
+    if (!hasSyncedCatalog && !hasManualCatalog) {
+      return validatedConfig;
+    }
 
     return {
-      config: validatedConfig,
+      ...validatedConfig,
+      paymentPolicy: {
+        ...validatedConfig.paymentPolicy,
+        productCatalog: {
+          ...(hasSyncedCatalog ? syncedProductCatalog : {}),
+          ...(hasManualCatalog ? manualCatalog : {}),
+        },
+      },
+    };
+  }, [syncedProductCatalog, validatedConfig]);
+
+  const contextValue = useMemo(() => {
+    const {
       stripeManager,
       x402Manager,
       walletManager,
       subscriptionManager,
       subscriptionChangeManager,
       creditsManager,
+      storeBillingManager,
+    } =
+      getOrCreateManagers(
+        resolvedConfig.stripePublicKey,
+        resolvedConfig.serverUrl ?? '',
+        resolvedConfig.solanaCluster,
+        resolvedConfig.stripeReturnUrl,
+        resolvedConfig.solanaEndpoint,
+        resolvedConfig.dangerouslyAllowUnknownMint,
+        resolvedConfig.paymentPolicy?.storeBilling
+      );
+
+    return {
+      config: resolvedConfig,
+      stripeManager,
+      x402Manager,
+      walletManager,
+      subscriptionManager,
+      subscriptionChangeManager,
+      creditsManager,
+      storeBillingManager,
       walletPool: walletPoolRef.current!,
       solanaError,
     };
-  }, [validatedConfig, solanaError]);
+  }, [resolvedConfig, solanaError]);
 
   if (initError) {
     return <div role="alert">{initError}</div>;

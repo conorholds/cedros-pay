@@ -95,6 +95,8 @@ impl<R: CouponRepository> CachedCouponRepository<R> {
             PaymentMethod::Stripe => "stripe",
             PaymentMethod::X402 => "x402",
             PaymentMethod::Credits => "credits",
+            PaymentMethod::AppleIap => "apple_iap",
+            PaymentMethod::GooglePlayBilling => "google_play_billing",
         };
         format!("{}:{}:{}", tenant_id, product_id, pm)
     }
@@ -104,6 +106,10 @@ impl<R: CouponRepository> CachedCouponRepository<R> {
             PaymentMethod::Stripe => format!("{}:stripe", tenant_id),
             PaymentMethod::X402 => format!("{}:x402", tenant_id),
             PaymentMethod::Credits => format!("{}:credits", tenant_id),
+            PaymentMethod::AppleIap => format!("{}:apple_iap", tenant_id),
+            PaymentMethod::GooglePlayBilling => {
+                format!("{}:google_play_billing", tenant_id)
+            }
         }
     }
 }

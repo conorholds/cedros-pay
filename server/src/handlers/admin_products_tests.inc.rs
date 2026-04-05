@@ -38,6 +38,7 @@ fn base_create_product_request() -> CreateProductRequest {
         crypto_token: None,
         inventory_status: None,
         inventory_quantity: None,
+        store_billing: None,
         inventory_policy: None,
         variants: Vec::new(),
         active: true,

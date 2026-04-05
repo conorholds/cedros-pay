@@ -184,6 +184,7 @@ pub async fn create_product(
         compare_at_fiat_price,
         stripe_product_id,
         stripe_price_id,
+        store_billing: req.store_billing,
         crypto_price,
         inventory_status: req.inventory_status,
         inventory_quantity: req.inventory_quantity,
@@ -338,6 +339,7 @@ pub async fn update_product(
         compare_at_fiat_price,
         stripe_product_id,
         stripe_price_id,
+        store_billing: req.store_billing.or(existing.store_billing),
         crypto_price,
         inventory_status: req.inventory_status,
         inventory_quantity: req.inventory_quantity,
@@ -351,7 +353,9 @@ pub async fn update_product(
         subscription: existing.subscription,
         gift_card_config: req.gift_card_config.or(existing.gift_card_config),
         tokenized_asset_config,
-        compliance_requirements: req.compliance_requirements.or(existing.compliance_requirements),
+        compliance_requirements: req
+            .compliance_requirements
+            .or(existing.compliance_requirements),
         created_at: existing.created_at,
         updated_at: Some(Utc::now()),
     };

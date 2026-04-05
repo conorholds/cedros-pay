@@ -95,8 +95,11 @@ pub async fn list_holders(
         Ok(holders) => json_ok(serde_json::json!({ "holders": holders })).into_response(),
         Err(e) => {
             tracing::error!(error = %e, "Failed to list token holders");
-            let (status, body) =
-                error_response(ErrorCode::DatabaseError, Some("Failed to list holders".into()), None);
+            let (status, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some("Failed to list holders".into()),
+                None,
+            );
             json_error(status, body).into_response()
         }
     }
@@ -159,8 +162,11 @@ pub async fn freeze_holder(
     {
         Ok(Some(h)) => h,
         Ok(None) => {
-            let (status, body) =
-                error_response(ErrorCode::ResourceNotFound, Some("Holder not found".into()), None);
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("Holder not found".into()),
+                None,
+            );
             return json_error(status, body).into_response();
         }
         Err(e) => {
@@ -184,20 +190,19 @@ pub async fn freeze_holder(
         Err(resp) => return resp,
     };
 
-    let sig = match crate::services::token22::freeze_account(&state.token22, &mint_pk, &owner_pk)
-        .await
-    {
-        Ok(sig) => sig,
-        Err(e) => {
-            tracing::error!(error = %e, "Freeze account tx failed");
-            let (status, body) = error_response(
-                ErrorCode::InternalError,
-                Some(format!("Freeze failed: {e}")),
-                None,
-            );
-            return json_error(status, body).into_response();
-        }
-    };
+    let sig =
+        match crate::services::token22::freeze_account(&state.token22, &mint_pk, &owner_pk).await {
+            Ok(sig) => sig,
+            Err(e) => {
+                tracing::error!(error = %e, "Freeze account tx failed");
+                let (status, body) = error_response(
+                    ErrorCode::InternalError,
+                    Some(format!("Freeze failed: {e}")),
+                    None,
+                );
+                return json_error(status, body).into_response();
+            }
+        };
 
     let now = Utc::now();
     if let Err(e) = state
@@ -268,8 +273,11 @@ pub async fn thaw_holder(
     {
         Ok(Some(h)) => h,
         Ok(None) => {
-            let (status, body) =
-                error_response(ErrorCode::ResourceNotFound, Some("Holder not found".into()), None);
+            let (status, body) = error_response(
+                ErrorCode::ResourceNotFound,
+                Some("Holder not found".into()),
+                None,
+            );
             return json_error(status, body).into_response();
         }
         Err(e) => {
@@ -293,20 +301,19 @@ pub async fn thaw_holder(
         Err(resp) => return resp,
     };
 
-    let sig = match crate::services::token22::thaw_account(&state.token22, &mint_pk, &owner_pk)
-        .await
-    {
-        Ok(sig) => sig,
-        Err(e) => {
-            tracing::error!(error = %e, "Thaw account tx failed");
-            let (status, body) = error_response(
-                ErrorCode::InternalError,
-                Some(format!("Thaw failed: {e}")),
-                None,
-            );
-            return json_error(status, body).into_response();
-        }
-    };
+    let sig =
+        match crate::services::token22::thaw_account(&state.token22, &mint_pk, &owner_pk).await {
+            Ok(sig) => sig,
+            Err(e) => {
+                tracing::error!(error = %e, "Thaw account tx failed");
+                let (status, body) = error_response(
+                    ErrorCode::InternalError,
+                    Some(format!("Thaw failed: {e}")),
+                    None,
+                );
+                return json_error(status, body).into_response();
+            }
+        };
 
     if let Err(e) = state
         .store
@@ -368,8 +375,11 @@ pub async fn generate_report(
         Ok(a) => a,
         Err(e) => {
             tracing::error!(error = %e, "Failed to list actions for report");
-            let (status, body) =
-                error_response(ErrorCode::DatabaseError, Some("Failed to generate report".into()), None);
+            let (status, body) = error_response(
+                ErrorCode::DatabaseError,
+                Some("Failed to generate report".into()),
+                None,
+            );
             return json_error(status, body).into_response();
         }
     };
@@ -387,7 +397,10 @@ pub async fn generate_report(
 
     let freeze_count = actions.iter().filter(|a| a.action_type == "freeze").count();
     let thaw_count = actions.iter().filter(|a| a.action_type == "thaw").count();
-    let sweep_count = actions.iter().filter(|a| a.action_type == "sweep_freeze").count();
+    let sweep_count = actions
+        .iter()
+        .filter(|a| a.action_type == "sweep_freeze")
+        .count();
 
     let report = ComplianceReport {
         generated_at: Utc::now(),

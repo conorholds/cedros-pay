@@ -117,15 +117,13 @@ pub(crate) fn attach_admin_routes<S: Store + 'static>(
 
     // Compliance admin routes (optional — only when Token22Service is configured)
     if let Some(compliance_state) = compliance_admin_state {
-        let compliance_routes =
-            build_compliance_routes(compliance_state, admin_auth_state.clone());
+        let compliance_routes = build_compliance_routes(compliance_state, admin_auth_state.clone());
         router = router.nest("/admin", compliance_routes);
     }
 
     // Compliance sanctions-api policy routes (requires Postgres + SanctionsListService)
     if let Some(policy_state) = compliance_policy_state {
-        let policy_routes =
-            build_compliance_policy_routes(policy_state, admin_auth_state.clone());
+        let policy_routes = build_compliance_policy_routes(policy_state, admin_auth_state.clone());
         router = router.nest("/admin", policy_routes);
     }
 
@@ -216,13 +214,11 @@ pub(crate) struct AdminRouteStates<S: Store + 'static> {
     pub asset_redemption_admin_state:
         Option<Arc<handlers::admin_asset_redemptions::AssetRedemptionAdminState>>,
     pub compliance_admin_state: Option<Arc<handlers::admin_compliance::ComplianceAdminState>>,
-    pub sweep_settings_state:
-        Option<Arc<handlers::admin_compliance_settings::SweepSettingsState>>,
+    pub sweep_settings_state: Option<Arc<handlers::admin_compliance_settings::SweepSettingsState>>,
     pub compliance_policy_state:
         Option<Arc<handlers::admin_compliance_policy::CompliancePolicyState>>,
     pub admin_images_state: Option<Arc<handlers::admin_images::ImageUploadState>>,
-    pub compliance_kyc_state:
-        Option<Arc<handlers::admin_compliance_kyc::ComplianceKycState>>,
+    pub compliance_kyc_state: Option<Arc<handlers::admin_compliance_kyc::ComplianceKycState>>,
     pub paywall_prefix: String,
     pub store: Arc<S>,
 }
@@ -754,14 +750,8 @@ fn build_image_routes<S: Store + 'static>(
     admin_auth_state: Arc<middleware::AdminAuthState<S>>,
 ) -> Router {
     Router::new()
-        .route(
-            "/images/upload",
-            post(handlers::admin_images::upload_image),
-        )
-        .route(
-            "/images",
-            delete(handlers::admin_images::delete_image),
-        )
+        .route("/images/upload", post(handlers::admin_images::upload_image))
+        .route("/images", delete(handlers::admin_images::delete_image))
         .with_state(images_state)
         .layer(DefaultBodyLimit::max(constants::MAX_IMAGE_UPLOAD_SIZE))
         .layer(axum::middleware::from_fn_with_state(

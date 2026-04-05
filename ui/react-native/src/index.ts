@@ -10,6 +10,9 @@ export {
   CryptoButton,
   CreditsButton,
   PurchaseButton,
+  NativeStoreButton,
+  RestorePurchasesButton,
+  ManageSubscriptionsButton,
   SubscribeButton,
   CryptoSubscribeButton,
   CreditsSubscribeButton,
@@ -17,11 +20,14 @@ export {
   PaymentModal,
   ProductPrice,
   CedrosPay,
+  CedrosPayButton,
 } from './components';
 
 export type {
   PurchaseButtonProps,
   PaymentModalProps,
+  RestorePurchasesButtonProps,
+  ManageSubscriptionsButtonProps,
   ProductPriceProps,
   PaymentMethodBadgeProps,
   SubscriptionManagementPanelProps,
@@ -47,6 +53,7 @@ export { useSubscription } from './hooks/useSubscription';
 export { useCryptoSubscription } from './hooks/useCryptoSubscription';
 export { useCreditsSubscription } from './hooks/useCreditsSubscription';
 export { useSubscriptionManagement } from './hooks/useSubscriptionManagement';
+export { useStoreAwarePaymentPolicy } from './hooks/useStoreAwarePaymentPolicy';
 export type {
   SubscriptionManagementState,
   ChangeOptions,
@@ -82,6 +89,31 @@ export type {
   CreditsHoldResponse,
   CreditsAuthorizeRequest,
   CreditsPaymentResult,
+  FulfillmentType,
+  DistributionChannel,
+  StorefrontRegion,
+  OrchestratedPaymentMethod,
+  PaymentAdapter,
+  AvailablePaymentAdapters,
+  CedrosProductCatalog,
+  CedrosProductCatalogSyncConfig,
+  CedrosProductDefinition,
+  PaymentPolicyContext,
+  PaymentPolicyFailure,
+  PaymentPolicyFailureCode,
+  PaymentPolicyResolution,
+  PaymentPolicyPurchaseMode,
+  PaymentPolicyPrograms,
+  AppleStorePolicyPrograms,
+  GooglePlayPolicyPrograms,
+  NativeStoreCheckoutContext,
+  NativeStorePaymentHandler,
+  NativeStoreRestoreRequest,
+  NativeStoreManageSubscriptionsRequest,
+  NativeStorePurchaseRequest,
+  NativeStorePurchaseResult,
+  CedrosPayPolicyOverrides,
+  CedrosPaymentPolicyConfig,
   FuturePaymentMethod,
   PaymentSuccessResult,
   CheckoutOptions,
@@ -92,7 +124,11 @@ export type {
   PaymentMethod,
   SubscriptionStatus,
   BillingInterval,
+  SubscriptionSessionFlow,
   SubscriptionSessionRequest,
+  MobileSubscriptionSessionRequest,
+  RedirectCheckoutSubscriptionSessionResponse,
+  PaymentSheetSubscriptionSessionResponse,
   SubscriptionSessionResponse,
   SubscriptionStatusRequest,
   SubscriptionStatusResponse,
@@ -114,6 +150,23 @@ export type {
   PaymentErrorDetail as PaymentErrorInfo,
 } from './types';
 
+// Policy
+export {
+  resolveAllowedPaymentMethods,
+  resolvePaymentPolicy,
+  collapseRenderablePaymentMethods,
+  detectDistributionChannel,
+  mergeCedrosProductDefinition,
+  resolveStoreProductConfiguration,
+  selectGooglePlayOffer,
+  mapPaywallProductToCedrosProductDefinition,
+  createCedrosProductCatalogFromPaywallProducts,
+  fetchCedrosProductCatalog,
+  resolveNativeStoreMethod,
+  isRestorableStoreProduct,
+  isManageableStoreSubscription,
+} from './policy';
+
 // Error code categories (for bulk error handling)
 export { ERROR_CATEGORIES } from './types/errors';
 
@@ -131,6 +184,13 @@ export {
   SubscriptionChangeManager,
   type ISubscriptionChangeManager,
 } from './managers/SubscriptionChangeManager';
+export {
+  StoreBillingManager,
+  type IStoreBillingManager,
+  type StoreBillingPurchaseOptions,
+  type StoreBillingRestoreOptions,
+  type StoreSubscriptionManagementOptions,
+} from './managers/StoreBillingManager';
 export {
   RouteDiscoveryManager,
   type IRouteDiscoveryManager,

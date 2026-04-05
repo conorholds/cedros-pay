@@ -104,6 +104,7 @@ mod tests {
             product_repo: Arc::new(InMemoryProductRepository::new(Vec::new())),
             stripe_client: None,
             stripe_webhook_processor: None,
+            native_store_service: None,
             admin_public_keys: Vec::new(),
             blockhash_cache: None,
         });
