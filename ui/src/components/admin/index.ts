@@ -1,7 +1,5 @@
 /**
- * Admin Dashboard Components
- *
- * Complete admin panel for managing Cedros Pay payments, products, and refunds.
+ * Admin plugin building blocks.
  */
 
 import {
@@ -31,13 +29,7 @@ function lazySection<P>(
   return WrappedSection;
 }
 
-export {
-  CedrosPayAdminDashboard,
-  type CedrosPayAdminDashboardProps,
-  type DashboardSection,
-} from './LazyCedrosPayAdminDashboard';
-
-// Config API components for standalone use
+// Shared config API components used by admin sections
 export { ConfigEditor, type ConfigEditorProps } from './ConfigEditor';
 export const SettingsSection = lazySection<SettingsSectionProps>(() =>
   import('./SettingsSection').then((module) => ({ default: module.SettingsSection }))

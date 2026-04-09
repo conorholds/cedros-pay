@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Removed the standalone admin dashboard exports and docs from `@cedros/pay-react`
+- Admin usage now goes through `@cedros/admin-react` with `cedrosPayPlugin`
+
+### Fixed
+- Restored the former standalone-only admin sections inside `cedrosPayPlugin`
+- Synced exported section metadata with the actual plugin registry
+
 ## [1.1.20] - 2026-02-24
 
 ### Fixed

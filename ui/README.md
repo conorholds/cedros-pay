@@ -1502,50 +1502,57 @@ For complete control over styling, use the `unstyled` prop to disable all defaul
 
 ---
 
-## Admin Dashboard
+## Admin Integration
 
-Cedros Pay includes a complete admin dashboard for managing your store. Use it standalone or combine it with cedros-login for a unified admin experience.
+Cedros Pay admin UI is delivered through the shared `AdminShell` contract. Use
+`@cedros/admin-react` for the shell, `@cedros/login-react` for admin auth, and
+`@cedros/pay-react/admin` for the payment plugin.
 
-### Standalone Dashboard
+`@cedros/pay-react` no longer ships a standalone admin dashboard component.
+Admin usage always goes through the shared Cedros admin shell.
 
-Drop in `<CedrosPayAdminDashboard />` for a complete payment admin interface:
-
-```tsx
-import { CedrosPayAdminDashboard } from "@cedros/pay-react";
-
-function AdminPage() {
-  return (
-    <CedrosPayAdminDashboard
-      serverUrl="https://api.example.com"
-      title="My Store"
-      defaultSection="transactions"
-    />
-  );
-}
-```
-
-If you prefer a dedicated standalone-only entrypoint, import it from:
-
-```tsx
-import { CedrosPayAdminDashboard } from "@cedros/pay-react/standalone-admin";
-```
-
-**Available Sections:**
+**Available Cedros Pay Sections:**
 
 | Section | Description |
 |---------|-------------|
 | `transactions` | Payment history with filtering by method |
+| `orders` | Order records, fulfillment history, and gift card redemption status |
 | `products` | Manage products, pricing, and variations |
 | `subscriptions` | Configure subscription plans |
 | `coupons` | Create and manage discount codes |
 | `refunds` | Process refund requests |
+| `compliance` | Review compliance checks and enforcement status |
+| `chat-logs` | Inspect AI chat sessions and message history |
+| `customers` | Search, create, and update customer records |
+| `disputes` | Review and update disputes / chargebacks |
+| `returns` | Manage return requests and statuses |
+| `images` | Upload and review storefront images |
+| `inventory` | View inventory adjustment history |
 | `storefront` | Customize shop layout and appearance |
 | `ai-settings` | Configure AI-powered features |
 | `payment-settings` | Payment method configuration |
+| `token22` | Manage gift cards, Token-22 settings, and liquidity |
 | `messaging` | Email and notification templates |
+| `webhooks` | Monitor webhook delivery and DLQ events |
+| `shipping` | Manage shipping profiles and rates |
+| `tax` | Configure tax rates |
 | `settings` | Server and integration settings |
 
-### Unified Dashboard with Plugin System
+### Required Packages
+
+Install all three packages for admin usage:
+
+```bash
+npm install @cedros/admin-react @cedros/login-react @cedros/pay-react
+```
+
+Load the shared shell styles once in your admin host:
+
+```tsx
+import '@cedros/admin-react/styles.css';
+```
+
+### AdminShell Integration
 
 For apps using both **cedros-login** and **cedros-pay**, use `AdminShell` from `@cedros/admin-react` with both plugins to create a combined admin interface:
 
@@ -1585,9 +1592,13 @@ function UnifiedAdmin() {
 }
 ```
 
-> **Note:** The shared admin standard is the shell + plugin contract. `cedros-pay` exports `cedrosPayPlugin` for composition under a single `/admin` dashboard.
->
-> `@cedros/pay-react/admin` is plugin-only and does not export the standalone dashboard runtime, which keeps the AdminShell path free of standalone wallet-adapter requirements when Cedros Login provides admin auth.
+> **Note:** `cedros-pay` no longer ships a standalone admin dashboard. Use
+> `@cedros/admin-react` with `cedrosPayPlugin` under a single `/admin`
+> dashboard.
+
+> **Auth contract:** In the shared shell, Cedros Login is the admin auth
+> provider. `cedros-pay` consumes the host service bag exposed by
+> `cedros-login` rather than standing up its own dashboard/auth runtime.
 
 ### cedrosPayPlugin Sections
 
@@ -1596,14 +1607,26 @@ The plugin registers these sections for the unified dashboard:
 | Section ID | Group | Description |
 |------------|-------|-------------|
 | `transactions` | Store | Payment transactions |
+| `orders` | Store | Orders and fulfillment details |
 | `products` | Store | Product management |
 | `subscriptions` | Store | Subscription plans |
 | `coupons` | Store | Coupon management |
 | `refunds` | Store | Refund requests |
+| `compliance` | Store | Compliance checks and review tools |
+| `chat-logs` | Store | AI chat session logs |
+| `customers` | Store | Customer records |
+| `disputes` | Store | Disputes and chargebacks |
+| `returns` | Store | Return request workflows |
+| `images` | Store | Storefront image assets |
+| `inventory` | Store | Inventory adjustment history |
 | `storefront` | Configuration | Storefront settings |
 | `ai-settings` | Configuration | AI assistant settings |
 | `payment-settings` | Configuration | Payment method toggles |
+| `token22` | Configuration | Gift cards and Token-22 controls |
 | `messaging` | Configuration | Email/webhook settings |
+| `webhooks` | Configuration | Webhook delivery management |
+| `shipping` | Configuration | Shipping profiles and rates |
+| `tax` | Configuration | Tax rates |
 | `settings` | Configuration | Server configuration |
 
 ### Section Addressing

@@ -6,11 +6,6 @@
 
 // Components
 export { CedrosPay } from './components/CedrosPay';
-export {
-  CedrosPayAdminDashboard,
-  type CedrosPayAdminDashboardProps,
-  type DashboardSection,
-} from './components/admin';
 
 // Admin Plugin - for use with the shared Cedros Admin host
 export {

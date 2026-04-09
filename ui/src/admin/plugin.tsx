@@ -11,6 +11,7 @@ import type { AdminPlugin, AdminSectionProps, HostContext, PluginContext } from 
 import type { SectionProps } from '../components/admin/types';
 import { AdminAuthManager } from '../components/admin/AdminAuthManager';
 import { AdminPluginIcons } from '../components/admin/icons';
+import { CEDROS_PAY_GROUPS, CEDROS_PAY_SECTIONS } from './sectionIds';
 
 // Lazy-load section components wrapped with AdminSectionProps adapter
 const wrapSection = (
@@ -56,40 +57,68 @@ export const cedrosPayPlugin: AdminPlugin = {
   name: 'Cedros Pay',
   version: '1.0.0',
 
-  sections: [
-    // Store group (main cedros-pay sections)
-    { id: 'transactions', label: 'Transactions', icon: AdminPluginIcons.transactions, group: 'Store', order: 0 },
-    { id: 'products', label: 'Products', icon: AdminPluginIcons.products, group: 'Store', order: 1 },
-    { id: 'subscriptions', label: 'Subscriptions', icon: AdminPluginIcons.products, group: 'Store', order: 2 },
-    { id: 'coupons', label: 'Coupons', icon: AdminPluginIcons.coupons, group: 'Store', order: 3 },
-    { id: 'refunds', label: 'Refunds', icon: AdminPluginIcons.refunds, group: 'Store', order: 4 },
-    { id: 'compliance', label: 'Compliance', icon: AdminPluginIcons.settings, group: 'Store', order: 5 },
-    // Configuration group
-    { id: 'storefront', label: 'Storefront', icon: AdminPluginIcons.products, group: 'Configuration', order: 10 },
-    { id: 'ai-settings', label: 'Store AI', icon: AdminPluginIcons.settings, group: 'Configuration', order: 11 },
-    { id: 'faqs', label: 'Knowledge Base', icon: AdminPluginIcons.settings, group: 'Configuration', order: 12 },
-    { id: 'payment-settings', label: 'Payment Options', icon: AdminPluginIcons.wallet, group: 'Configuration', order: 13 },
-    { id: 'messaging', label: 'Store Messages', icon: AdminPluginIcons.settings, group: 'Configuration', order: 14 },
-    { id: 'settings', label: 'Store Server', icon: AdminPluginIcons.settings, group: 'Configuration', order: 15 },
-  ],
+  sections: CEDROS_PAY_SECTIONS.map((section) => ({
+    id: section.id,
+    label: section.label,
+    icon: {
+      transactions: AdminPluginIcons.transactions,
+      orders: AdminPluginIcons.transactions,
+      products: AdminPluginIcons.products,
+      subscriptions: AdminPluginIcons.products,
+      coupons: AdminPluginIcons.coupons,
+      refunds: AdminPluginIcons.refunds,
+      compliance: AdminPluginIcons.settings,
+      'chat-logs': AdminPluginIcons.settings,
+      customers: AdminPluginIcons.settings,
+      disputes: AdminPluginIcons.settings,
+      returns: AdminPluginIcons.refunds,
+      images: AdminPluginIcons.products,
+      inventory: AdminPluginIcons.products,
+      storefront: AdminPluginIcons.products,
+      'ai-settings': AdminPluginIcons.settings,
+      faqs: AdminPluginIcons.settings,
+      'payment-settings': AdminPluginIcons.wallet,
+      token22: AdminPluginIcons.wallet,
+      messaging: AdminPluginIcons.settings,
+      webhooks: AdminPluginIcons.settings,
+      shipping: AdminPluginIcons.products,
+      tax: AdminPluginIcons.transactions,
+      settings: AdminPluginIcons.settings,
+    }[section.id],
+    group: section.group,
+    order: section.order,
+  })),
 
-  groups: [
-    { id: 'Store', label: 'Store', order: 1 },
-    { id: 'Configuration', label: 'Configuration', order: 2, defaultCollapsed: true },
-  ],
+  groups: CEDROS_PAY_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    order: group.order,
+    defaultCollapsed: group.defaultCollapsed,
+  })),
 
   components: {
     'products': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.ProductsSection }))),
     'subscriptions': wrapSection(() => import('../components/admin/SubscriptionsSection').then(m => ({ default: m.SubscriptionsSection }))),
     'transactions': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.TransactionsSection }))),
+    'orders': wrapSection(() => import('../components/admin/OrdersSection').then(m => ({ default: m.OrdersSection }))),
     'coupons': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.CouponsSection }))),
     'refunds': wrapSection(() => import('../components/admin/sections').then(m => ({ default: m.RefundsSection }))),
     'compliance': wrapSection(() => import('../components/admin/ComplianceSection').then(m => ({ default: m.ComplianceSection }))),
+    'chat-logs': wrapSection(() => import('../components/admin/ChatLogsSection').then(m => ({ default: m.ChatLogsSection }))),
+    'customers': wrapSection(() => import('../components/admin/CustomersSection').then(m => ({ default: m.CustomersSection }))),
+    'disputes': wrapSection(() => import('../components/admin/DisputesSection').then(m => ({ default: m.DisputesSection }))),
+    'returns': wrapSection(() => import('../components/admin/ReturnsSection').then(m => ({ default: m.ReturnsSection }))),
+    'images': wrapSection(() => import('../components/admin/ImagesSection').then(m => ({ default: m.ImagesSection }))),
+    'inventory': wrapSection(() => import('../components/admin/InventorySection').then(m => ({ default: m.InventorySection }))),
     'storefront': wrapSection(() => import('../components/admin/StorefrontSection').then(m => ({ default: m.StorefrontSection }))),
     'ai-settings': wrapSection(() => import('../components/admin/AISettingsSection').then(m => ({ default: m.AISettingsSection }))),
     'faqs': wrapSection(() => import('../components/admin/FAQSection').then(m => ({ default: m.FAQSection }))),
     'payment-settings': wrapSection(() => import('../components/admin/PaymentSettingsSection').then(m => ({ default: m.PaymentSettingsSection }))),
+    'token22': wrapSection(() => import('../components/admin/Token22Section').then(m => ({ default: m.Token22Section }))),
     'messaging': wrapSection(() => import('../components/admin/MessagingSection').then(m => ({ default: m.MessagingSection }))),
+    'webhooks': wrapSection(() => import('../components/admin/WebhooksSection').then(m => ({ default: m.WebhooksSection }))),
+    'shipping': wrapSection(() => import('../components/admin/ShippingSection').then(m => ({ default: m.ShippingSection }))),
+    'tax': wrapSection(() => import('../components/admin/TaxSection').then(m => ({ default: m.TaxSection }))),
     'settings': wrapSection(() => import('../components/admin/SettingsSection').then(m => ({ default: m.SettingsSection }))),
   },
 

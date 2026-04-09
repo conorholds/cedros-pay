@@ -1,21 +1,19 @@
-import { O as ke, q as ve, n as fe, s as Be, o as me, p as Ie, r as ye, t as V, V as _e, W as We } from "./styles-DGagylUj.mjs";
-import { C as Ve, a as He, b as Je, c as Xe, d as Ze, P as et, e as tt, f as rt, g as at, R as nt, S as st, h as ot, i as it, j as ct, k as lt, l as ut, m as dt, u as pt, v as ft, w as mt, x as yt, y as gt, z as bt, A as St, B as wt, D as Ct, E as ht, F as xt, G as Et, H as Pt, I as Rt, J as Tt, K as kt, L as vt, M as Bt, N as It, Q as _t } from "./styles-DGagylUj.mjs";
-import { C as qt, a as Mt, i as Lt, u as At, b as Ft } from "./index-9QF_UfSN.mjs";
-import { u as H, l as O } from "./CedrosContext-5Gjveoba.mjs";
-import { C as Nt, a as Ot, b as Gt, c as zt, E as Kt, F as Qt, d as $t, R as Ut, e as jt, f as Yt, g as Vt, h as Ht, i as Jt, j as Xt, p as Zt, r as er, k as tr, v as rr } from "./CedrosContext-5Gjveoba.mjs";
+import { O as ke, q as ve, n as fe, s as Be, o as me, p as Ie, r as ye, t as V, V as _e, W as We } from "./styles-fihm6qVA.mjs";
+import { C as Ye, a as Ve, b as He, c as Je, d as Xe, P as Ze, e as et, f as tt, g as rt, R as at, S as nt, h as st, i as ot, j as it, k as ct, l as lt, m as ut, u as dt, v as pt, w as ft, x as mt, y as yt, z as gt, A as bt, B as St, D as wt, E as Ct, F as ht, G as xt, H as Et, I as Pt, J as Rt, K as Tt, L as kt, M as vt, N as Bt, Q as It } from "./styles-fihm6qVA.mjs";
+import { C as Wt, a as qt, i as Mt, u as Lt, b as Ft } from "./index-CU6M10Rs.mjs";
+import { u as H, m as O, l as qe } from "./CedrosContext-DQc_k5PG.mjs";
+import { C as Dt, a as Nt, b as Ot, c as Gt, E as zt, F as Kt, d as Qt, R as $t, e as Ut, f as jt, g as Yt, h as Vt, i as Ht, j as Jt, p as Xt, r as Zt, k as er, v as tr } from "./CedrosContext-DQc_k5PG.mjs";
 import { g as y } from "./fetchWithTimeout-DmMOwL0Q.mjs";
-import { L as nr, a as sr, c as or } from "./fetchWithTimeout-DmMOwL0Q.mjs";
-import { C as cr, u as lr } from "./CryptoButton-Cl2kZbOP.mjs";
+import { L as ar, a as nr, c as sr } from "./fetchWithTimeout-DmMOwL0Q.mjs";
+import { C as ir, u as cr } from "./CryptoButton-BuO_RZLj.mjs";
 import { jsxs as G, jsx as x } from "react/jsx-runtime";
 import { useState as B, useRef as N, useCallback as C, useMemo as $, useEffect as z } from "react";
 import { useWallet as J } from "@solana/wallet-adapter-react";
 import { WalletReadyState as ge } from "@solana/wallet-adapter-base";
-import { WalletIcon as qe } from "@solana/wallet-adapter-react-ui";
-import { u as Me } from "./ThemeContext-l0bqcOGW.mjs";
-import { WalletPool as dr, createWalletPool as pr } from "./walletPool-9MylB2QK.mjs";
-import { K as mr, a as yr } from "./tokenMintValidator-DAjQld0r.mjs";
-import { C as br, a as Sr, b as wr, c as Cr } from "./sectionIds-YktNxmRt.mjs";
-import { C as xr } from "./LazyCedrosPayAdminDashboard-BqJDNrDI.mjs";
+import { WalletIcon as Me } from "@solana/wallet-adapter-react-ui";
+import { WalletPool as ur, createWalletPool as dr } from "./walletPool-9MylB2QK.mjs";
+import { K as fr, a as mr } from "./tokenMintValidator-DAjQld0r.mjs";
+import { C as gr, a as br, b as Sr, c as wr } from "./plugin-BIkt3boU.mjs";
 function Le() {
   const { subscriptionManager: r, x402Manager: c, walletManager: f } = H(), { publicKey: i, signTransaction: R } = J(), [S, p] = B({
     status: "idle",
@@ -211,7 +209,7 @@ function Le() {
     reset: I
   };
 }
-function $e({
+function Qe({
   resource: r,
   interval: c,
   intervalDays: f,
@@ -242,7 +240,7 @@ function $e({
     expiresAt: q,
     checkStatus: M,
     processPayment: L
-  } = Le(), u = Me(), { solanaError: _ } = H(), { t: v, translations: X } = ke(), be = R || v("ui.subscribe_with_crypto"), Z = N(T), ee = N(E), te = N(L), re = N(M);
+  } = Le(), u = qe(), { solanaError: _ } = H(), { t: v, translations: X } = ke(), be = R || v("ui.subscribe_with_crypto"), Z = N(T), ee = N(E), te = N(L), re = N(M);
   Z.current = T, ee.current = E, te.current = L, re.current = M;
   const Se = m && typeof m != "string" ? m?.code ?? null : null, we = _ && typeof _ != "string" ? _?.code ?? null : null, ae = (e) => {
     if (!e || !X) return "";
@@ -265,7 +263,7 @@ function $e({
   }, [b, w, r]), z(() => {
     b === "error" && m && (fe("crypto", m, r), ee.current?.(m));
   }, [b, m, r]);
-  const oe = typeof window < "u" && window.top !== window.self, [ie, A] = B(!1), [ce, j] = B(!1), [le, F] = B(!1), D = _;
+  const oe = typeof window < "u" && window.top !== window.self, [ie, F] = B(!1), [ce, j] = B(!1), [le, A] = B(!1), D = _;
   z(() => {
     let e = !1;
     return e || (async () => {
@@ -280,7 +278,7 @@ function $e({
           if (!e) {
             y().error("[CryptoSubscribeButton] Auto-connect failed:", Y);
             const Te = Y instanceof Error ? Y.message : "Failed to connect wallet";
-            V(Te, n.adapter.name), F(!1);
+            V(Te, n.adapter.name), A(!1);
           }
         }
       }
@@ -288,7 +286,7 @@ function $e({
       e = !0;
     };
   }, [n, ce, g, I, s]), z(() => {
-    g && le && o && n && (Be(n.adapter.name, o.toString()), y().debug("[CryptoSubscribeButton] Processing pending subscription payment"), F(!1), A(!1), me("crypto", r), te.current(r, c, { couponCode: i, intervalDays: f }));
+    g && le && o && n && (Be(n.adapter.name, o.toString()), y().debug("[CryptoSubscribeButton] Processing pending subscription payment"), A(!1), F(!1), me("crypto", r), te.current(r, c, { couponCode: i, intervalDays: f }));
   }, [g, le, o, n, r, c, i, f]);
   const ue = C(async () => {
     if (y().debug("[CryptoSubscribeButton] executeSubscriptionFlow called", {
@@ -314,7 +312,7 @@ function $e({
     if (g)
       me("crypto", r), await L(r, c, { couponCode: i, intervalDays: f });
     else {
-      F(!0);
+      A(!0);
       try {
         if (n)
           y().debug(
@@ -323,14 +321,14 @@ function $e({
           ), ye(n.adapter.name), await s();
         else {
           if (y().debug("[CryptoSubscribeButton] No wallet selected, showing selector"), U.length === 0) {
-            F(!1);
+            A(!1);
             const e = "No wallets available";
             throw V(e), new Error(e);
           }
-          A(!0);
+          F(!0);
         }
       } catch (e) {
-        F(!1);
+        A(!1);
         const d = e instanceof Error ? e.message : "Failed to connect wallet";
         y().error("[CryptoSubscribeButton] Connection error:", d), V(d, n?.adapter.name);
       }
@@ -366,18 +364,18 @@ function $e({
   } else K && (Q = v("ui.subscribed"));
   const Ee = C(async () => {
     try {
-      j(!1), g && await t(), a(null), A(!0);
+      j(!1), g && await t(), a(null), F(!0);
     } catch (e) {
       y().error("Failed to change wallet:", e);
     }
   }, [g, t, a]), Pe = C(
     (e) => {
-      y().debug("[CryptoSubscribeButton] Wallet clicked:", e), A(!1), a(e), j(!0);
+      y().debug("[CryptoSubscribeButton] Wallet clicked:", e), F(!1), a(e), j(!0);
     },
     [a]
   ), Re = C(async () => {
     try {
-      if (await t(), F(!1), typeof window < "u" && window.localStorage)
+      if (await t(), A(!1), typeof window < "u" && window.localStorage)
         try {
           window.localStorage.removeItem("walletName");
         } catch (e) {
@@ -420,7 +418,7 @@ function $e({
               zIndex: 9999,
               padding: "1rem"
             },
-            onClick: () => A(!1),
+            onClick: () => F(!1),
             children: /* @__PURE__ */ G(
               "div",
               {
@@ -461,7 +459,7 @@ function $e({
                         /* @__PURE__ */ x(
                           "button",
                           {
-                            onClick: () => A(!1),
+                            onClick: () => F(!1),
                             style: We(u.tokens.surfaceText),
                             "aria-label": "Close modal",
                             type: "button",
@@ -498,7 +496,7 @@ function $e({
                       },
                       type: "button",
                       children: [
-                        /* @__PURE__ */ x(qe, { wallet: e, style: { width: "24px", height: "24px" } }),
+                        /* @__PURE__ */ x(Me, { wallet: e, style: { width: "24px", height: "24px" } }),
                         /* @__PURE__ */ x("span", { style: { fontWeight: 500 }, children: e.adapter.name })
                       ]
                     },
@@ -565,7 +563,7 @@ function $e({
     }
   );
 }
-function Ue() {
+function $e() {
   const { x402Manager: r, walletManager: c } = H(), { publicKey: f, signTransaction: i } = J(), [R, S] = B({
     status: "idle",
     error: null,
@@ -709,50 +707,49 @@ function Ue() {
   };
 }
 export {
-  Ve as CEDROS_EVENTS,
-  br as CEDROS_PAY_GROUPS,
-  Sr as CEDROS_PAY_SECTIONS,
-  wr as CEDROS_PAY_SECTION_IDS,
-  Nt as CIRCUIT_BREAKER_PRESETS,
-  He as CSP_PRESETS,
-  Je as CedrosPay,
-  xr as CedrosPayAdminDashboard,
-  Ot as CedrosProvider,
-  Gt as CircuitBreakerOpenError,
-  zt as CircuitState,
-  qt as ComplianceGatePage,
-  Mt as CreditsBalance,
-  Xe as CreditsButton,
-  Ze as CreditsSubscribeButton,
-  cr as CryptoButton,
-  $e as CryptoSubscribeButton,
-  Kt as ERROR_CATEGORIES,
-  Qt as FEATURE_FLAG_NAMES,
-  $t as FEATURE_FLAG_REGISTRY,
-  mr as KNOWN_STABLECOINS,
-  nr as LogLevel,
-  sr as Logger,
-  et as PaymentMethodBadge,
-  tt as PaymentModal,
-  rt as ProductPrice,
-  at as PurchaseButton,
-  Ut as RATE_LIMITER_PRESETS,
-  jt as RETRY_PRESETS,
-  nt as RPC_PROVIDERS,
-  st as SECURITY_RECOMMENDATIONS,
-  ot as StripeButton,
-  it as SubscribeButton,
-  ct as SubscriptionManagementPanel,
-  dr as WalletPool,
-  lt as calculateDiscountPercentage,
-  Cr as cedrosPayPlugin,
-  Yt as createCircuitBreaker,
-  or as createLogger,
-  Vt as createRateLimiter,
-  ut as createTranslator,
-  pr as createWalletPool,
-  dt as detectLocale,
-  Lt as ecommerce,
+  Ye as CEDROS_EVENTS,
+  gr as CEDROS_PAY_GROUPS,
+  br as CEDROS_PAY_SECTIONS,
+  Sr as CEDROS_PAY_SECTION_IDS,
+  Dt as CIRCUIT_BREAKER_PRESETS,
+  Ve as CSP_PRESETS,
+  He as CedrosPay,
+  Nt as CedrosProvider,
+  Ot as CircuitBreakerOpenError,
+  Gt as CircuitState,
+  Wt as ComplianceGatePage,
+  qt as CreditsBalance,
+  Je as CreditsButton,
+  Xe as CreditsSubscribeButton,
+  ir as CryptoButton,
+  Qe as CryptoSubscribeButton,
+  zt as ERROR_CATEGORIES,
+  Kt as FEATURE_FLAG_NAMES,
+  Qt as FEATURE_FLAG_REGISTRY,
+  fr as KNOWN_STABLECOINS,
+  ar as LogLevel,
+  nr as Logger,
+  Ze as PaymentMethodBadge,
+  et as PaymentModal,
+  tt as ProductPrice,
+  rt as PurchaseButton,
+  $t as RATE_LIMITER_PRESETS,
+  Ut as RETRY_PRESETS,
+  at as RPC_PROVIDERS,
+  nt as SECURITY_RECOMMENDATIONS,
+  st as StripeButton,
+  ot as SubscribeButton,
+  it as SubscriptionManagementPanel,
+  ur as WalletPool,
+  ct as calculateDiscountPercentage,
+  wr as cedrosPayPlugin,
+  jt as createCircuitBreaker,
+  sr as createLogger,
+  Yt as createRateLimiter,
+  lt as createTranslator,
+  dr as createWalletPool,
+  ut as detectLocale,
+  Mt as ecommerce,
   fe as emitPaymentError,
   me as emitPaymentProcessing,
   Ie as emitPaymentStart,
@@ -760,41 +757,41 @@ export {
   ye as emitWalletConnect,
   Be as emitWalletConnected,
   V as emitWalletError,
-  pt as formatCSP,
-  ft as formatCouponCodes,
-  mt as generateCSP,
-  yt as generateCSPDirectives,
-  gt as getAvailableLocales,
-  Ht as getFeatureFlagDefinition,
-  Jt as getFeatureFlagDefinitions,
-  bt as getLocalizedError,
+  dt as formatCSP,
+  pt as formatCouponCodes,
+  ft as generateCSP,
+  mt as generateCSPDirectives,
+  yt as getAvailableLocales,
+  Vt as getFeatureFlagDefinition,
+  Ht as getFeatureFlagDefinitions,
+  gt as getLocalizedError,
   y as getLogger,
-  St as getUserErrorMessage,
-  Xt as isFeatureEnabled,
-  wt as isRetryableError,
-  Ct as loadLocale,
-  ht as logSecurityReport,
-  xt as parseCouponCodes,
-  Zt as parseFeatureFlagBoolean,
-  er as resolveFeatureFlags,
-  tr as retryWithBackoff,
-  Et as stackCheckoutCoupons,
+  bt as getUserErrorMessage,
+  Jt as isFeatureEnabled,
+  St as isRetryableError,
+  wt as loadLocale,
+  Ct as logSecurityReport,
+  ht as parseCouponCodes,
+  Xt as parseFeatureFlagBoolean,
+  Zt as resolveFeatureFlags,
+  er as retryWithBackoff,
+  xt as stackCheckoutCoupons,
   H as useCedrosContext,
-  Me as useCedrosTheme,
-  At as useComplianceCheck,
+  qe as useCedrosTheme,
+  Lt as useComplianceCheck,
   Ft as useCreditsBalance,
-  Pt as useCreditsPayment,
-  Rt as useCreditsSubscription,
+  Et as useCreditsPayment,
+  Pt as useCreditsSubscription,
   Le as useCryptoSubscription,
-  Tt as useLocalizedError,
-  kt as usePaymentMode,
-  Ue as useRefundVerification,
-  vt as useStripeCheckout,
-  Bt as useSubscription,
-  It as useSubscriptionManagement,
+  Rt as useLocalizedError,
+  Tt as usePaymentMode,
+  $e as useRefundVerification,
+  kt as useStripeCheckout,
+  vt as useSubscription,
+  Bt as useSubscriptionManagement,
   ke as useTranslation,
-  lr as useX402Payment,
-  rr as validateConfig,
-  _t as validateSecurity,
-  yr as validateTokenMint
+  cr as useX402Payment,
+  tr as validateConfig,
+  It as validateSecurity,
+  mr as validateTokenMint
 };
