@@ -11,6 +11,7 @@ import { ConfigApiClient } from './configApi';
 import { MeteoraPoolManager } from '../../managers/MeteoraPoolManager';
 import type { IAdminAuthManager } from './AdminAuthManager';
 import { PoolManagementView } from './PoolManagementView';
+import { importOptionalPeer, OPTIONAL_SOLANA_WEB3_SPECIFIER } from '../../utils/optionalPeerImport';
 
 interface LiquidityPoolTabProps {
   serverUrl: string;
@@ -101,7 +102,9 @@ export function LiquidityPoolTab({
     setFailedAtStep(null);
 
     try {
-      const { Connection, PublicKey, Keypair } = await import('@solana/web3.js');
+      const { Connection, PublicKey, Keypair } = await importOptionalPeer<typeof import('@solana/web3.js')>(
+        OPTIONAL_SOLANA_WEB3_SPECIFIER
+      );
       const connection = new Connection(config.rpcUrl, 'confirmed');
       const wallet = (window as WalletWindow).solana;
       if (!wallet?.publicKey || !wallet.signTransaction) {

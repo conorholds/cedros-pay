@@ -1,49 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MeteoraPoolManager } from '../managers/MeteoraPoolManager';
+import {
+  OPTIONAL_METEORA_DLMM_SPECIFIER,
+  resetOptionalPeerImportOverrides,
+  setOptionalPeerImportOverride,
+} from '../utils/optionalPeerImport';
 
-// Mock the dynamic imports
-vi.mock('@meteora-ag/dlmm', () => {
-  const mockDLMM = {
-    getPricePerLamport: vi.fn((xDec: number, yDec: number, price: number) => {
-      // Simulate: price-per-lamport = price * 10^(xDec - yDec)
-      const scale = Math.pow(10, xDec - yDec);
-      return String(price * scale);
+const mockDLMM = {
+  getPricePerLamport: vi.fn((xDec: number, yDec: number, price: number) => {
+    const scale = Math.pow(10, xDec - yDec);
+    return String(price * scale);
+  }),
+  getBinIdFromPrice: vi.fn((_pricePerLamport: string, _binStep: number, _min: boolean) => -2345),
+  getAllPresetParameters: vi.fn().mockResolvedValue({
+    presetParameter: [],
+    presetParameter2: [
+      { publicKey: { toBase58: () => 'PresetPubkey' }, account: { binStep: 1, baseFactor: 10 } },
+      { publicKey: { toBase58: () => 'PresetPubkey5' }, account: { binStep: 5, baseFactor: 20 } },
+    ],
+  }),
+  create: vi.fn().mockResolvedValue({
+    lbPair: { activeId: 100, binStep: 1 },
+    tokenX: { decimal: 2 },
+    tokenY: { decimal: 6 },
+    getActiveBin: vi.fn().mockResolvedValue({ binId: 100, price: '1.0' }),
+    initializePositionAndAddLiquidityByStrategy: vi.fn().mockResolvedValue({
+      instructions: [],
+      partialSign: vi.fn(),
     }),
-    getBinIdFromPrice: vi.fn((_pricePerLamport: string, _binStep: number, _min: boolean) => {
-      // Return a deterministic bin ID for testing
-      return -2345;
-    }),
-    getAllPresetParameters: vi.fn().mockResolvedValue({
-      presetParameter: [],
-      presetParameter2: [
-        { publicKey: { toBase58: () => 'PresetPubkey' }, account: { binStep: 1, baseFactor: 10 } },
-        { publicKey: { toBase58: () => 'PresetPubkey5' }, account: { binStep: 5, baseFactor: 20 } },
-      ],
-    }),
-    create: vi.fn().mockResolvedValue({
-      lbPair: { activeId: 100, binStep: 1 },
-      tokenX: { decimal: 2 },
-      tokenY: { decimal: 6 },
-      getActiveBin: vi.fn().mockResolvedValue({ binId: 100, price: '1.0' }),
-      initializePositionAndAddLiquidityByStrategy: vi.fn().mockResolvedValue({
-        instructions: [],
-        partialSign: vi.fn(),
-      }),
-    }),
-    createLbPair2: vi.fn().mockResolvedValue({
-      instructions: [{ keys: [{ pubkey: null }, { pubkey: { toBase58: () => 'PoolAddress123' } }] }],
-    }),
-  };
-  return { default: mockDLMM };
-});
-
-vi.mock('bn.js', () => {
-  class MockBN {
-    value: number | string;
-    constructor(v: number | string) { this.value = v; }
-  }
-  return { default: MockBN };
-});
+  }),
+  createLbPair2: vi.fn().mockResolvedValue({
+    instructions: [{ keys: [{ pubkey: null }, { pubkey: { toBase58: () => 'PoolAddress123' } }] }],
+  }),
+};
 
 describe('MeteoraPoolManager', () => {
   let manager: MeteoraPoolManager;
@@ -51,6 +40,11 @@ describe('MeteoraPoolManager', () => {
   beforeEach(() => {
     manager = new MeteoraPoolManager();
     vi.clearAllMocks();
+    setOptionalPeerImportOverride(OPTIONAL_METEORA_DLMM_SPECIFIER.join(''), { default: mockDLMM });
+  });
+
+  afterEach(() => {
+    resetOptionalPeerImportOverrides();
   });
 
   describe('computeBinId', () => {
@@ -58,9 +52,8 @@ describe('MeteoraPoolManager', () => {
       const binId = await manager.computeBinId(0.80, 2, 6, 1);
 
       // Should call getPricePerLamport then getBinIdFromPrice
-      const dlmm = (await import('@meteora-ag/dlmm')).default;
-      expect(dlmm.getPricePerLamport).toHaveBeenCalledWith(2, 6, 0.80);
-      expect(dlmm.getBinIdFromPrice).toHaveBeenCalled();
+      expect(mockDLMM.getPricePerLamport).toHaveBeenCalledWith(2, 6, 0.80);
+      expect(mockDLMM.getBinIdFromPrice).toHaveBeenCalled();
       expect(typeof binId).toBe('number');
       expect(binId).toBe(-2345); // from mock
     });
@@ -68,8 +61,7 @@ describe('MeteoraPoolManager', () => {
     it('uses default binStep of 1 when not specified', async () => {
       await manager.computeBinId(0.50, 2, 6);
 
-      const dlmm = (await import('@meteora-ag/dlmm')).default;
-      expect(dlmm.getBinIdFromPrice).toHaveBeenCalledWith(
+      expect(mockDLMM.getBinIdFromPrice).toHaveBeenCalledWith(
         expect.any(String),
         1, // default binStep
         true,
@@ -117,8 +109,7 @@ describe('MeteoraPoolManager', () => {
 
       // getPricePerLamport should be called twice (once per computeBinId),
       // but the dynamic import only happens once due to caching
-      const dlmm = (await import('@meteora-ag/dlmm')).default;
-      expect(dlmm.getPricePerLamport).toHaveBeenCalledTimes(2);
+      expect(mockDLMM.getPricePerLamport).toHaveBeenCalledTimes(2);
     });
 
     it('passes cluster option to getPoolStatus when provided', async () => {
@@ -127,8 +118,7 @@ describe('MeteoraPoolManager', () => {
 
       await manager.getPoolStatus(mockConnection, mockPoolAddress, 'devnet');
 
-      const dlmm = (await import('@meteora-ag/dlmm')).default;
-      expect(dlmm.create).toHaveBeenCalledWith(
+      expect(mockDLMM.create).toHaveBeenCalledWith(
         mockConnection,
         mockPoolAddress,
         { cluster: 'devnet' },

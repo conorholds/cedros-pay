@@ -13,7 +13,7 @@ import { WalletReadyState as ge } from "@solana/wallet-adapter-base";
 import { WalletIcon as Me } from "@solana/wallet-adapter-react-ui";
 import { WalletPool as ur, createWalletPool as dr } from "./walletPool-9MylB2QK.mjs";
 import { K as fr, a as mr } from "./tokenMintValidator-DAjQld0r.mjs";
-import { C as gr, a as br, b as Sr, c as wr } from "./plugin-BIkt3boU.mjs";
+import { C as gr, a as br, b as Sr, c as wr } from "./plugin-CuoGEYWr.mjs";
 function Le() {
   const { subscriptionManager: r, x402Manager: c, walletManager: f } = H(), { publicKey: i, signTransaction: R } = J(), [S, p] = B({
     status: "idle",

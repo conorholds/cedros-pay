@@ -9,6 +9,11 @@
  */
 
 import type { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import {
+  importOptionalPeer,
+  OPTIONAL_METEORA_DLMM_SPECIFIER,
+  OPTIONAL_SOLANA_WEB3_SPECIFIER,
+} from '../utils/optionalPeerImport';
 
 /** Lazy-loaded DLMM module type */
 interface DLMMModule {
@@ -100,7 +105,7 @@ export class MeteoraPoolManager {
   private async loadDLMM(): Promise<DLMMClass> {
     if (this.dlmmModule) return this.dlmmModule;
     try {
-      const mod = await import('@meteora-ag/dlmm') as unknown as DLMMModule;
+      const mod = await importOptionalPeer<DLMMModule>(OPTIONAL_METEORA_DLMM_SPECIFIER);
       this.dlmmModule = mod.default ?? mod as unknown as DLMMClass;
       return this.dlmmModule;
     } catch {
@@ -121,7 +126,7 @@ export class MeteoraPoolManager {
   /** Dynamic import of Keypair */
   private async loadKeypair(): Promise<typeof this.keypairClass> {
     if (this.keypairClass) return this.keypairClass;
-    const { Keypair } = await import('@solana/web3.js');
+    const { Keypair } = await importOptionalPeer<typeof import('@solana/web3.js')>(OPTIONAL_SOLANA_WEB3_SPECIFIER);
     this.keypairClass = Keypair as unknown as typeof this.keypairClass;
     return this.keypairClass;
   }

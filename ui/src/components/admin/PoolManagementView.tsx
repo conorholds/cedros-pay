@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { ConfigApiClient } from './configApi';
 import { MeteoraPoolManager } from '../../managers/MeteoraPoolManager';
 import type { IAdminAuthManager } from './AdminAuthManager';
+import { importOptionalPeer, OPTIONAL_SOLANA_WEB3_SPECIFIER } from '../../utils/optionalPeerImport';
 
 const USDC_DECIMALS = 6;
 const DEFAULT_BIN_STEP = 1;
@@ -97,7 +98,9 @@ export function PoolManagementView({
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const { Connection, PublicKey, Keypair } = await import('@solana/web3.js');
+      const { Connection, PublicKey, Keypair } = await importOptionalPeer<typeof import('@solana/web3.js')>(
+        OPTIONAL_SOLANA_WEB3_SPECIFIER
+      );
       const api = new ConfigApiClient(serverUrl, undefined, authManager);
       const x402Resp = await api.getConfig('x402');
       const rpcUrl = (x402Resp.config?.rpc_url as string) || '';
