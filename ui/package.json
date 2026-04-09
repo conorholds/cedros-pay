@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "description": "React frontend library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -182,8 +182,9 @@
     "analyze": "ANALYZE=true vite build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build",
-    "prepack": "npm run build",
+    "verify:exports": "node scripts/verify-package-exports.mjs",
+    "prepublishOnly": "npm run lint && npm run type-check && npm test && npm run build && npm run verify:exports",
+    "prepack": "npm run build && npm run verify:exports",
     "prepare": "husky"
   },
   "overrides": {
