@@ -130,8 +130,8 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@cedros/admin-react": "file:../../cedros-admin/ui",
-    "@cedros/data-react": "file:../../cedros-data/ui",
+    "@cedros/admin-react": "^0.1.1",
+    "@cedros/data-react": "^0.1.8",
     "@cedros/login-react": "^0.0.4",
     "@solana/spl-token": "^0.4.14",
     "@solana/wallet-adapter-base": "^0.9.23",

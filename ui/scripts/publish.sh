@@ -25,6 +25,42 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+resolve_registry_version() {
+    npm view "$1" version 2>/dev/null || true
+}
+
+rewrite_public_dev_dependencies() {
+    local admin_version
+    local data_version
+
+    admin_version="$(resolve_registry_version "@cedros/admin-react")"
+    data_version="$(resolve_registry_version "@cedros/data-react")"
+
+    if [ -z "$admin_version" ] && [ -z "$data_version" ]; then
+        echo -e "${YELLOW}Note:${NC} Skipping public devDependency rewrite (registry versions unavailable)"
+        return
+    fi
+
+    node - "$PUBLIC_REPO_ROOT/package.json" "$admin_version" "$data_version" <<'EOF'
+const fs = require('node:fs');
+
+const [pkgPath, adminVersion, dataVersion] = process.argv.slice(2);
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+if (adminVersion && pkg.devDependencies?.['@cedros/admin-react']) {
+  pkg.devDependencies['@cedros/admin-react'] = `^${adminVersion}`;
+}
+
+if (dataVersion && pkg.devDependencies?.['@cedros/data-react']) {
+  pkg.devDependencies['@cedros/data-react'] = `^${dataVersion}`;
+}
+
+fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+EOF
+
+    echo -e "${GREEN}✓${NC} Rewrote public devDependencies for published builds"
+}
+
 # Excluded files and directories (private/sensitive content)
 EXCLUDE_PATTERNS=(
     # Audit and internal docs (already deleted, kept for historical reference)
@@ -158,6 +194,8 @@ rsync -av --delete \
     "$PUBLIC_REPO_ROOT/"
 
 if [ $? -eq 0 ]; then
+    rewrite_public_dev_dependencies
+
     echo ""
     echo -e "${GREEN}✓ Successfully published to public repository${NC}"
     echo ""
