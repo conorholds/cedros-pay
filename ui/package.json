@@ -1,6 +1,6 @@
 {
   "name": "@cedros/pay-react",
-  "version": "1.1.29",
+  "version": "1.1.30",
   "description": "React frontend library for Cedros Pay - unified Stripe and Solana x402 payments",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -17,6 +17,12 @@
       "types": "./dist/admin.d.ts",
       "import": "./dist/admin.mjs",
       "require": "./dist/admin.js"
+    },
+    "./standalone-admin": {
+      "react-native": "./src/standalone-admin.ts",
+      "types": "./dist/standalone-admin.d.ts",
+      "import": "./dist/standalone-admin.mjs",
+      "require": "./dist/standalone-admin.js"
     },
     "./stripe-only": {
       "react-native": "./src/stripe-only.ts",

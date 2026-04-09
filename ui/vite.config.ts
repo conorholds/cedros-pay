@@ -32,6 +32,7 @@ export default defineConfig({
       entry: {
         admin: resolve(__dirname, 'src/admin.ts'),
         index: resolve(__dirname, 'src/index.ts'),
+        'standalone-admin': resolve(__dirname, 'src/standalone-admin.ts'),
         'stripe-only': resolve(__dirname, 'src/stripe-only.ts'),
         'crypto-only': resolve(__dirname, 'src/crypto-only.ts'),
         telemetry: resolve(__dirname, 'src/telemetry.ts'),

@@ -1,15 +1,10 @@
 /**
- * Additive admin-focused entrypoint.
+ * Plugin-focused admin entrypoint.
  *
- * Prefer `@cedros/pay-react/admin` for AdminShell composition and the
- * cedros-pay plugin contract.
+ * Use `@cedros/pay-react/admin` for AdminShell composition and the
+ * cedros-pay plugin contract. For the standalone dashboard runtime,
+ * use `@cedros/pay-react/standalone-admin` or the root package export.
  */
-
-export {
-  CedrosPayAdminDashboard,
-  type CedrosPayAdminDashboardProps,
-  type DashboardSection,
-} from './components/admin';
 
 export {
   cedrosPayPlugin,

@@ -14,7 +14,8 @@ import { WalletIcon as qe } from "@solana/wallet-adapter-react-ui";
 import { u as Me } from "./ThemeContext-l0bqcOGW.mjs";
 import { WalletPool as dr, createWalletPool as pr } from "./walletPool-9MylB2QK.mjs";
 import { K as mr, a as yr } from "./tokenMintValidator-DAjQld0r.mjs";
-import { C as br, a as Sr, b as wr, c as Cr, d as hr } from "./sectionIds-DBavltrL.mjs";
+import { C as br, a as Sr, b as wr, c as Cr } from "./sectionIds-YktNxmRt.mjs";
+import { C as xr } from "./LazyCedrosPayAdminDashboard-BqJDNrDI.mjs";
 function Le() {
   const { subscriptionManager: r, x402Manager: c, walletManager: f } = H(), { publicKey: i, signTransaction: R } = J(), [S, p] = B({
     status: "idle",
@@ -715,7 +716,7 @@ export {
   Nt as CIRCUIT_BREAKER_PRESETS,
   He as CSP_PRESETS,
   Je as CedrosPay,
-  Cr as CedrosPayAdminDashboard,
+  xr as CedrosPayAdminDashboard,
   Ot as CedrosProvider,
   Gt as CircuitBreakerOpenError,
   zt as CircuitState,
@@ -744,7 +745,7 @@ export {
   ct as SubscriptionManagementPanel,
   dr as WalletPool,
   lt as calculateDiscountPercentage,
-  hr as cedrosPayPlugin,
+  Cr as cedrosPayPlugin,
   Yt as createCircuitBreaker,
   or as createLogger,
   Vt as createRateLimiter,

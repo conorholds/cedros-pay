@@ -1524,6 +1524,12 @@ function AdminPage() {
 }
 ```
 
+If you prefer a dedicated standalone-only entrypoint, import it from:
+
+```tsx
+import { CedrosPayAdminDashboard } from "@cedros/pay-react/standalone-admin";
+```
+
 **Available Sections:**
 
 | Section | Description |
@@ -1580,6 +1586,8 @@ function UnifiedAdmin() {
 ```
 
 > **Note:** The shared admin standard is the shell + plugin contract. `cedros-pay` exports `cedrosPayPlugin` for composition under a single `/admin` dashboard.
+>
+> `@cedros/pay-react/admin` is plugin-only and does not export the standalone dashboard runtime, which keeps the AdminShell path free of standalone wallet-adapter requirements when Cedros Login provides admin auth.
 
 ### cedrosPayPlugin Sections
 
