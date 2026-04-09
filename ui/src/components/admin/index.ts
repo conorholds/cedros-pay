@@ -35,7 +35,7 @@ export {
   CedrosPayAdminDashboard,
   type CedrosPayAdminDashboardProps,
   type DashboardSection,
-} from './CedrosPayAdminDashboard';
+} from './LazyCedrosPayAdminDashboard';
 
 // Config API components for standalone use
 export { ConfigEditor, type ConfigEditorProps } from './ConfigEditor';
