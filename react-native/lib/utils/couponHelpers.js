@@ -70,7 +70,7 @@ function calculateDiscountPercentage(originalAmount, discountedAmount) {
 /**
  * Apply stacked coupons to a price using the same logic as the backend.
  *
- * CRITICAL: This must match the backend's StackCouponsOnMoney() behavior exactly:
+ * Keep this aligned with the backend StackCouponsOnMoney() behavior:
  * 1. Apply all percentage discounts first (multiplicatively)
  * 2. Sum all fixed discounts and apply at the end
  * 3. Round to cents (2 decimal places) at the end

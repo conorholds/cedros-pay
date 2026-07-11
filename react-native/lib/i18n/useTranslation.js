@@ -5,12 +5,18 @@
  * React hook for accessing translations in components.
  * Automatically detects browser locale and loads translations.
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.useTranslation = useTranslation;
 exports.useLocalizedError = useLocalizedError;
 const react_1 = require("react");
 const index_1 = require("./index");
+const locales_1 = require("./locales");
+const en_json_1 = __importDefault(require("./translations/en.json"));
 const errorMessages_1 = require("../utils/errorMessages");
+const FALLBACK_TRANSLATIONS = en_json_1.default;
 /**
  * Hook for accessing translations
  *
@@ -35,27 +41,24 @@ function useTranslation(requestedLocale) {
     const [translations, setTranslations] = (0, react_1.useState)(null);
     const [isLoading, setIsLoading] = (0, react_1.useState)(true);
     // Determine locale (requested or browser default)
-    const locale = (0, react_1.useMemo)(() => requestedLocale || (0, index_1.detectLocale)(), [requestedLocale]);
+    const locale = (0, react_1.useMemo)(() => (0, locales_1.normalizeLocale)(requestedLocale || (0, index_1.detectLocale)()), [requestedLocale]);
     // Load translations
     (0, react_1.useEffect)(() => {
         let cancelled = false;
-        const load = async () => {
-            setIsLoading(true);
-            try {
-                const data = await (0, index_1.loadLocale)(locale);
-                if (!cancelled) {
-                    setTranslations(data);
-                    setIsLoading(false);
-                }
+        setIsLoading(true);
+        try {
+            const data = (0, index_1.loadLocale)(locale);
+            if (!cancelled) {
+                setTranslations(data);
+                setIsLoading(false);
             }
-            catch (error) {
-                console.error('[CedrosPay] Failed to load translations:', error);
-                if (!cancelled) {
-                    setIsLoading(false);
-                }
+        }
+        catch (error) {
+            console.error('[CedrosPay] Failed to load translations:', error);
+            if (!cancelled) {
+                setIsLoading(false);
             }
-        };
-        load();
+        }
         return () => {
             cancelled = true;
         };
@@ -64,24 +67,9 @@ function useTranslation(requestedLocale) {
     const t = (0, react_1.useMemo)(() => {
         if (!translations) {
             // Fallback translator with English defaults to prevent flashing translation keys
-            return (key) => {
-                const fallbacks = {
-                    'ui.purchase': 'Purchase',
-                    'ui.pay_with_card': 'Pay with Card',
-                    'ui.pay_with_crypto': 'Pay with USDC',
-                    'ui.pay_with_usdc': 'Pay with USDC',
-                    'ui.card': 'Card',
-                    'ui.usdc_solana': 'USDC (Solana)',
-                    'ui.crypto': 'Crypto',
-                    'ui.processing': 'Processing...',
-                    'ui.loading': 'Loading...',
-                    'ui.connect_wallet': 'Connect Wallet',
-                    'ui.connecting': 'Connecting...',
-                };
-                return fallbacks[key] || key;
-            };
+            return (0, index_1.createTranslator)(FALLBACK_TRANSLATIONS);
         }
-        return (0, index_1.createTranslator)(translations);
+        return (0, index_1.createTranslator)(translations, FALLBACK_TRANSLATIONS);
     }, [translations]);
     return {
         t,

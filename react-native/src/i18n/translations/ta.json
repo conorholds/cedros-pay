@@ -19,7 +19,18 @@
     "confirm": "உறுதிப்படுத்தவும்",
     "retry": "மீண்டும் முயற்சி செய்",
     "go_back": "திரும்பிச் செல்லவும்",
-    "contact_support": "உதவியைத் தொடர்புகொள்ளவும்"
+    "contact_support": "உதவியைத் தொடர்புகொள்ளவும்",
+    "pay_with_credits": "கிரெடிட்களால் செலுத்துங்கள்",
+    "credits": "கிரெடிட்கள்",
+    "disconnect": "துண்டிக்கவும்",
+    "payment_successful": "கட்டணம் வெற்றிகரமாக முடிந்தது!",
+    "subscribe": "சந்தா செலுத்துங்கள்",
+    "subscribe_with_crypto": "USDC மூலம் சந்தா செலுத்துங்கள்",
+    "subscribe_with_credits": "கிரெடிட்களால் சந்தா செலுத்துங்கள்",
+    "subscribed": "சந்தா உள்ளது",
+    "subscribed_until": "வரை சந்தா உள்ளது",
+    "subscription_active": "உங்கள் சந்தா செயலில் உள்ளது!",
+    "redirecting_to_checkout": "செக்அவுட்டிற்கு மாற்றப்படுகிறது..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "வாலெட்டை இணைக்க முடியவில்லை",
     "try_again": "மீண்டும் இணைக்க முயற்சிக்கவும்.",
     "transaction_rejected": "பரிவர்த்தனை நிராகரிக்கப்பட்டது",
-    "approve_in_wallet": "தொடர உங்கள் வாலெட்டில் பரிவர்த்தனையை அங்கீகரிக்கவும்."
+    "approve_in_wallet": "தொடர உங்கள் வாலெட்டில் பரிவர்த்தனையை அங்கீகரிக்கவும்.",
+    "select_wallet": "வாலட்டைத் தேர்ந்தெடுக்கவும்",
+    "change": "மாற்று"
   }
 }

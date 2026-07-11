@@ -1,11 +1,7 @@
 import { type ReactNode } from 'react';
 import type { CedrosConfig } from '../types';
-import { type IStripeManager } from '../managers/StripeManager';
-import { type IX402Manager } from '../managers/X402Manager';
-import { type IWalletManager } from '../managers/WalletManager';
 import { type ISubscriptionManager } from '../managers/SubscriptionManager';
 import { type ISubscriptionChangeManager } from '../managers/SubscriptionChangeManager';
-import { type ICreditsManager } from '../managers/CreditsManager';
 import { type IStoreBillingManager } from '../managers/StoreBillingManager';
 import { type WalletPool } from '../utils/walletPool';
 /**
@@ -16,12 +12,8 @@ import { type WalletPool } from '../utils/walletPool';
  */
 export interface CedrosContextValue {
     config: CedrosConfig;
-    stripeManager: IStripeManager;
-    x402Manager: IX402Manager;
-    walletManager: IWalletManager;
     subscriptionManager: ISubscriptionManager;
     subscriptionChangeManager: ISubscriptionChangeManager;
-    creditsManager: ICreditsManager;
     storeBillingManager: IStoreBillingManager;
     /** Context-scoped wallet pool (for internal use by CedrosPay component) */
     walletPool: WalletPool;

@@ -38,7 +38,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkSolanaAvailability = checkSolanaAvailability;
-exports.requireSolana = requireSolana;
 let solanaChecked = false;
 let solanaAvailable = false;
 async function checkSolanaAvailability() {
@@ -65,12 +64,6 @@ async function checkSolanaAvailability() {
             available: false,
             error: getSolanaInstallError(),
         };
-    }
-}
-async function requireSolana() {
-    const check = await checkSolanaAvailability();
-    if (!check.available) {
-        throw new Error(check.error);
     }
 }
 function getSolanaInstallError() {

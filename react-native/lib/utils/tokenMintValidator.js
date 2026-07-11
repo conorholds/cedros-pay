@@ -34,7 +34,7 @@ exports.STABLECOIN_METADATA = {
         decimals: 6,
     },
 };
-/** Simple symbol map for backwards compatibility */
+/** Simple symbol lookup map derived from token metadata. */
 exports.KNOWN_STABLECOINS = Object.fromEntries(Object.entries(exports.STABLECOIN_METADATA).map(([mint, meta]) => [mint, meta.symbol]));
 /**
  * Type guard to check if a token mint is a known stablecoin

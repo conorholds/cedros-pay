@@ -19,7 +19,18 @@
     "confirm": "Konfirmasi",
     "retry": "Coba Lagi",
     "go_back": "Kembali",
-    "contact_support": "Hubungi Dukungan"
+    "contact_support": "Hubungi Dukungan",
+    "pay_with_credits": "Bayar dengan kredit",
+    "credits": "Kredit",
+    "disconnect": "Putuskan koneksi",
+    "payment_successful": "Pembayaran berhasil!",
+    "subscribe": "Berlangganan",
+    "subscribe_with_crypto": "Berlangganan dengan USDC",
+    "subscribe_with_credits": "Berlangganan dengan kredit",
+    "subscribed": "Berlangganan",
+    "subscribed_until": "Berlangganan hingga",
+    "subscription_active": "Langganan Anda aktif!",
+    "redirecting_to_checkout": "Mengalihkan ke checkout..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Gagal menghubungkan wallet",
     "try_again": "Silakan coba hubungkan lagi.",
     "transaction_rejected": "Transaksi ditolak",
-    "approve_in_wallet": "Harap setujui transaksi di wallet Anda untuk melanjutkan."
+    "approve_in_wallet": "Harap setujui transaksi di wallet Anda untuk melanjutkan.",
+    "select_wallet": "Pilih dompet",
+    "change": "Ubah"
   }
 }

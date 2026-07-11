@@ -19,7 +19,18 @@
     "confirm": "Kumpirmahin",
     "retry": "Subukang Muli",
     "go_back": "Bumalik",
-    "contact_support": "Makipag-ugnayan sa Suporta"
+    "contact_support": "Makipag-ugnayan sa Suporta",
+    "pay_with_credits": "Magbayad gamit ang Credits",
+    "credits": "Credits",
+    "disconnect": "Idiskonekta",
+    "payment_successful": "Matagumpay ang pagbabayad!",
+    "subscribe": "Mag-subscribe",
+    "subscribe_with_crypto": "Mag-subscribe gamit ang USDC",
+    "subscribe_with_credits": "Mag-subscribe gamit ang Credits",
+    "subscribed": "Naka-subscribe",
+    "subscribed_until": "Naka-subscribe hanggang",
+    "subscription_active": "Aktibo ang iyong subscription!",
+    "redirecting_to_checkout": "Nagre-redirect sa checkout..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Nabigo ang pagkonekta sa wallet",
     "try_again": "Pakisubukang kumonekta muli.",
     "transaction_rejected": "Tinanggihan ang transaksyon",
-    "approve_in_wallet": "Pakiyaprubahan ang transaksyon sa iyong wallet upang magpatuloy."
+    "approve_in_wallet": "Pakiyaprubahan ang transaksyon sa iyong wallet upang magpatuloy.",
+    "select_wallet": "Pumili ng wallet",
+    "change": "Baguhin"
   }
 }

@@ -19,7 +19,18 @@
     "confirm": "تأكيد",
     "retry": "أعد المحاولة",
     "go_back": "الرجوع",
-    "contact_support": "تواصل مع الدعم"
+    "contact_support": "تواصل مع الدعم",
+    "pay_with_credits": "ادفع بالأرصدة",
+    "credits": "الأرصدة",
+    "disconnect": "قطع الاتصال",
+    "payment_successful": "تم الدفع بنجاح!",
+    "subscribe": "اشترك",
+    "subscribe_with_crypto": "اشترك باستخدام USDC",
+    "subscribe_with_credits": "اشترك بالأرصدة",
+    "subscribed": "مشترك",
+    "subscribed_until": "مشترك حتى",
+    "subscription_active": "اشتراكك نشط!",
+    "redirecting_to_checkout": "جارٍ التحويل إلى الدفع..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "فشل الاتصال بالمحفظة",
     "try_again": "يرجى المحاولة مرة أخرى للاتصال.",
     "transaction_rejected": "تم رفض المعاملة",
-    "approve_in_wallet": "يرجى الموافقة على المعاملة في محفظتك للمتابعة."
+    "approve_in_wallet": "يرجى الموافقة على المعاملة في محفظتك للمتابعة.",
+    "select_wallet": "اختر محفظة",
+    "change": "تغيير"
   }
 }

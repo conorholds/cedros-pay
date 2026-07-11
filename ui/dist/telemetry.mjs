@@ -1,4 +1,4 @@
-import { g as c } from "./uuid-_z3jSatJ.mjs";
+import { g as c } from "./uuid-CPLkueHj.mjs";
 var d = /* @__PURE__ */ ((e) => (e.DEBUG = "debug", e.INFO = "info", e.WARNING = "warning", e.ERROR = "error", e.CRITICAL = "critical", e))(d || {});
 let n = {
   enabled: !1,

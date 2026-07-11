@@ -1,12 +1,9 @@
 # Source files (dist/ is built and published instead)
 src/
-stories/
 examples/
-landing/
 scripts/
 
 # Development files
-.storybook/
 .github/
 .git/
 .husky/

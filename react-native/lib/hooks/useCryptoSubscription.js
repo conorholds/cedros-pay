@@ -33,7 +33,8 @@ const errorHandling_1 = require("../utils/errorHandling");
  * ```
  */
 function useCryptoSubscription() {
-    const { subscriptionManager, x402Manager, walletManager } = (0, context_1.useCedrosContext)();
+    const { subscriptionManager } = (0, context_1.useCedrosContext)();
+    const { x402Manager, walletManager } = (0, context_1.useCedrosContext)();
     const { publicKey, signTransaction } = (0, wallet_adapter_react_1.useWallet)();
     const [state, setState] = (0, react_1.useState)({
         status: 'idle',

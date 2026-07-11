@@ -30,7 +30,7 @@
  *
  * @internal
  */
-import { type IStripeManager } from './StripeManager';
+import { CedrosPayCheckout } from '../canonicalCheckout';
 import { type IX402Manager } from './X402Manager';
 import { type IWalletManager } from './WalletManager';
 import { type ISubscriptionManager } from './SubscriptionManager';
@@ -49,7 +49,7 @@ import type { CedrosStoreBillingConfig } from '../types/storePolicy';
  * @returns Cached or newly created manager instances
  */
 export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, stripeReturnUrl?: string, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean, storeBillingConfig?: CedrosStoreBillingConfig): {
-    stripeManager: IStripeManager;
+    checkoutClient: CedrosPayCheckout;
     x402Manager: IX402Manager;
     walletManager: IWalletManager;
     subscriptionManager: ISubscriptionManager;
@@ -69,22 +69,4 @@ export declare function getOrCreateManagers(stripePublicKey: string, serverUrl: 
  * when all references are released and garbage collection runs.
  */
 export declare function releaseManagers(stripePublicKey: string, serverUrl: string, solanaCluster: SolanaCluster, stripeReturnUrl?: string, solanaEndpoint?: string, dangerouslyAllowUnknownMint?: boolean, storeBillingConfig?: CedrosStoreBillingConfig): void;
-/**
- * Clear all cached managers (for testing)
- *
- * @internal
- */
-export declare function clearManagerCache(): void;
-/**
- * Get cache statistics (for debugging)
- *
- * @internal
- */
-export declare function getManagerCacheStats(): {
-    entries: number;
-    details: {
-        config: any;
-        refCount: number;
-    }[];
-};
 //# sourceMappingURL=ManagerCache.d.ts.map

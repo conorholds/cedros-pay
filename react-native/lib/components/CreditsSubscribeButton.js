@@ -1,47 +1,15 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreditsSubscribeButton = CreditsSubscribeButton;
-const react_1 = __importStar(require("react"));
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("react");
 const react_native_1 = require("react-native");
 const context_1 = require("../context");
 const useCreditsSubscription_1 = require("../hooks/useCreditsSubscription");
 const logger_1 = require("../utils/logger");
 const eventEmitter_1 = require("../utils/eventEmitter");
 const requestDeduplication_1 = require("../utils/requestDeduplication");
-const useTranslation_1 = require("../i18n/useTranslation");
+const useCedrosTranslation_1 = require("../i18n/useCedrosTranslation");
 /**
  * Button component for credits subscription payments (React Native)
  *
@@ -51,7 +19,7 @@ const useTranslation_1 = require("../i18n/useTranslation");
 function CreditsSubscribeButton({ resource, interval, intervalDays, authToken, userId, couponCode, label, disabled = false, onAttempt, onSuccess, onError, style, textStyle, loadingColor = '#ffffff', hideMessages = false, autoCheckStatus = false, }) {
     const { status, error, subscriptionStatus, expiresAt, checkStatus, processPayment, } = (0, useCreditsSubscription_1.useCreditsSubscription)();
     const theme = (0, context_1.useCedrosTheme)();
-    const { t, translations } = (0, useTranslation_1.useTranslation)();
+    const { t, translations } = (0, useCedrosTranslation_1.useCedrosTranslation)();
     // Store checkStatus in ref to avoid effect dependency issues
     const checkStatusRef = (0, react_1.useRef)(checkStatus);
     (0, react_1.useEffect)(() => {
@@ -157,23 +125,11 @@ function CreditsSubscribeButton({ resource, interval, intervalDays, authToken, u
     else if (isSubscribed) {
         displayLabel = t('ui.subscribed');
     }
-    return (<react_native_1.View style={[styles.container, style]}>
-      <react_native_1.TouchableOpacity onPress={handlePress} disabled={isDisabled} style={[
-            styles.button,
-            theme.unstyled ? null : { backgroundColor: theme.tokens?.cryptoBackground || '#14b8a6' },
-            isDisabled && styles.disabled,
-        ]} activeOpacity={0.8} accessible={true} accessibilityRole="button" accessibilityLabel={displayLabel} accessibilityState={{ disabled: isDisabled, busy: isProcessing }}>
-        {isProcessing ? (<react_native_1.ActivityIndicator color={loadingColor} size="small"/>) : (<react_native_1.Text style={[styles.buttonText, textStyle]}>{displayLabel}</react_native_1.Text>)}
-      </react_native_1.TouchableOpacity>
-
-      {/* Status messages */}
-      {!hideMessages && localizedError && (<react_native_1.Text style={[styles.errorText, { color: theme.tokens?.errorText || '#ef4444' }]}>
-          {localizedError}
-        </react_native_1.Text>)}
-      {!hideMessages && isSubscribed && (<react_native_1.Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }]}>
-          {t('ui.subscription_active')}
-        </react_native_1.Text>)}
-    </react_native_1.View>);
+    return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [styles.container, style], children: [(0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: handlePress, disabled: isDisabled, style: [
+                    styles.button,
+                    theme.unstyled ? null : { backgroundColor: theme.tokens?.cryptoBackground || '#14b8a6' },
+                    isDisabled && styles.disabled,
+                ], activeOpacity: 0.8, accessible: true, accessibilityRole: "button", accessibilityLabel: displayLabel, accessibilityState: { disabled: isDisabled, busy: isProcessing }, children: isProcessing ? ((0, jsx_runtime_1.jsx)(react_native_1.ActivityIndicator, { color: loadingColor, size: "small" })) : ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.buttonText, textStyle], children: displayLabel })) }), !hideMessages && localizedError && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.errorText, { color: theme.tokens?.errorText || '#ef4444' }], children: localizedError })), !hideMessages && isSubscribed && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.successText, { color: theme.tokens?.successText || '#22c55e' }], children: t('ui.subscription_active') }))] }));
 }
 const styles = react_native_1.StyleSheet.create({
     container: {

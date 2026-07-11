@@ -19,7 +19,18 @@
     "confirm": "ยืนยัน",
     "retry": "ลองอีกครั้ง",
     "go_back": "ย้อนกลับ",
-    "contact_support": "ติดต่อฝ่ายสนับสนุน"
+    "contact_support": "ติดต่อฝ่ายสนับสนุน",
+    "pay_with_credits": "ชำระด้วยเครดิต",
+    "credits": "เครดิต",
+    "disconnect": "ตัดการเชื่อมต่อ",
+    "payment_successful": "ชำระเงินสำเร็จ!",
+    "subscribe": "สมัครสมาชิก",
+    "subscribe_with_crypto": "สมัครสมาชิกด้วย USDC",
+    "subscribe_with_credits": "สมัครสมาชิกด้วยเครดิต",
+    "subscribed": "สมัครแล้ว",
+    "subscribed_until": "สมัครถึง",
+    "subscription_active": "การสมัครสมาชิกของคุณเปิดใช้งานอยู่!",
+    "redirecting_to_checkout": "กำลังเปลี่ยนเส้นทางไปยังชำระเงิน..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "เชื่อมต่อวอลเล็ตไม่สำเร็จ",
     "try_again": "โปรดลองเชื่อมต่ออีกครั้ง",
     "transaction_rejected": "ธุรกรรมถูกปฏิเสธ",
-    "approve_in_wallet": "โปรดยืนยันธุรกรรมในวอลเล็ตเพื่อดำเนินการต่อ"
+    "approve_in_wallet": "โปรดยืนยันธุรกรรมในวอลเล็ตเพื่อดำเนินการต่อ",
+    "select_wallet": "เลือกวอลเล็ต",
+    "change": "เปลี่ยน"
   }
 }

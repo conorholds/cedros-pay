@@ -8,6 +8,7 @@ const errorHandling_1 = require("../utils/errorHandling");
 const fetchWithTimeout_1 = require("../utils/fetchWithTimeout");
 const rateLimiter_1 = require("../utils/rateLimiter");
 const circuitBreaker_1 = require("../utils/circuitBreaker");
+const resilience_1 = require("./resilience");
 const exponentialBackoff_1 = require("../utils/exponentialBackoff");
 /**
  * Internal implementation of x402 payment protocol.
@@ -50,7 +51,7 @@ class X402Manager {
         const { resource, couponCode } = options;
         // Rate limiting check
         if (!this.quoteRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for quote requests. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('quote requests'));
         }
         // Circuit breaker + retry logic
         try {
@@ -75,27 +76,18 @@ class X402Manager {
                         throw new Error(`Expected 402 status, got ${response.status}`);
                     }
                     const data = await response.json();
-                    // Support both Rust (new) and Go (legacy) response formats
-                    // Rust format: { crypto: X402Requirement, stripe?: {...}, credits?: {...} }
-                    // Go format: { accepts: X402Requirement[] }
-                    if (data.crypto) {
-                        // New Rust server format
-                        return data.crypto;
+                    const requirement = data.accepts?.[0];
+                    if (!requirement) {
+                        throw new Error("Invalid x402 response: missing accepts field");
                     }
-                    else if (data.accepts && data.accepts.length > 0) {
-                        // Legacy Go server format (backwards compatibility)
-                        return data.accepts[0];
-                    }
-                    else {
-                        throw new Error("Invalid x402 response: missing crypto or accepts field");
-                    }
+                    return requirement;
                 }, { ...exponentialBackoff_1.RETRY_PRESETS.QUICK, name: 'x402-quote' });
             });
         }
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[X402Manager] Circuit breaker is OPEN - x402 service unavailable');
-                throw new Error('Payment service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Payment service'));
             }
             throw error;
         }
@@ -107,20 +99,17 @@ class X402Manager {
         const { items, metadata, couponCode } = options;
         // Rate limiting check
         if (!this.quoteRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for cart quote requests. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('cart quote requests'));
         }
         // Circuit breaker + retry logic
         try {
             return await this.circuitBreaker.execute(async () => {
                 return await (0, exponentialBackoff_1.retryWithBackoff)(async () => {
                     const url = await this.routeDiscovery.buildUrl("/paywall/v1/cart/quote");
-                    // Rust server uses 'coupon', Go server used 'couponCode'
-                    // Send both for backwards compatibility during migration
                     const cartRequest = {
                         items,
                         metadata,
-                        coupon: couponCode, // New Rust server field
-                        couponCode, // Legacy Go server field (backwards compat)
+                        coupon: couponCode,
                     };
                     const response = await (0, fetchWithTimeout_1.fetchWithTimeout)(url, {
                         method: "POST",
@@ -142,7 +131,7 @@ class X402Manager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[X402Manager] Circuit breaker is OPEN - cart quote service unavailable');
-                throw new Error('Payment service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Payment service'));
             }
             throw error;
         }
@@ -187,30 +176,28 @@ class X402Manager {
         if (!this.verifyRateLimiter.tryConsume()) {
             return {
                 success: false,
-                error: 'Rate limit exceeded for payment verification. Please try again later.',
+                error: (0, resilience_1.rateLimitExceededMessage)('payment verification'),
             };
         }
         try {
             const result = await this.circuitBreaker.execute(async () => {
                 return await (0, exponentialBackoff_1.retryWithBackoff)(async () => {
-                    // SECURITY FIX: Include coupon, metadata, and resource in the payment payload
-                    // This prevents leakage through URL query strings in logs, Referer headers, etc.
-                    // BACKWARD COMPATIBILITY: Preserve any existing metadata from the payload
-                    const enhancedPayloadWithResource = {
+                    // Keep resource, metadata, and coupon data inside the payment header payload.
+                    const paymentPayloadWithResource = {
                         ...payload,
                         payload: {
                             ...payload.payload,
                             resource,
                             resourceType,
                             metadata: {
-                                ...(payload.payload.metadata || {}), // Preserve existing metadata
-                                ...(metadata || {}), // Layer in new metadata
-                                ...(couponCode ? { couponCode } : {}), // Add coupon if present
+                                ...(payload.payload.metadata || {}),
+                                ...(metadata || {}),
+                                ...(couponCode ? { couponCode } : {}),
                             },
                         },
                     };
-                    const paymentHeader = this.buildPaymentHeader(enhancedPayloadWithResource);
-                    // SECURITY: Use generic endpoint - resource ID now in X-PAYMENT header
+                    const paymentHeader = this.buildPaymentHeader(paymentPayloadWithResource);
+                    // Resource identifiers stay in X-PAYMENT, not the URL.
                     const urlPath = `/paywall/v1/verify`;
                     (0, logger_1.getLogger)().debug("[X402Manager] Submitting payment", {
                         resourceType,
@@ -249,7 +236,7 @@ class X402Manager {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 return {
                     success: false,
-                    error: 'Payment verification service is temporarily unavailable. Please try again in a few moments.',
+                    error: (0, resilience_1.serviceUnavailableMessage)('Payment verification service'),
                 };
             }
             return {
@@ -266,7 +253,7 @@ class X402Manager {
         const { resourceId, userWallet, feePayer, couponCode } = options;
         // Rate limiting check
         if (!this.quoteRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for gasless transaction requests. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('gasless transaction requests'));
         }
         // Circuit breaker + retry logic
         try {
@@ -296,7 +283,7 @@ class X402Manager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[X402Manager] Circuit breaker is OPEN - gasless transaction service unavailable');
-                throw new Error('Gasless transaction service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Gasless transaction service'));
             }
             throw error;
         }
@@ -312,21 +299,19 @@ class X402Manager {
         if (!this.verifyRateLimiter.tryConsume()) {
             return {
                 success: false,
-                error: 'Rate limit exceeded for gasless transaction verification. Please try again later.',
+                error: (0, resilience_1.rateLimitExceededMessage)('gasless transaction verification'),
             };
         }
         try {
             const result = await this.circuitBreaker.execute(async () => {
                 return await (0, exponentialBackoff_1.retryWithBackoff)(async () => {
-                    // Build proper x402 payment payload structure
-                    // For gasless transactions, signature field is placeholder since backend co-signs
-                    // SECURITY FIX: Include coupon, metadata, resource, and resourceType in payload
+                    // Gasless payments use an unsigned signature slot; the backend finalizes after co-signing.
                     const paymentPayload = {
                         x402Version: 0,
                         scheme: requirement?.scheme || "solana-spl-transfer",
                         network: requirement?.network || "mainnet-beta",
                         payload: {
-                            signature: "", // Placeholder - backend will finalize after co-signing
+                            signature: "", // Backend fills this after co-signing.
                             transaction: partialTx,
                             feePayer: requirement?.extra?.feePayer || "",
                             resource,
@@ -338,7 +323,7 @@ class X402Manager {
                         },
                     };
                     const paymentHeader = this.buildPaymentHeader(paymentPayload);
-                    // SECURITY: Use generic endpoint - resource ID now in X-PAYMENT header
+                    // Resource identifiers stay in X-PAYMENT, not the URL.
                     const urlPath = `/paywall/v1/verify`;
                     const url = await this.routeDiscovery.buildUrl(urlPath);
                     const response = await (0, fetchWithTimeout_1.fetchWithTimeout)(url, {
@@ -372,7 +357,7 @@ class X402Manager {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 return {
                     success: false,
-                    error: 'Gasless transaction verification service is temporarily unavailable. Please try again in a few moments.',
+                    error: (0, resilience_1.serviceUnavailableMessage)('Gasless transaction verification service'),
                 };
             }
             return {
@@ -389,8 +374,7 @@ class X402Manager {
      * @returns Settlement data and transaction ID
      */
     async handlePaymentVerification(response, defaultTxId) {
-        // CRITICAL: Parse settlement header FIRST before touching the body
-        // The x402 spec allows ANY content type (HTML, binary, etc.), not just JSON
+        // Parse the settlement header before the body; x402 responses may be non-JSON.
         const settlement = this.parseSettlementResponse(response);
         // Only attempt to parse body as JSON if Content-Type indicates JSON
         const contentType = response.headers.get("Content-Type") || "";
@@ -405,8 +389,6 @@ class X402Manager {
                 (0, logger_1.getLogger)().warn("Failed to parse JSON response body:", error);
             }
         }
-        // For non-JSON responses, we simply don't read the body
-        // The settlement header already confirms the payment succeeded
         return { settlement, transactionId };
     }
     /**
@@ -420,6 +402,35 @@ class X402Manager {
             req.payTo &&
             req.asset &&
             req.maxTimeoutSeconds > 0);
+    }
+    async requestRefund(input) {
+        const { originalPurchaseId, recipientWallet, reason } = input;
+        if (!originalPurchaseId || !recipientWallet) {
+            throw new Error('originalPurchaseId and recipientWallet are required');
+        }
+        const url = await this.routeDiscovery.buildUrl('/paywall/v1/refunds/request');
+        const response = await (0, fetchWithTimeout_1.fetchWithTimeout)(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ originalPurchaseId, recipientWallet, reason }),
+        });
+        if (!response.ok) {
+            throw new Error(await (0, errorHandling_1.parseErrorResponse)(response, 'Failed to request refund'));
+        }
+        return (await response.json());
+    }
+    async getRefundStatus(refundId) {
+        if (!refundId) {
+            throw new Error('refundId is required');
+        }
+        // Resource id stays in the path here (the refund id is a non-secret digest, and the
+        // backend mounts the route as /paywall/v1/refunds/{refundId}).
+        const url = await this.routeDiscovery.buildUrl(`/paywall/v1/refunds/${encodeURIComponent(refundId)}`);
+        const response = await (0, fetchWithTimeout_1.fetchWithTimeout)(url, { method: 'GET' });
+        if (!response.ok) {
+            throw new Error(await (0, errorHandling_1.parseErrorResponse)(response, 'Failed to fetch refund status'));
+        }
+        return (await response.json());
     }
 }
 exports.X402Manager = X402Manager;

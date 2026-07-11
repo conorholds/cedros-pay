@@ -34,9 +34,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrCreateManagers = getOrCreateManagers;
 exports.releaseManagers = releaseManagers;
-exports.clearManagerCache = clearManagerCache;
-exports.getManagerCacheStats = getManagerCacheStats;
-const StripeManager_1 = require("./StripeManager");
+const canonicalCheckout_1 = require("../canonicalCheckout");
 const X402Manager_1 = require("./X402Manager");
 const WalletManager_1 = require("./WalletManager");
 const SubscriptionManager_1 = require("./SubscriptionManager");
@@ -97,9 +95,7 @@ function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, stripeRe
     // Create new managers
     (0, logger_1.getLogger)().debug('[ManagerCache] Creating new manager instances:', { stripePublicKey: stripePublicKey.slice(0, 10) + '...', serverUrl });
     const routeDiscovery = new RouteDiscoveryManager_1.RouteDiscoveryManager(serverUrl);
-    const stripeManager = new StripeManager_1.StripeManager(stripePublicKey, routeDiscovery, {
-        returnUrl: stripeReturnUrl,
-    });
+    const checkoutClient = new canonicalCheckout_1.CedrosPayCheckout({ serverUrl });
     const x402Manager = new X402Manager_1.X402Manager(routeDiscovery);
     const walletManager = new WalletManager_1.WalletManager(solanaCluster, solanaEndpoint, dangerouslyAllowUnknownMint ?? false);
     const subscriptionManager = new SubscriptionManager_1.SubscriptionManager(stripePublicKey, routeDiscovery, {
@@ -110,7 +106,7 @@ function getOrCreateManagers(stripePublicKey, serverUrl, solanaCluster, stripeRe
     const storeBillingManager = new StoreBillingManager_1.StoreBillingManager(routeDiscovery, storeBillingConfig);
     // Cache with initial refCount of 1
     cached = {
-        stripeManager,
+        checkoutClient,
         x402Manager,
         walletManager,
         subscriptionManager,
@@ -150,33 +146,5 @@ function releaseManagers(stripePublicKey, serverUrl, solanaCluster, stripeReturn
         managerCache.delete(cacheKey);
         (0, logger_1.getLogger)().debug('[ManagerCache] Removed managers from cache (refCount reached 0)');
     }
-}
-/**
- * Clear all cached managers (for testing)
- *
- * @internal
- */
-function clearManagerCache() {
-    managerCache.forEach((cached) => {
-        void cached.storeBillingManager.destroy().catch((error) => {
-            (0, logger_1.getLogger)().warn('[ManagerCache] Failed to destroy store billing manager:', error);
-        });
-    });
-    managerCache.clear();
-    (0, logger_1.getLogger)().debug('[ManagerCache] Cache cleared');
-}
-/**
- * Get cache statistics (for debugging)
- *
- * @internal
- */
-function getManagerCacheStats() {
-    return {
-        entries: managerCache.size,
-        details: Array.from(managerCache.entries()).map(([key, value]) => ({
-            config: JSON.parse(key),
-            refCount: value.refCount,
-        })),
-    };
 }
 //# sourceMappingURL=ManagerCache.js.map

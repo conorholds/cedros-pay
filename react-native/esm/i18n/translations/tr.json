@@ -19,7 +19,18 @@
     "confirm": "Onayla",
     "retry": "Tekrar Dene",
     "go_back": "Geri Dön",
-    "contact_support": "Destek ile İletişime Geç"
+    "contact_support": "Destek ile İletişime Geç",
+    "pay_with_credits": "Kredilerle öde",
+    "credits": "Krediler",
+    "disconnect": "Bağlantıyı kes",
+    "payment_successful": "Ödeme başarılı!",
+    "subscribe": "Abone ol",
+    "subscribe_with_crypto": "USDC ile abone ol",
+    "subscribe_with_credits": "Kredilerle abone ol",
+    "subscribed": "Abone olundu",
+    "subscribed_until": "Abonelik bitişi",
+    "subscription_active": "Aboneliğiniz aktif!",
+    "redirecting_to_checkout": "Ödeme sayfasına yönlendiriliyor..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Cüzdan bağlanamadı",
     "try_again": "Lütfen tekrar bağlanmayı deneyin.",
     "transaction_rejected": "İşlem reddedildi",
-    "approve_in_wallet": "Devam etmek için lütfen işlemi cüzdanınızda onaylayın."
+    "approve_in_wallet": "Devam etmek için lütfen işlemi cüzdanınızda onaylayın.",
+    "select_wallet": "Cüzdan seç",
+    "change": "Değiştir"
   }
 }

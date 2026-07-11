@@ -1,4 +1,3 @@
-import React from 'react';
 import { ViewStyle } from 'react-native';
 import type { BillingInterval } from '../types';
 /**
@@ -48,5 +47,5 @@ export interface SubscriptionManagementPanelProps {
  * - Cancel subscription
  * - Access Stripe billing portal
  */
-export declare function SubscriptionManagementPanel({ resource, userId, availablePlans, onSubscriptionChanged, onSubscriptionCanceled, billingPortalReturnUrl, showBillingPortal, style, }: SubscriptionManagementPanelProps): React.JSX.Element;
+export declare function SubscriptionManagementPanel({ resource, userId, availablePlans, onSubscriptionChanged, onSubscriptionCanceled, billingPortalReturnUrl, showBillingPortal, style, }: SubscriptionManagementPanelProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=SubscriptionManagementPanel.d.ts.map

@@ -46,6 +46,7 @@ const tokenMintValidator_1 = require("../utils/tokenMintValidator");
 const logger_1 = require("../utils/logger");
 const rateLimiter_1 = require("../utils/rateLimiter");
 const circuitBreaker_1 = require("../utils/circuitBreaker");
+const resilience_1 = require("./resilience");
 const exponentialBackoff_1 = require("../utils/exponentialBackoff");
 /**
  * Internal implementation of Solana wallet and transaction management.
@@ -145,7 +146,7 @@ class WalletManager {
         }
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
-                throw new Error('Solana RPC service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Solana RPC service'));
             }
             throw this.transformRpcError(error);
         }
@@ -193,7 +194,7 @@ class WalletManager {
             }
             catch (error) {
                 if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
-                    throw new Error('Solana RPC service is temporarily unavailable. Please try again in a few moments.');
+                    throw new Error((0, resilience_1.serviceUnavailableMessage)('Solana RPC service'));
                 }
                 throw this.transformRpcError(error);
             }
@@ -311,7 +312,7 @@ class WalletManager {
         }
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
-                throw new Error('Solana RPC service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Solana RPC service'));
             }
             throw this.transformRpcError(error);
         }

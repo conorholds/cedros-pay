@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-11
+
 ### Changed
+
+- Replaced legacy one-time payment entrypoints with the canonical `checkout` export for web and React Native.
+- Cut the package family to the guarded Pay 3 runtime contract; there are no checkout compatibility aliases.
+- Added authoritative versioned-cart synchronization for Cedros Shop 3 consumers.
+
+### Safety
+
+- Checkout, cart, money-path routes, and mutation jobs require the durable fourteen-model guarded-policy marker.
+- Rollback never silently reopens guarded-only models; operators stop mutation traffic and forward-fix or restore a guarded Pay 3 guest.
+
+## [2.0.0] - 2026-06-01
+
+### Changed
+- Cut the Cedros extension package family to 2.0.0 and made the server extension runtime Wasm-only.
+- Kept the standalone Rust/Axum server as a separate deployment/library path while preserving the extension manifest registration export.
+- Kept the canonical server package registration export while moving route/job execution to the Wasm component.
 - Removed the standalone admin dashboard exports and docs from `@cedros/pay-react`
 - Admin usage now goes through `@cedros/admin-react` with `cedrosPayPlugin`
 

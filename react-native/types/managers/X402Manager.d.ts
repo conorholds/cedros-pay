@@ -1,4 +1,4 @@
-import type { X402Requirement, PaymentResult, PaymentPayload, SettlementResponse } from "../types";
+import type { X402Requirement, PaymentResult, PaymentPayload, SettlementResponse, RefundRequestInput, RefundStatus } from "../types";
 import { RouteDiscoveryManager } from "./RouteDiscoveryManager";
 import type { NormalizedCartItem } from "../utils/cartHelpers";
 /**
@@ -91,6 +91,15 @@ export interface IX402Manager {
      * Validate x402 requirement structure
      */
     validateRequirement(req: X402Requirement): boolean;
+    /**
+     * Request an x402 (crypto) refund. The buyer signs nothing — the server sends the
+     * refunded tokens to `recipientWallet` once an admin approves it.
+     */
+    requestRefund(input: RefundRequestInput): Promise<RefundStatus>;
+    /**
+     * Poll the status of a previously requested x402 refund.
+     */
+    getRefundStatus(refundId: string): Promise<RefundStatus>;
 }
 /**
  * Internal implementation of x402 payment protocol.
@@ -172,5 +181,7 @@ export declare class X402Manager implements IX402Manager {
      * Validate x402 requirement structure
      */
     validateRequirement(req: X402Requirement): boolean;
+    requestRefund(input: RefundRequestInput): Promise<RefundStatus>;
+    getRefundStatus(refundId: string): Promise<RefundStatus>;
 }
 //# sourceMappingURL=X402Manager.d.ts.map

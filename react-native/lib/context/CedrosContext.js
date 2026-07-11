@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CedrosProvider = CedrosProvider;
 exports.useCedrosContext = useCedrosContext;
+const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = require("react");
 const react_native_1 = require("react-native");
 const stripe_react_native_1 = require("@stripe/stripe-react-native");
@@ -12,13 +13,10 @@ const logger_1 = require("../utils/logger");
 const walletPool_1 = require("../utils/walletPool");
 const solanaCheck_1 = require("../utils/solanaCheck");
 const paywallProductCatalog_1 = require("../policy/paywallProductCatalog");
-// Get default log level based on environment
 function getDefaultLogLevel() {
-    // In development, show all logs (DEBUG = 0)
     if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
         return 0; // LogLevel.DEBUG
     }
-    // In production, only show warnings and errors (WARN = 2)
     return 2; // LogLevel.WARN
 }
 const CedrosContext = (0, react_1.createContext)(null);
@@ -40,8 +38,7 @@ function CedrosProvider({ config, children }) {
     if (walletPoolRef.current === null) {
         walletPoolRef.current = (0, walletPool_1.createWalletPool)();
     }
-    // Check Solana availability once at provider level (cached for all children)
-    // PERFORMANCE OPTIMIZATION: Eliminates redundant checks in CryptoButton and useX402Payment
+    // Cache Solana availability once for all provider children.
     const [solanaError, setSolanaError] = (0, react_1.useState)(null);
     (0, react_1.useEffect)(() => {
         let cancelled = false;
@@ -107,20 +104,16 @@ function CedrosProvider({ config, children }) {
         validatedConfig.paymentPolicy?.productCatalogSync?.limit,
         validatedConfig.serverUrl,
     ]);
-    // Cleanup wallet pool on unmount
-    // CRITICAL FIX: Separate wallet pool cleanup from manager cleanup to avoid race conditions
+    // Wallet pools are provider-scoped and cleaned up separately from shared managers.
     (0, react_1.useEffect)(() => {
-        const currentPool = walletPoolRef.current;
         return () => {
-            // Cleanup wallet pool when component unmounts
+            const currentPool = walletPoolRef.current;
             if (currentPool) {
                 currentPool.cleanup().catch((error) => {
                     (0, logger_1.getLogger)().warn('[CedrosProvider] Wallet pool cleanup failed:', error);
                 });
             }
         };
-        // walletPoolRef.current is intentionally omitted - we only want cleanup on unmount, not on ref changes
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     // Handle Stripe deep links centrally so PaymentSheet can resume app-based auth flows.
     (0, react_1.useEffect)(() => {
@@ -145,10 +138,8 @@ function CedrosProvider({ config, children }) {
             subscription.remove();
         };
     }, []);
-    // Release manager cache reference when config changes or on unmount
-    // CRITICAL FIX: Capture config values in closure to ensure correct managers are released
+    // Release the manager cache entry for the config captured by this effect.
     (0, react_1.useEffect)(() => {
-        // Capture config values at effect creation time
         const stripeKey = validatedConfig.stripePublicKey;
         const serverUrl = validatedConfig.serverUrl ?? '';
         const cluster = validatedConfig.solanaCluster;
@@ -157,7 +148,6 @@ function CedrosProvider({ config, children }) {
         const allowUnknownMint = validatedConfig.dangerouslyAllowUnknownMint;
         const storeBillingConfig = validatedConfig.paymentPolicy?.storeBilling;
         return () => {
-            // Release the exact managers that were created with these config values
             (0, ManagerCache_1.releaseManagers)(stripeKey, serverUrl, cluster, stripeReturnUrl, endpoint, allowUnknownMint, storeBillingConfig);
         };
     }, [
@@ -191,10 +181,10 @@ function CedrosProvider({ config, children }) {
         };
     }, [syncedProductCatalog, validatedConfig]);
     const contextValue = (0, react_1.useMemo)(() => {
-        const { stripeManager, x402Manager, walletManager, subscriptionManager, subscriptionChangeManager, creditsManager, storeBillingManager, } = (0, ManagerCache_1.getOrCreateManagers)(resolvedConfig.stripePublicKey, resolvedConfig.serverUrl ?? '', resolvedConfig.solanaCluster, resolvedConfig.stripeReturnUrl, resolvedConfig.solanaEndpoint, resolvedConfig.dangerouslyAllowUnknownMint, resolvedConfig.paymentPolicy?.storeBilling);
+        const { checkoutClient, x402Manager, walletManager, subscriptionManager, subscriptionChangeManager, creditsManager, storeBillingManager, } = (0, ManagerCache_1.getOrCreateManagers)(resolvedConfig.stripePublicKey, resolvedConfig.serverUrl ?? '', resolvedConfig.solanaCluster, resolvedConfig.stripeReturnUrl, resolvedConfig.solanaEndpoint, resolvedConfig.dangerouslyAllowUnknownMint, resolvedConfig.paymentPolicy?.storeBilling);
         return {
             config: resolvedConfig,
-            stripeManager,
+            checkoutClient,
             x402Manager,
             walletManager,
             subscriptionManager,
@@ -206,13 +196,9 @@ function CedrosProvider({ config, children }) {
         };
     }, [resolvedConfig, solanaError]);
     if (initError) {
-        return <div role="alert">{initError}</div>;
+        return (0, jsx_runtime_1.jsx)("div", { role: "alert", children: initError });
     }
-    return (<CedrosContext.Provider value={contextValue}>
-      <ThemeContext_1.CedrosThemeProvider initialMode={validatedConfig.theme ?? 'light'} overrides={validatedConfig.themeOverrides} unstyled={validatedConfig.unstyled ?? false}>
-        {children}
-      </ThemeContext_1.CedrosThemeProvider>
-    </CedrosContext.Provider>);
+    return ((0, jsx_runtime_1.jsx)(CedrosContext.Provider, { value: contextValue, children: (0, jsx_runtime_1.jsx)(ThemeContext_1.CedrosThemeProvider, { initialMode: validatedConfig.theme ?? 'light', overrides: validatedConfig.themeOverrides, unstyled: validatedConfig.unstyled ?? false, children: children }) }));
 }
 /**
  * Hook to access Cedros context

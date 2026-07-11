@@ -6,8 +6,8 @@
  */
 /**
  * Generate a RFC4122 version 4 UUID
- * Uses native crypto.randomUUID() when available (modern browsers)
- * Falls back to Math.random() for older environments
+ * Uses native crypto.randomUUID() when available, otherwise crypto.getRandomValues().
+ * Throws if secure random values are unavailable.
  */
 export declare function generateUUID(): string;
 //# sourceMappingURL=uuid.d.ts.map

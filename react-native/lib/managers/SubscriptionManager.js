@@ -15,6 +15,7 @@ const errorHandling_1 = require("../utils/errorHandling");
 const fetchWithTimeout_1 = require("../utils/fetchWithTimeout");
 const rateLimiter_1 = require("../utils/rateLimiter");
 const circuitBreaker_1 = require("../utils/circuitBreaker");
+const resilience_1 = require("./resilience");
 const exponentialBackoff_1 = require("../utils/exponentialBackoff");
 /**
  * Internal implementation of subscription management.
@@ -108,7 +109,7 @@ class SubscriptionManager {
     async createSubscriptionSession(request) {
         // Rate limiting check
         if (!this.sessionRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for subscription session creation. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('subscription session creation'));
         }
         // Circuit breaker + retry logic
         const idempotencyKey = (0, uuid_1.generateUUID)();
@@ -141,7 +142,7 @@ class SubscriptionManager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[SubscriptionManager] Circuit breaker is OPEN - service unavailable');
-                throw new Error('Subscription service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Subscription service'));
             }
             throw error;
         }
@@ -151,7 +152,7 @@ class SubscriptionManager {
      */
     async createMobileSubscriptionSession(request) {
         if (!this.sessionRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for mobile subscription session creation. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('mobile subscription session creation'));
         }
         const idempotencyKey = (0, uuid_1.generateUUID)();
         const requestBody = JSON.stringify(request);
@@ -188,7 +189,7 @@ class SubscriptionManager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[SubscriptionManager] Circuit breaker is OPEN - mobile subscription service unavailable');
-                throw new Error('Mobile subscription service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Mobile subscription service'));
             }
             throw error;
         }
@@ -336,7 +337,7 @@ class SubscriptionManager {
     async checkSubscriptionStatus(request) {
         // Rate limiting check
         if (!this.statusRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for subscription status check. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('subscription status check'));
         }
         try {
             return await this.circuitBreaker.execute(async () => {
@@ -364,7 +365,7 @@ class SubscriptionManager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[SubscriptionManager] Circuit breaker is OPEN for status check');
-                throw new Error('Subscription status service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Subscription status service'));
             }
             throw error;
         }
@@ -375,7 +376,7 @@ class SubscriptionManager {
     async requestSubscriptionQuote(resource, interval, options) {
         // Rate limiting check (uses quote limiter)
         if (!this.statusRateLimiter.tryConsume()) {
-            throw new Error('Rate limit exceeded for subscription quote. Please try again later.');
+            throw new Error((0, resilience_1.rateLimitExceededMessage)('subscription quote'));
         }
         try {
             return await this.circuitBreaker.execute(async () => {
@@ -407,7 +408,7 @@ class SubscriptionManager {
         catch (error) {
             if (error instanceof circuitBreaker_1.CircuitBreakerOpenError) {
                 (0, logger_1.getLogger)().error('[SubscriptionManager] Circuit breaker is OPEN for quote');
-                throw new Error('Subscription quote service is temporarily unavailable. Please try again in a few moments.');
+                throw new Error((0, resilience_1.serviceUnavailableMessage)('Subscription quote service'));
             }
             throw error;
         }

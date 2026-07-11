@@ -19,7 +19,18 @@
     "confirm": "Bestätigen",
     "retry": "Erneut versuchen",
     "go_back": "Zurück",
-    "contact_support": "Support kontaktieren"
+    "contact_support": "Support kontaktieren",
+    "pay_with_credits": "Mit Credits bezahlen",
+    "credits": "Credits",
+    "disconnect": "Trennen",
+    "payment_successful": "Zahlung erfolgreich!",
+    "subscribe": "Abonnieren",
+    "subscribe_with_crypto": "Mit USDC abonnieren",
+    "subscribe_with_credits": "Mit Credits abonnieren",
+    "subscribed": "Abonniert",
+    "subscribed_until": "Abonniert bis",
+    "subscription_active": "Dein Abonnement ist aktiv!",
+    "redirecting_to_checkout": "Weiterleitung zur Kasse..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Wallet‑Verbindung fehlgeschlagen",
     "try_again": "Bitte versuchen Sie, die Verbindung erneut herzustellen.",
     "transaction_rejected": "Transaktion wurde abgelehnt",
-    "approve_in_wallet": "Bitte genehmigen Sie die Transaktion in Ihrer Wallet, um fortzufahren."
+    "approve_in_wallet": "Bitte genehmigen Sie die Transaktion in Ihrer Wallet, um fortzufahren.",
+    "select_wallet": "Wallet auswählen",
+    "change": "Ändern"
   }
 }

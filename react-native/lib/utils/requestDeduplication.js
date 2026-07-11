@@ -163,8 +163,7 @@ async function deduplicateRequest(requestId, executor, options = {}) {
             throw new Error(`Duplicate request blocked: ${requestId}`);
         }
         (0, logger_1.getLogger)().warn(`[Deduplication] Duplicate request blocked but not throwing: ${requestId}`);
-        // Return a rejected promise that won't throw
-        return Promise.reject(new Error('Duplicate request'));
+        return undefined;
     }
     // Execute and track the request
     const promise = executor();
@@ -203,24 +202,13 @@ function createDedupedClickHandler(buttonId, handler, options = {}) {
         }
         // Set cooldown immediately (before async work)
         setButtonCooldown(buttonId, cooldownMs);
-        // Execute with deduplication
-        try {
-            await deduplicateRequest(buttonId, async () => {
-                const result = handler();
-                // Handle both sync and async handlers
-                if (result instanceof Promise) {
-                    await result;
-                }
-            }, { windowMs: deduplicationWindowMs, throwOnDuplicate: false });
-        }
-        catch (error) {
-            // Silently ignore deduplication errors
-            if (error instanceof Error && error.message.includes('Duplicate request')) {
-                return;
+        await deduplicateRequest(buttonId, async () => {
+            const result = handler();
+            // Handle both sync and async handlers
+            if (result instanceof Promise) {
+                await result;
             }
-            // Re-throw other errors
-            throw error;
-        }
+        }, { windowMs: deduplicationWindowMs, throwOnDuplicate: false });
     };
 }
 /**

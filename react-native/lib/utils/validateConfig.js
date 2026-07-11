@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateConfig = validateConfig;
 const tokenMintValidator_1 = require("./tokenMintValidator");
 const logger_1 = require("./logger");
+const locales_1 = require("../i18n/locales");
 const REQUIRED_STRING_FIELDS = [
     'stripePublicKey',
 ];
@@ -236,6 +237,12 @@ function validateConfig(config) {
     if (config.tokenMint && typeof config.tokenMint !== 'string') {
         issues.push({
             field: 'tokenMint',
+            message: 'must be a string when provided',
+        });
+    }
+    if (config.locale !== undefined && typeof config.locale !== 'string') {
+        issues.push({
+            field: 'locale',
             message: 'must be a string when provided',
         });
     }
@@ -495,10 +502,14 @@ function validateConfig(config) {
             (0, logger_1.getLogger)().warn(mintValidation.warning);
         }
     }
-    // Return normalized config with serverUrl guaranteed
-    return {
+    const normalizedConfig = {
         ...config,
         serverUrl,
     };
+    if (config.locale) {
+        normalizedConfig.locale = (0, locales_1.normalizeLocale)(config.locale);
+    }
+    // Return normalized config with serverUrl guaranteed
+    return normalizedConfig;
 }
 //# sourceMappingURL=validateConfig.js.map

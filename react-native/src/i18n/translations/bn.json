@@ -19,7 +19,18 @@
     "confirm": "নিশ্চিত করুন",
     "retry": "আবার চেষ্টা করুন",
     "go_back": "পেছনে যান",
-    "contact_support": "সহায়তা কেন্দ্রে যোগাযোগ করুন"
+    "contact_support": "সহায়তা কেন্দ্রে যোগাযোগ করুন",
+    "pay_with_credits": "ক্রেডিট দিয়ে পেমেন্ট করুন",
+    "credits": "ক্রেডিট",
+    "disconnect": "সংযোগ বিচ্ছিন্ন করুন",
+    "payment_successful": "পেমেন্ট সফল হয়েছে!",
+    "subscribe": "সাবস্ক্রাইব করুন",
+    "subscribe_with_crypto": "USDC দিয়ে সাবস্ক্রাইব করুন",
+    "subscribe_with_credits": "ক্রেডিট দিয়ে সাবস্ক্রাইব করুন",
+    "subscribed": "সাবস্ক্রাইব করা হয়েছে",
+    "subscribed_until": "সাবস্ক্রাইব করা আছে পর্যন্ত",
+    "subscription_active": "আপনার সাবস্ক্রিপশন সক্রিয়!",
+    "redirecting_to_checkout": "চেকআউটে পাঠানো হচ্ছে..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "ওয়ালেট সংযুক্ত করতে ব্যর্থ",
     "try_again": "অনুগ্রহ করে আবার সংযোগের চেষ্টা করুন।",
     "transaction_rejected": "লেনদেনটি প্রত্যাখ্যাত হয়েছে",
-    "approve_in_wallet": "চালিয়ে যেতে অনুগ্রহ করে আপনার ওয়ালেটে লেনদেনটি অনুমোদন করুন।"
+    "approve_in_wallet": "চালিয়ে যেতে অনুগ্রহ করে আপনার ওয়ালেটে লেনদেনটি অনুমোদন করুন।",
+    "select_wallet": "ওয়ালেট নির্বাচন করুন",
+    "change": "পরিবর্তন"
   }
 }

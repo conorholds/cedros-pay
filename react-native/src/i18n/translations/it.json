@@ -19,7 +19,18 @@
     "confirm": "Conferma",
     "retry": "Riprova",
     "go_back": "Indietro",
-    "contact_support": "Contatta l'assistenza"
+    "contact_support": "Contatta l'assistenza",
+    "pay_with_credits": "Paga con crediti",
+    "credits": "Crediti",
+    "disconnect": "Disconnetti",
+    "payment_successful": "Pagamento riuscito!",
+    "subscribe": "Abbonati",
+    "subscribe_with_crypto": "Abbonati con USDC",
+    "subscribe_with_credits": "Abbonati con crediti",
+    "subscribed": "Abbonato",
+    "subscribed_until": "Abbonato fino al",
+    "subscription_active": "Il tuo abbonamento è attivo!",
+    "redirecting_to_checkout": "Reindirizzamento al checkout..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Connessione al wallet non riuscita",
     "try_again": "Riprova a connetterti.",
     "transaction_rejected": "Transazione rifiutata",
-    "approve_in_wallet": "Approva la transazione nel tuo wallet per continuare."
+    "approve_in_wallet": "Approva la transazione nel tuo wallet per continuare.",
+    "select_wallet": "Seleziona wallet",
+    "change": "Cambia"
   }
 }

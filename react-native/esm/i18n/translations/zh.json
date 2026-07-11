@@ -19,7 +19,18 @@
     "confirm": "确认",
     "retry": "重试",
     "go_back": "返回",
-    "contact_support": "联系支持"
+    "contact_support": "联系支持",
+    "pay_with_credits": "使用积分支付",
+    "credits": "积分",
+    "disconnect": "断开连接",
+    "payment_successful": "支付成功！",
+    "subscribe": "订阅",
+    "subscribe_with_crypto": "使用 USDC 订阅",
+    "subscribe_with_credits": "使用积分订阅",
+    "subscribed": "已订阅",
+    "subscribed_until": "订阅有效期至",
+    "subscription_active": "您的订阅已生效！",
+    "redirecting_to_checkout": "正在跳转到结账..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "连接钱包失败",
     "try_again": "请重试连接。",
     "transaction_rejected": "交易已被拒绝",
-    "approve_in_wallet": "请在钱包中批准该交易以继续。"
+    "approve_in_wallet": "请在钱包中批准该交易以继续。",
+    "select_wallet": "选择钱包",
+    "change": "更改"
   }
 }

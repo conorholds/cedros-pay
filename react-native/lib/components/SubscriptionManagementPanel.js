@@ -1,40 +1,8 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscriptionManagementPanel = SubscriptionManagementPanel;
-const react_1 = __importStar(require("react"));
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("react");
 const react_native_1 = require("react-native");
 const useSubscriptionManagement_1 = require("../hooks/useSubscriptionManagement");
 const context_1 = require("../context");
@@ -90,63 +58,7 @@ function getStatusColor(status) {
 function ProrationPreview({ preview, onConfirm, onCancel, isLoading, }) {
     const theme = (0, context_1.useCedrosTheme)();
     const isCredit = preview.immediateAmount < 0;
-    return (<react_native_1.View style={styles.prorationPreview}>
-      <react_native_1.Text style={[styles.previewTitle, { color: theme.tokens?.surfaceText || '#111827' }]}>
-        Change Preview
-      </react_native_1.Text>
-      <react_native_1.View style={styles.previewDetails}>
-        <react_native_1.View style={styles.previewRow}>
-          <react_native_1.Text style={styles.previewLabel}>Current plan:</react_native_1.Text>
-          <react_native_1.Text style={styles.previewValue}>
-            {formatAmount(preview.currentPlanPrice, preview.currency)}/period
-          </react_native_1.Text>
-        </react_native_1.View>
-        <react_native_1.View style={styles.previewRow}>
-          <react_native_1.Text style={styles.previewLabel}>New plan:</react_native_1.Text>
-          <react_native_1.Text style={styles.previewValue}>
-            {formatAmount(preview.newPlanPrice, preview.currency)}/period
-          </react_native_1.Text>
-        </react_native_1.View>
-        <react_native_1.View style={styles.previewRow}>
-          <react_native_1.Text style={styles.previewLabel}>Days remaining:</react_native_1.Text>
-          <react_native_1.Text style={styles.previewValue}>{preview.daysRemaining} days</react_native_1.Text>
-        </react_native_1.View>
-        {preview.prorationDetails && (<>
-            <react_native_1.View style={styles.previewRow}>
-              <react_native_1.Text style={styles.previewLabel}>Unused credit:</react_native_1.Text>
-              <react_native_1.Text style={styles.previewValue}>
-                -{formatAmount(preview.prorationDetails.unusedCredit, preview.currency)}
-              </react_native_1.Text>
-            </react_native_1.View>
-            <react_native_1.View style={styles.previewRow}>
-              <react_native_1.Text style={styles.previewLabel}>New plan cost:</react_native_1.Text>
-              <react_native_1.Text style={styles.previewValue}>
-                {formatAmount(preview.prorationDetails.newPlanCost, preview.currency)}
-              </react_native_1.Text>
-            </react_native_1.View>
-          </>)}
-        <react_native_1.View style={[styles.previewRow, styles.previewTotal]}>
-          <react_native_1.Text style={styles.previewLabel}>
-            {isCredit ? 'Credit to account:' : 'Amount due now:'}
-          </react_native_1.Text>
-          <react_native_1.Text style={{ color: isCredit ? '#22c55e' : '#ef4444', fontWeight: '600' }}>
-            {formatAmount(Math.abs(preview.immediateAmount), preview.currency)}
-          </react_native_1.Text>
-        </react_native_1.View>
-        <react_native_1.View style={styles.previewRow}>
-          <react_native_1.Text style={styles.previewLabel}>Effective date:</react_native_1.Text>
-          <react_native_1.Text style={styles.previewValue}>{formatDate(preview.effectiveDate)}</react_native_1.Text>
-        </react_native_1.View>
-      </react_native_1.View>
-      <react_native_1.View style={styles.previewActions}>
-        <react_native_1.TouchableOpacity onPress={onCancel} style={[styles.button, styles.cancelButton]} disabled={isLoading}>
-          <react_native_1.Text style={styles.cancelButtonText}>Cancel</react_native_1.Text>
-        </react_native_1.TouchableOpacity>
-        <react_native_1.TouchableOpacity onPress={onConfirm} style={[styles.button, styles.confirmButton]} disabled={isLoading}>
-          {isLoading ? (<react_native_1.ActivityIndicator color="#ffffff" size="small"/>) : (<react_native_1.Text style={styles.buttonText}>Confirm Change</react_native_1.Text>)}
-        </react_native_1.TouchableOpacity>
-      </react_native_1.View>
-    </react_native_1.View>);
+    return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.prorationPreview, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.previewTitle, { color: theme.tokens?.surfaceText || '#111827' }], children: "Change Preview" }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewDetails, children: [(0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "Current plan:" }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: styles.previewValue, children: [formatAmount(preview.currentPlanPrice, preview.currency), "/period"] })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "New plan:" }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: styles.previewValue, children: [formatAmount(preview.newPlanPrice, preview.currency), "/period"] })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "Days remaining:" }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: styles.previewValue, children: [preview.daysRemaining, " days"] })] }), preview.prorationDetails && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "Unused credit:" }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: styles.previewValue, children: ["-", formatAmount(preview.prorationDetails.unusedCredit, preview.currency)] })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "New plan cost:" }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewValue, children: formatAmount(preview.prorationDetails.newPlanCost, preview.currency) })] })] })), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [styles.previewRow, styles.previewTotal], children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: isCredit ? 'Credit to account:' : 'Amount due now:' }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: { color: isCredit ? '#22c55e' : '#ef4444', fontWeight: '600' }, children: formatAmount(Math.abs(preview.immediateAmount), preview.currency) })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewLabel, children: "Effective date:" }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.previewValue, children: formatDate(preview.effectiveDate) })] })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.previewActions, children: [(0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: onCancel, style: [styles.button, styles.cancelButton], disabled: isLoading, children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.cancelButtonText, children: "Cancel" }) }), (0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: onConfirm, style: [styles.button, styles.confirmButton], disabled: isLoading, children: isLoading ? ((0, jsx_runtime_1.jsx)(react_native_1.ActivityIndicator, { color: "#ffffff", size: "small" })) : ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.buttonText, children: "Confirm Change" })) })] })] }));
 }
 /**
  * Subscription management panel component (React Native)
@@ -194,119 +106,22 @@ function SubscriptionManagementPanel({ resource, userId, availablePlans = [], on
         openBillingPortal(userId, billingPortalReturnUrl);
     }, [userId, billingPortalReturnUrl, openBillingPortal]);
     const isLoading = status === 'loading';
-    return (<react_native_1.View style={[styles.container, style]}>
-      {/* Error display */}
-      {error && (<react_native_1.View style={[styles.errorContainer, { backgroundColor: theme.tokens?.errorBackground || '#fee2e2' }]}>
-          <react_native_1.Text style={[styles.errorText, { color: theme.tokens?.errorText || '#b91c1c' }]}>
-            {error}
-          </react_native_1.Text>
-        </react_native_1.View>)}
-
-      {/* Loading state */}
-      {isLoading && !subscription && (<react_native_1.View style={styles.loadingContainer}>
-          <react_native_1.ActivityIndicator size="large" color={theme.tokens?.surfaceText || '#111827'}/>
-          <react_native_1.Text style={[styles.loadingText, { color: theme.tokens?.surfaceText || '#6b7280' }]}>
-            Loading subscription...
-          </react_native_1.Text>
-        </react_native_1.View>)}
-
-      {/* Subscription details */}
-      {subscription && (<react_native_1.ScrollView style={styles.content}>
-          <react_native_1.View style={styles.detailsSection}>
-            <react_native_1.Text style={[styles.title, { color: theme.tokens?.surfaceText || '#111827' }]}>
-              Current Subscription
-            </react_native_1.Text>
-            <react_native_1.View style={styles.detailRow}>
-              <react_native_1.Text style={styles.detailLabel}>Plan:</react_native_1.Text>
-              <react_native_1.Text style={[styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                {subscription.resource}
-              </react_native_1.Text>
-            </react_native_1.View>
-            <react_native_1.View style={styles.detailRow}>
-              <react_native_1.Text style={styles.detailLabel}>Status:</react_native_1.Text>
-              <react_native_1.View style={[
-                styles.statusBadge,
-                { backgroundColor: getStatusColor(subscription.status) },
-            ]}>
-                <react_native_1.Text style={styles.statusText}>{subscription.status}</react_native_1.Text>
-              </react_native_1.View>
-            </react_native_1.View>
-            <react_native_1.View style={styles.detailRow}>
-              <react_native_1.Text style={styles.detailLabel}>Price:</react_native_1.Text>
-              <react_native_1.Text style={[styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                {formatAmount(subscription.pricePerPeriod, subscription.currency)}/{subscription.interval}
-              </react_native_1.Text>
-            </react_native_1.View>
-            <react_native_1.View style={styles.detailRow}>
-              <react_native_1.Text style={styles.detailLabel}>Current period ends:</react_native_1.Text>
-              <react_native_1.Text style={[styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                {formatDate(subscription.currentPeriodEnd)}
-              </react_native_1.Text>
-            </react_native_1.View>
-            {subscription.cancelAtPeriodEnd && (<react_native_1.View style={[styles.cancelNotice, { backgroundColor: theme.tokens?.errorBackground || '#fee2e2' }]}>
-                <react_native_1.Text style={[styles.cancelNoticeText, { color: theme.tokens?.errorText || '#b91c1c' }]}>
-                  Subscription will cancel at end of current period
-                </react_native_1.Text>
-              </react_native_1.View>)}
-          </react_native_1.View>
-
-          {/* Proration preview */}
-          {changePreview && (<ProrationPreview preview={changePreview} onConfirm={handleConfirmChange} onCancel={clearPreview} isLoading={isLoading}/>)}
-
-          {/* Available plans */}
-          {availablePlans.length > 0 && !changePreview && (<react_native_1.View style={styles.plansSection}>
-              <react_native_1.Text style={[styles.plansTitle, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                Available Plans
-              </react_native_1.Text>
-              {availablePlans.map((plan) => {
-                    const isCurrent = plan.resource === subscription.resource;
-                    return (<react_native_1.View key={plan.resource} style={[
-                            styles.planCard,
-                            isCurrent && [
-                                styles.currentPlan,
-                                { borderColor: theme.tokens?.successBorder || '#86efac' },
-                            ],
-                        ]}>
-                    <react_native_1.View style={styles.planHeader}>
-                      <react_native_1.Text style={[styles.planName, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                        {plan.name}
-                      </react_native_1.Text>
-                      <react_native_1.Text style={[styles.planPrice, { color: theme.tokens?.surfaceText || '#111827' }]}>
-                        {formatAmount(plan.price, plan.currency)}/{plan.interval}
-                      </react_native_1.Text>
-                    </react_native_1.View>
-                    {plan.description && (<react_native_1.Text style={[styles.planDescription, { color: theme.tokens?.surfaceText || '#6b7280' }]}>
-                        {plan.description}
-                      </react_native_1.Text>)}
-                    {isCurrent ? (<react_native_1.View style={[styles.currentBadge, { backgroundColor: theme.tokens?.successBackground || '#dcfce7' }]}>
-                        <react_native_1.Text style={[styles.currentBadgeText, { color: theme.tokens?.successText || '#166534' }]}>
-                          Current Plan
-                        </react_native_1.Text>
-                      </react_native_1.View>) : (<react_native_1.TouchableOpacity onPress={() => handlePreviewChange(plan.resource, plan.interval)} style={[
-                                styles.changePlanButton,
-                                { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' },
-                            ]} disabled={isLoading}>
-                        <react_native_1.Text style={styles.changePlanButtonText}>
-                          {plan.price > subscription.pricePerPeriod ? 'Upgrade' : 'Downgrade'}
-                        </react_native_1.Text>
-                      </react_native_1.TouchableOpacity>)}
-                  </react_native_1.View>);
-                })}
-            </react_native_1.View>)}
-
-          {/* Actions */}
-          <react_native_1.View style={styles.actions}>
-            {showBillingPortal && subscription.paymentMethod === 'stripe' && (<react_native_1.TouchableOpacity onPress={handleOpenBillingPortal} style={[styles.portalButton, { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' }]} disabled={isLoading}>
-                <react_native_1.Text style={styles.portalButtonText}>Manage Billing</react_native_1.Text>
-              </react_native_1.TouchableOpacity>)}
-            {subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (<react_native_1.TouchableOpacity onPress={() => handleCancel(false)} style={[styles.cancelSubscriptionButton, { borderColor: theme.tokens?.errorBorder || '#fca5a5' }]} disabled={isLoading}>
-                <react_native_1.Text style={[styles.cancelSubscriptionText, { color: theme.tokens?.errorText || '#b91c1c' }]}>
-                  Cancel Subscription
-                </react_native_1.Text>
-              </react_native_1.TouchableOpacity>)}
-          </react_native_1.View>
-        </react_native_1.ScrollView>)}
-    </react_native_1.View>);
+    return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [styles.container, style], children: [error && ((0, jsx_runtime_1.jsx)(react_native_1.View, { style: [styles.errorContainer, { backgroundColor: theme.tokens?.errorBackground || '#fee2e2' }], children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.errorText, { color: theme.tokens?.errorText || '#b91c1c' }], children: error }) })), isLoading && !subscription && ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.loadingContainer, children: [(0, jsx_runtime_1.jsx)(react_native_1.ActivityIndicator, { size: "large", color: theme.tokens?.surfaceText || '#111827' }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.loadingText, { color: theme.tokens?.surfaceText || '#6b7280' }], children: "Loading subscription..." })] })), subscription && ((0, jsx_runtime_1.jsxs)(react_native_1.ScrollView, { style: styles.content, children: [(0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.detailsSection, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.title, { color: theme.tokens?.surfaceText || '#111827' }], children: "Current Subscription" }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.detailRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.detailLabel, children: "Plan:" }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }], children: subscription.resource })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.detailRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.detailLabel, children: "Status:" }), (0, jsx_runtime_1.jsx)(react_native_1.View, { style: [
+                                            styles.statusBadge,
+                                            { backgroundColor: getStatusColor(subscription.status) },
+                                        ], children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.statusText, children: subscription.status }) })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.detailRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.detailLabel, children: "Price:" }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: [styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }], children: [formatAmount(subscription.pricePerPeriod, subscription.currency), "/", subscription.interval] })] }), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.detailRow, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.detailLabel, children: "Current period ends:" }), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.detailValue, { color: theme.tokens?.surfaceText || '#111827' }], children: formatDate(subscription.currentPeriodEnd) })] }), subscription.cancelAtPeriodEnd && ((0, jsx_runtime_1.jsx)(react_native_1.View, { style: [styles.cancelNotice, { backgroundColor: theme.tokens?.errorBackground || '#fee2e2' }], children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.cancelNoticeText, { color: theme.tokens?.errorText || '#b91c1c' }], children: "Subscription will cancel at end of current period" }) }))] }), changePreview && ((0, jsx_runtime_1.jsx)(ProrationPreview, { preview: changePreview, onConfirm: handleConfirmChange, onCancel: clearPreview, isLoading: isLoading })), availablePlans.length > 0 && !changePreview && ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.plansSection, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.plansTitle, { color: theme.tokens?.surfaceText || '#111827' }], children: "Available Plans" }), availablePlans.map((plan) => {
+                                const isCurrent = plan.resource === subscription.resource;
+                                return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [
+                                        styles.planCard,
+                                        isCurrent && [
+                                            styles.currentPlan,
+                                            { borderColor: theme.tokens?.successBorder || '#86efac' },
+                                        ],
+                                    ], children: [(0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.planHeader, children: [(0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.planName, { color: theme.tokens?.surfaceText || '#111827' }], children: plan.name }), (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: [styles.planPrice, { color: theme.tokens?.surfaceText || '#111827' }], children: [formatAmount(plan.price, plan.currency), "/", plan.interval] })] }), plan.description && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.planDescription, { color: theme.tokens?.surfaceText || '#6b7280' }], children: plan.description })), isCurrent ? ((0, jsx_runtime_1.jsx)(react_native_1.View, { style: [styles.currentBadge, { backgroundColor: theme.tokens?.successBackground || '#dcfce7' }], children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.currentBadgeText, { color: theme.tokens?.successText || '#166534' }], children: "Current Plan" }) })) : ((0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: () => handlePreviewChange(plan.resource, plan.interval), style: [
+                                                styles.changePlanButton,
+                                                { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' },
+                                            ], disabled: isLoading, children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.changePlanButtonText, children: plan.price > subscription.pricePerPeriod ? 'Upgrade' : 'Downgrade' }) }))] }, plan.resource));
+                            })] })), (0, jsx_runtime_1.jsxs)(react_native_1.View, { style: styles.actions, children: [showBillingPortal && subscription.paymentMethod === 'stripe' && ((0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: handleOpenBillingPortal, style: [styles.portalButton, { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' }], disabled: isLoading, children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: styles.portalButtonText, children: "Manage Billing" }) })), subscription.status === 'active' && !subscription.cancelAtPeriodEnd && ((0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: () => handleCancel(false), style: [styles.cancelSubscriptionButton, { borderColor: theme.tokens?.errorBorder || '#fca5a5' }], disabled: isLoading, children: (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.cancelSubscriptionText, { color: theme.tokens?.errorText || '#b91c1c' }], children: "Cancel Subscription" }) }))] })] }))] }));
 }
 const styles = react_native_1.StyleSheet.create({
     container: {

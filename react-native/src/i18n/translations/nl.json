@@ -19,7 +19,18 @@
     "confirm": "Bevestigen",
     "retry": "Opnieuw proberen",
     "go_back": "Ga terug",
-    "contact_support": "Neem contact op met de ondersteuning"
+    "contact_support": "Neem contact op met de ondersteuning",
+    "pay_with_credits": "Betalen met credits",
+    "credits": "Credits",
+    "disconnect": "Verbinding verbreken",
+    "payment_successful": "Betaling geslaagd!",
+    "subscribe": "Abonneren",
+    "subscribe_with_crypto": "Abonneren met USDC",
+    "subscribe_with_credits": "Abonneren met credits",
+    "subscribed": "Geabonneerd",
+    "subscribed_until": "Geabonneerd tot",
+    "subscription_active": "Je abonnement is actief!",
+    "redirecting_to_checkout": "Doorsturen naar afrekenen..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Verbinden met wallet mislukt",
     "try_again": "Probeer opnieuw verbinding te maken.",
     "transaction_rejected": "Transactie is geweigerd",
-    "approve_in_wallet": "Keur de transactie in uw wallet goed om door te gaan."
+    "approve_in_wallet": "Keur de transactie in uw wallet goed om door te gaan.",
+    "select_wallet": "Wallet selecteren",
+    "change": "Wijzigen"
   }
 }

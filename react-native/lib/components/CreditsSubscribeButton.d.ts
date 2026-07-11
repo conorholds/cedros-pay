@@ -1,10 +1,9 @@
-import React from 'react';
 import { ViewStyle, TextStyle } from 'react-native';
 import type { BillingInterval, PaymentMethod } from '../types';
 /**
  * Props for CreditsSubscribeButton component
  */
-interface CreditsSubscribeButtonProps {
+export interface CreditsSubscribeButtonProps {
     /** Resource/plan ID for the subscription */
     resource: string;
     /** Billing interval */
@@ -44,6 +43,5 @@ interface CreditsSubscribeButtonProps {
  * Handles subscription payments using cedros-login credits balance.
  * Requires user to be authenticated with cedros-login.
  */
-export declare function CreditsSubscribeButton({ resource, interval, intervalDays, authToken, userId, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, hideMessages, autoCheckStatus, }: CreditsSubscribeButtonProps): React.JSX.Element;
-export {};
+export declare function CreditsSubscribeButton({ resource, interval, intervalDays, authToken, userId, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, hideMessages, autoCheckStatus, }: CreditsSubscribeButtonProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=CreditsSubscribeButton.d.ts.map

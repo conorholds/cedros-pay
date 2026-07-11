@@ -14,10 +14,8 @@
  * - cedros:payment:success - Payment completed successfully
  * - cedros:payment:error - Payment failed
  */
-/**
- * Payment method type
- */
-export type PaymentMethod = 'apple_iap' | 'google_play_billing' | 'stripe' | 'crypto' | 'x402' | 'credits';
+import type { PaymentMethod } from '../types/componentOptions';
+export type { PaymentMethod } from '../types/componentOptions';
 /**
  * Wallet provider type
  */
@@ -122,5 +120,4 @@ export declare function emitPaymentSuccess(method: PaymentMethod, transactionId:
  * Emit payment error event
  */
 export declare function emitPaymentError(method: PaymentMethod, error: string, resource?: string, itemCount?: number): void;
-export {};
 //# sourceMappingURL=eventEmitter.d.ts.map

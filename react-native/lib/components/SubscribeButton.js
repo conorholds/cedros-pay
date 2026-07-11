@@ -1,47 +1,15 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubscribeButton = SubscribeButton;
-const react_1 = __importStar(require("react"));
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("react");
 const react_native_1 = require("react-native");
 const context_1 = require("../context");
 const useSubscription_1 = require("../hooks/useSubscription");
 const logger_1 = require("../utils/logger");
 const eventEmitter_1 = require("../utils/eventEmitter");
 const requestDeduplication_1 = require("../utils/requestDeduplication");
-const useTranslation_1 = require("../i18n/useTranslation");
+const useCedrosTranslation_1 = require("../i18n/useCedrosTranslation");
 /**
  * Button component for Stripe subscription checkout (React Native)
  *
@@ -50,7 +18,7 @@ const useTranslation_1 = require("../i18n/useTranslation");
 function SubscribeButton({ resource, flow = 'redirect_checkout', interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled = false, onAttempt, onSuccess, onError, style, textStyle, loadingColor = '#ffffff', }) {
     const { status, error, sessionId, processSubscription, processMobileSubscription } = (0, useSubscription_1.useSubscription)();
     const theme = (0, context_1.useCedrosTheme)();
-    const { t, translations } = (0, useTranslation_1.useTranslation)();
+    const { t, translations } = (0, useCedrosTranslation_1.useCedrosTranslation)();
     // Use translated default label if not provided
     const buttonLabel = label || t('ui.subscribe');
     // Extract error code
@@ -144,21 +112,11 @@ function SubscribeButton({ resource, flow = 'redirect_checkout', interval, inter
     const handlePress = (0, react_1.useMemo)(() => (0, requestDeduplication_1.createDedupedClickHandler)(buttonId, executeSubscription), [buttonId, executeSubscription]);
     const isLoading = status === 'loading';
     const isDisabled = disabled || isLoading;
-    return (<react_native_1.View style={[styles.container, style]}>
-      <react_native_1.TouchableOpacity onPress={handlePress} disabled={isDisabled} style={[
-            styles.button,
-            theme.unstyled ? null : { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' },
-            isDisabled && styles.disabled,
-        ]} activeOpacity={0.8} accessible={true} accessibilityRole="button" accessibilityLabel={buttonLabel} accessibilityState={{ disabled: isDisabled, busy: isLoading }}>
-        {isLoading ? (<react_native_1.ActivityIndicator color={loadingColor} size="small"/>) : (<react_native_1.Text style={[styles.buttonText, textStyle]}>{buttonLabel}</react_native_1.Text>)}
-      </react_native_1.TouchableOpacity>
-      {localizedError && (<react_native_1.Text style={[styles.errorText, { color: theme.tokens?.errorText || '#ef4444' }]}>
-          {localizedError}
-        </react_native_1.Text>)}
-      {flow === 'redirect_checkout' && sessionId && (<react_native_1.Text style={[styles.successText, { color: theme.tokens?.successText || '#22c55e' }]}>
-          {t('ui.redirecting_to_checkout')}
-        </react_native_1.Text>)}
-    </react_native_1.View>);
+    return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [styles.container, style], children: [(0, jsx_runtime_1.jsx)(react_native_1.TouchableOpacity, { onPress: handlePress, disabled: isDisabled, style: [
+                    styles.button,
+                    theme.unstyled ? null : { backgroundColor: theme.tokens?.stripeBackground || '#635BFF' },
+                    isDisabled && styles.disabled,
+                ], activeOpacity: 0.8, accessible: true, accessibilityRole: "button", accessibilityLabel: buttonLabel, accessibilityState: { disabled: isDisabled, busy: isLoading }, children: isLoading ? ((0, jsx_runtime_1.jsx)(react_native_1.ActivityIndicator, { color: loadingColor, size: "small" })) : ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.buttonText, textStyle], children: buttonLabel })) }), localizedError && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.errorText, { color: theme.tokens?.errorText || '#ef4444' }], children: localizedError })), flow === 'redirect_checkout' && sessionId && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [styles.successText, { color: theme.tokens?.successText || '#22c55e' }], children: t('ui.redirecting_to_checkout') }))] }));
 }
 const styles = react_native_1.StyleSheet.create({
     container: {

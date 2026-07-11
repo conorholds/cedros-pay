@@ -19,7 +19,18 @@
     "confirm": "Potwierdź",
     "retry": "Spróbuj ponownie",
     "go_back": "Wróć",
-    "contact_support": "Skontaktuj się z pomocą"
+    "contact_support": "Skontaktuj się z pomocą",
+    "pay_with_credits": "Zapłać kredytami",
+    "credits": "Kredyty",
+    "disconnect": "Rozłącz",
+    "payment_successful": "Płatność zakończona sukcesem!",
+    "subscribe": "Subskrybuj",
+    "subscribe_with_crypto": "Subskrybuj za pomocą USDC",
+    "subscribe_with_credits": "Subskrybuj za pomocą kredytów",
+    "subscribed": "Subskrybowano",
+    "subscribed_until": "Subskrybowano do",
+    "subscription_active": "Twoja subskrypcja jest aktywna!",
+    "redirecting_to_checkout": "Przekierowywanie do kasy..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Nie udało się połączyć portfela",
     "try_again": "Spróbuj połączyć ponownie.",
     "transaction_rejected": "Transakcja została odrzucona",
-    "approve_in_wallet": "Zatwierdź transakcję w portfelu, aby kontynuować."
+    "approve_in_wallet": "Zatwierdź transakcję w portfelu, aby kontynuować.",
+    "select_wallet": "Wybierz portfel",
+    "change": "Zmień"
   }
 }

@@ -19,7 +19,18 @@
     "confirm": "Підтвердити",
     "retry": "Спробувати ще раз",
     "go_back": "Назад",
-    "contact_support": "Зв’язатися з підтримкою"
+    "contact_support": "Зв’язатися з підтримкою",
+    "pay_with_credits": "Сплатити кредитами",
+    "credits": "Кредити",
+    "disconnect": "Від’єднати",
+    "payment_successful": "Платіж успішний!",
+    "subscribe": "Оформити підписку",
+    "subscribe_with_crypto": "Підписатися за USDC",
+    "subscribe_with_credits": "Підписатися за кредити",
+    "subscribed": "Підписано",
+    "subscribed_until": "Підписано до",
+    "subscription_active": "Ваша підписка активна!",
+    "redirecting_to_checkout": "Перенаправлення до оплати..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Не вдалося під’єднати гаманець",
     "try_again": "Спробуйте під’єднатися ще раз.",
     "transaction_rejected": "Транзакцію відхилено",
-    "approve_in_wallet": "Підтвердіть транзакцію у своєму гаманці, щоб продовжити."
+    "approve_in_wallet": "Підтвердіть транзакцію у своєму гаманці, щоб продовжити.",
+    "select_wallet": "Виберіть гаманець",
+    "change": "Змінити"
   }
 }

@@ -3,7 +3,7 @@
  *
  * Supports both Stripe (redirect-based) and x402 (crypto) subscriptions.
  */
-import type { X402Requirement, PaymentResult } from './index';
+import type { PaymentResult, X402Requirement } from './core';
 /**
  * Subscription billing interval
  */

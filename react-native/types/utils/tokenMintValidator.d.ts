@@ -15,7 +15,7 @@ export interface StablecoinMeta {
 }
 /** Known stablecoins with full metadata */
 export declare const STABLECOIN_METADATA: Record<string, StablecoinMeta>;
-/** Simple symbol map for backwards compatibility */
+/** Simple symbol lookup map derived from token metadata. */
 export declare const KNOWN_STABLECOINS: Record<string, string>;
 /**
  * Type guard to check if a token mint is a known stablecoin

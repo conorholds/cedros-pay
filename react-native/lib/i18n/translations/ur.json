@@ -19,7 +19,18 @@
     "confirm": "تصدیق کریں",
     "retry": "دوبارہ کوشش کریں",
     "go_back": "واپس جائیں",
-    "contact_support": "سپورٹ سے رابطہ کریں"
+    "contact_support": "سپورٹ سے رابطہ کریں",
+    "pay_with_credits": "کریڈٹس سے ادائیگی کریں",
+    "credits": "کریڈٹس",
+    "disconnect": "منقطع کریں",
+    "payment_successful": "ادائیگی کامیاب رہی!",
+    "subscribe": "سبسکرائب کریں",
+    "subscribe_with_crypto": "USDC سے سبسکرائب کریں",
+    "subscribe_with_credits": "کریڈٹس سے سبسکرائب کریں",
+    "subscribed": "سبسکرائب شدہ",
+    "subscribed_until": "سبسکرائب ہے تا",
+    "subscription_active": "آپ کی سبسکرپشن فعال ہے!",
+    "redirecting_to_checkout": "چیک آؤٹ پر منتقل کیا جا رہا ہے..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "والیٹ منسلک نہیں ہو سکا",
     "try_again": "براہِ کرم دوبارہ منسلک کرنے کی کوشش کریں۔",
     "transaction_rejected": "ٹرانزیکشن مسترد کر دی گئی",
-    "approve_in_wallet": "جاری رکھنے کے لیے اپنے والیٹ میں ٹرانزیکشن کی منظوری دیں۔"
+    "approve_in_wallet": "جاری رکھنے کے لیے اپنے والیٹ میں ٹرانزیکشن کی منظوری دیں۔",
+    "select_wallet": "والٹ منتخب کریں",
+    "change": "تبدیل کریں"
   }
 }

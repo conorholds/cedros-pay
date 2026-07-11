@@ -10,8 +10,7 @@ exports.SECURITY_RECOMMENDATIONS = void 0;
 exports.validateSecurity = validateSecurity;
 exports.logSecurityReport = logSecurityReport;
 /**
- * Check if SSL Pinning is configured for secure API communication
- * Note: This is a placeholder - actual SSL pinning is configured at the native layer
+ * Report TLS handling delegated to native networking configuration.
  */
 function checkSecureConnection() {
     return {
@@ -21,9 +20,6 @@ function checkSecureConnection() {
         recommendation: 'Ensure SSL pinning is configured at the native iOS/Android layer for production apps.',
     };
 }
-/**
- * Check React Native platform security considerations
- */
 function checkPlatformSecurity() {
     return {
         passed: true,
@@ -47,23 +43,14 @@ function checkDevelopmentMode() {
         message: 'Running in development mode (some security checks relaxed)',
     };
 }
-/**
- * Check Stripe.js loading configuration
- */
-function checkStripeJSConfiguration() {
-    // This is informational - we can't actually check if SRI is used
-    // because we're using @stripe/stripe-js package which handles loading internally
+function checkStripeNativeConfiguration() {
     return {
         passed: true,
         severity: 'info',
-        message: 'Stripe.js loaded via @stripe/stripe-js package (CSP recommended, not SRI)',
-        recommendation: 'Ensure CSP script-src includes https://js.stripe.com',
+        message: 'Stripe handled through the React Native Stripe SDK',
+        recommendation: 'Verify native Stripe SDK initialization and platform payment method configuration before release.',
     };
 }
-/**
- * Check for JavaScript debugging protections
- * In React Native, debug mode can expose sensitive data
- */
 function checkDebugMode() {
     const isDebugMode = typeof __DEV__ !== 'undefined' && __DEV__;
     if (isDebugMode) {
@@ -110,10 +97,9 @@ function validateSecurity() {
         checkSecureConnection(),
         checkPlatformSecurity(),
         checkDevelopmentMode(),
-        checkStripeJSConfiguration(),
+        checkStripeNativeConfiguration(),
         checkDebugMode(),
     ];
-    // Determine overall status
     const hasErrors = checks.some((check) => check.severity === 'error' && !check.passed);
     const hasWarnings = checks.some((check) => check.severity === 'warning' && !check.passed);
     let overallStatus;
@@ -151,7 +137,7 @@ function validateSecurity() {
  */
 function logSecurityReport(report) {
     if (process.env.NODE_ENV === 'production') {
-        return; // Don't log in production
+        return;
     }
     console.group('🔒 Cedros Pay Security Report');
     console.log(`Status: ${report.overallStatus.toUpperCase()}`);

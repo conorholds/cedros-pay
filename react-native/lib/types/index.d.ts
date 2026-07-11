@@ -1,4 +1,5 @@
 import type { CedrosPaymentPolicyConfig as CedrosPaymentPolicyConfigType, CedrosStoreBillingConfig as CedrosStoreBillingConfigType, CedrosProductCatalog as CedrosProductCatalogType, CedrosProductCatalogSyncConfig as CedrosProductCatalogSyncConfigType, CedrosStoreProductConfig as CedrosStoreProductConfigType, AppleStoreProductConfig as AppleStoreProductConfigType, GooglePlayStoreProductConfig as GooglePlayStoreProductConfigType, DistributionChannel as DistributionChannelType, StorefrontRegion as StorefrontRegionType, FulfillmentType as FulfillmentTypeType, OrchestratedPaymentMethod as OrchestratedPaymentMethodType, PaymentAdapter as PaymentAdapterType, AvailablePaymentAdapters as AvailablePaymentAdaptersType, CedrosProductDefinition as CedrosProductDefinitionType, PaymentPolicyContext as PaymentPolicyContextType, PaymentPolicyFailure as PaymentPolicyFailureType, PaymentPolicyFailureCode as PaymentPolicyFailureCodeType, PaymentPolicyResolution as PaymentPolicyResolutionType, PaymentPolicyPurchaseMode as PaymentPolicyPurchaseModeType, StoreManagedProductKind as StoreManagedProductKindType, StorekitMode as StorekitModeType, StoreTransactionHandling as StoreTransactionHandlingType, NativeStoreMethod as NativeStoreMethodType, NativeStoreCheckoutContext as NativeStoreCheckoutContextType, NativeStorePaymentHandler as NativeStorePaymentHandlerType, NativeStoreRestoreRequest as NativeStoreRestoreRequestType, NativeStoreManageSubscriptionsRequest as NativeStoreManageSubscriptionsRequestType, NativeStorePurchaseRequest as NativeStorePurchaseRequestType, NativeStorePurchaseResult as NativeStorePurchaseResultType, CedrosPayPolicyOverrides as CedrosPayPolicyOverridesType, PaymentPolicyPrograms as PaymentPolicyProgramsType, AppleStorePolicyPrograms as AppleStorePolicyProgramsType, GooglePlayPolicyPrograms as GooglePlayPolicyProgramsType } from './storePolicy';
+import type { CartItem as CoreCartItem, PaymentResult as CorePaymentResult, RefundRequestInput as CoreRefundRequestInput, RefundStatus as CoreRefundStatus, SettlementResponse as CoreSettlementResponse, X402Requirement as CoreX402Requirement } from './core';
 /**
  * Core types for Cedros Pay
  *
@@ -21,16 +22,7 @@ export declare namespace v1 {
     type SolanaCluster = 'mainnet-beta' | 'devnet' | 'testnet';
     type PaymentStatus = 'idle' | 'loading' | 'success' | 'error';
     type Currency = 'USD' | 'EUR' | 'GBP';
-    /**
-     * Cart item for multi-item purchases
-     * Used across multiple components for cart and checkout flows
-     */
-    interface CartItem {
-        resource: string;
-        quantity?: number;
-        metadata?: Record<string, string>;
-        fulfillmentType?: FulfillmentTypeType;
-    }
+    type CartItem = CoreCartItem;
     /**
      * Configuration for the Cedros Pay provider
      */
@@ -44,6 +36,7 @@ export declare namespace v1 {
         theme?: CedrosThemeMode;
         themeOverrides?: Partial<CedrosThemeTokens>;
         unstyled?: boolean;
+        locale?: string;
         logLevel?: number;
         /**
          * SAFETY: Allow unknown token mints (NOT RECOMMENDED)
@@ -60,28 +53,7 @@ export declare namespace v1 {
         dangerouslyAllowUnknownMint?: boolean;
         paymentPolicy?: CedrosPaymentPolicyConfigType;
     }
-    /**
-     * x402 payment requirement (official spec)
-     * From the accepts array in 402 response
-     */
-    interface X402Requirement {
-        scheme: string;
-        network: string;
-        maxAmountRequired: string;
-        resource: string;
-        description: string;
-        mimeType: string;
-        payTo: string;
-        maxTimeoutSeconds: number;
-        asset: string;
-        extra?: {
-            recipientTokenAccount?: string;
-            decimals?: number;
-            tokenSymbol?: string;
-            memo?: string;
-            feePayer?: string;
-        };
-    }
+    type X402Requirement = CoreX402Requirement;
     type CedrosThemeMode = 'light' | 'dark';
     interface CedrosThemeTokens {
         surfaceBackground: string;
@@ -140,22 +112,7 @@ export declare namespace v1 {
             metadata?: Record<string, unknown>;
         };
     }
-    /**
-     * x402 settlement response (official spec)
-     * Received in X-PAYMENT-RESPONSE header
-     */
-    interface SettlementResponse {
-        success: boolean;
-        error: string | null;
-        txHash: string | null;
-        networkId: string | null;
-        metadata?: {
-            coupon_codes?: string;
-            original_amount?: string;
-            discounted_amount?: string;
-            [key: string]: string | undefined;
-        };
-    }
+    type SettlementResponse = CoreSettlementResponse;
     /**
      * Stripe session creation request
      * Matches backend createSessionRequest struct JSON tags (server.go:130-136)
@@ -178,15 +135,7 @@ export declare namespace v1 {
         sessionId: string;
         url: string;
     }
-    /**
-     * Payment result for both flows
-     */
-    interface PaymentResult {
-        success: boolean;
-        transactionId?: string;
-        error?: string;
-        settlement?: SettlementResponse;
-    }
+    type PaymentResult = CorePaymentResult;
     /**
      * Payment metadata
      */
@@ -351,6 +300,8 @@ export type SettlementResponse = v1.SettlementResponse;
 export type StripeSessionRequest = v1.StripeSessionRequest;
 export type StripeSessionResponse = v1.StripeSessionResponse;
 export type PaymentResult = v1.PaymentResult;
+export type RefundRequestInput = CoreRefundRequestInput;
+export type RefundStatus = CoreRefundStatus;
 export type PaymentMetadata = v1.PaymentMetadata;
 export type PaymentState = v1.PaymentState;
 export type Product = v1.Product;

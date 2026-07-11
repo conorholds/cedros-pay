@@ -14,7 +14,7 @@ export interface CedrosThemeContextValue {
     style: CSSProperties;
     unstyled: boolean;
 }
-export declare function CedrosThemeProvider({ initialMode, overrides, unstyled, children, }: CedrosThemeProviderProps): import("react").JSX.Element;
+export declare function CedrosThemeProvider({ initialMode, overrides, unstyled, children, }: CedrosThemeProviderProps): import("react/jsx-runtime").JSX.Element;
 /**
  * Access current Cedros theme settings and utilities.
  *

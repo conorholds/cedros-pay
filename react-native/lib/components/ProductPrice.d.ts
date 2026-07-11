@@ -1,5 +1,5 @@
-import React from 'react';
 import { ViewStyle, TextStyle } from 'react-native';
+import type { Product as CedrosProduct } from '../types';
 /**
  * Props for ProductPrice component
  */
@@ -28,28 +28,18 @@ export interface ProductPriceProps {
  * - Multiple size variants
  * - Theme integration
  */
-export declare function ProductPrice({ amount, currency, originalAmount, size, style, priceStyle, originalPriceStyle, }: ProductPriceProps): React.JSX.Element;
+export declare function ProductPrice({ amount, currency, originalAmount, size, style, priceStyle, originalPriceStyle, }: ProductPriceProps): import("react/jsx-runtime").JSX.Element;
 /**
  * Payment method type for badge display
  */
 export type PaymentMethod = 'stripe' | 'x402';
-/**
- * Product interface for PaymentMethodBadge
- */
-interface Product {
-    hasStripeCoupon: boolean;
-    hasCryptoCoupon: boolean;
-    stripeDiscountPercent: number;
-    cryptoDiscountPercent: number;
-    stripeCouponCode?: string;
-    cryptoCouponCode?: string;
-}
+type PaymentMethodBadgeProduct = Pick<CedrosProduct, 'hasStripeCoupon' | 'hasCryptoCoupon' | 'stripeDiscountPercent' | 'cryptoDiscountPercent'> & Partial<Pick<CedrosProduct, 'stripeCouponCode' | 'cryptoCouponCode'>>;
 /**
  * Props for PaymentMethodBadge component
  */
 export interface PaymentMethodBadgeProps {
     /** Product data with coupon information */
-    product: Product;
+    product: PaymentMethodBadgeProduct;
     /** Selected payment method */
     paymentMethod: PaymentMethod;
     /** Custom container style */
@@ -74,6 +64,6 @@ export interface PaymentMethodBadgeProps {
  * />
  * ```
  */
-export declare function PaymentMethodBadge({ product, paymentMethod, style, textStyle, }: PaymentMethodBadgeProps): React.JSX.Element | null;
+export declare function PaymentMethodBadge({ product, paymentMethod, style, textStyle, }: PaymentMethodBadgeProps): import("react/jsx-runtime").JSX.Element | null;
 export {};
 //# sourceMappingURL=ProductPrice.d.ts.map

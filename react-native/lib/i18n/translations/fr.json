@@ -19,7 +19,18 @@
     "confirm": "Confirmer",
     "retry": "Réessayer",
     "go_back": "Retour",
-    "contact_support": "Contacter l’assistance"
+    "contact_support": "Contacter l’assistance",
+    "pay_with_credits": "Payer avec des crédits",
+    "credits": "Crédits",
+    "disconnect": "Déconnecter",
+    "payment_successful": "Paiement réussi !",
+    "subscribe": "S’abonner",
+    "subscribe_with_crypto": "S’abonner avec USDC",
+    "subscribe_with_credits": "S’abonner avec des crédits",
+    "subscribed": "Abonné",
+    "subscribed_until": "Abonné jusqu’au",
+    "subscription_active": "Votre abonnement est actif !",
+    "redirecting_to_checkout": "Redirection vers le paiement..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Échec de la connexion au portefeuille",
     "try_again": "Veuillez réessayer la connexion.",
     "transaction_rejected": "La transaction a été refusée",
-    "approve_in_wallet": "Veuillez approuver la transaction dans votre portefeuille pour continuer."
+    "approve_in_wallet": "Veuillez approuver la transaction dans votre portefeuille pour continuer.",
+    "select_wallet": "Sélectionner un portefeuille",
+    "change": "Changer"
   }
 }

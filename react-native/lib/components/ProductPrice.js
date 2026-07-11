@@ -1,11 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductPrice = ProductPrice;
 exports.PaymentMethodBadge = PaymentMethodBadge;
-const react_1 = __importDefault(require("react"));
+const jsx_runtime_1 = require("react/jsx-runtime");
 const react_native_1 = require("react-native");
 const context_1 = require("../context");
 /**
@@ -62,28 +59,21 @@ function ProductPrice({ amount, currency, originalAmount, size = 'medium', style
     };
     const formattedPrice = formatAmount(amount, currency);
     const hasDiscount = originalAmount && originalAmount > amount;
-    return (<react_native_1.View style={[styles.container, style]}>
-      {hasDiscount && (<react_native_1.Text style={[
-                styles.originalPrice,
-                {
-                    fontSize: getOriginalFontSize(),
-                    color: theme.tokens?.surfaceText || '#6b7280',
-                },
-                originalPriceStyle,
-            ]}>
-          {formatAmount(originalAmount, currency)}
-        </react_native_1.Text>)}
-      <react_native_1.Text style={[
-            styles.price,
-            {
-                fontSize: getFontSize(),
-                color: theme.tokens?.surfaceText || '#111827',
-            },
-            priceStyle,
-        ]}>
-        {formattedPrice}
-      </react_native_1.Text>
-    </react_native_1.View>);
+    return ((0, jsx_runtime_1.jsxs)(react_native_1.View, { style: [styles.container, style], children: [hasDiscount && ((0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [
+                    styles.originalPrice,
+                    {
+                        fontSize: getOriginalFontSize(),
+                        color: theme.tokens?.surfaceText || '#6b7280',
+                    },
+                    originalPriceStyle,
+                ], children: formatAmount(originalAmount, currency) })), (0, jsx_runtime_1.jsx)(react_native_1.Text, { style: [
+                    styles.price,
+                    {
+                        fontSize: getFontSize(),
+                        color: theme.tokens?.surfaceText || '#111827',
+                    },
+                    priceStyle,
+                ], children: formattedPrice })] }));
 }
 const styles = react_native_1.StyleSheet.create({
     container: {
@@ -131,16 +121,11 @@ function PaymentMethodBadge({ product, paymentMethod, style, textStyle, }) {
         : `${discountPercent}% off with crypto!`;
     // Color schemes: indigo for Stripe, emerald for crypto
     const backgroundColor = isStripe ? '#6366f1' : '#10b981';
-    return (<react_native_1.View style={[
+    return ((0, jsx_runtime_1.jsx)(react_native_1.View, { style: [
             badgeStyles.container,
             { backgroundColor },
             style,
-        ]}>
-      <react_native_1.Text style={[badgeStyles.text, textStyle]}>
-        {badgeText}
-        {couponCode && (<react_native_1.Text style={badgeStyles.couponCode}> ({couponCode})</react_native_1.Text>)}
-      </react_native_1.Text>
-    </react_native_1.View>);
+        ], children: (0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: [badgeStyles.text, textStyle], children: [badgeText, couponCode && ((0, jsx_runtime_1.jsxs)(react_native_1.Text, { style: badgeStyles.couponCode, children: [" (", couponCode, ")"] }))] }) }));
 }
 const badgeStyles = react_native_1.StyleSheet.create({
     container: {

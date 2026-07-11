@@ -1,0 +1,1 @@
+"use strict";Object.defineProperties(exports,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}});const t=require("../manifest-BTNJ1QPo.js"),r={manifest:t.cedrosPayExtensionManifest};function e(){return r}function s(){return e()}exports.cedrosPayWebExtensionBootstrap=r;exports.default=e;exports.registerCedrosPayWebSurface=e;exports.registerCedrosWebSurface=s;

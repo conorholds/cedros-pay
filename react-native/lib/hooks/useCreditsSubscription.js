@@ -24,7 +24,8 @@ const errorHandling_1 = require("../utils/errorHandling");
  * ```
  */
 function useCreditsSubscription() {
-    const { subscriptionManager, creditsManager } = (0, context_1.useCedrosContext)();
+    const { subscriptionManager } = (0, context_1.useCedrosContext)();
+    const { creditsManager } = (0, context_1.useCedrosContext)();
     const [state, setState] = (0, react_1.useState)({
         status: 'idle',
         error: null,

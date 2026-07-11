@@ -19,7 +19,18 @@
     "confirm": "Sahkan",
     "retry": "Cuba Lagi",
     "go_back": "Kembali",
-    "contact_support": "Hubungi Sokongan"
+    "contact_support": "Hubungi Sokongan",
+    "pay_with_credits": "Bayar dengan kredit",
+    "credits": "Kredit",
+    "disconnect": "Putuskan sambungan",
+    "payment_successful": "Pembayaran berjaya!",
+    "subscribe": "Langgan",
+    "subscribe_with_crypto": "Langgan dengan USDC",
+    "subscribe_with_credits": "Langgan dengan kredit",
+    "subscribed": "Dilanggan",
+    "subscribed_until": "Dilanggan hingga",
+    "subscription_active": "Langganan anda aktif!",
+    "redirecting_to_checkout": "Mengalihkan ke pembayaran..."
   },
   "errors": {
     "invalid_payment_proof": {
@@ -235,6 +246,8 @@
     "wallet_connection_failed": "Gagal menyambungkan dompet",
     "try_again": "Sila cuba sambung semula.",
     "transaction_rejected": "Transaksi telah ditolak",
-    "approve_in_wallet": "Sila luluskan transaksi dalam dompet anda untuk meneruskan."
+    "approve_in_wallet": "Sila luluskan transaksi dalam dompet anda untuk meneruskan.",
+    "select_wallet": "Pilih dompet",
+    "change": "Tukar"
   }
 }

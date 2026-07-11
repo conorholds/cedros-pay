@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CedrosThemeProvider = CedrosThemeProvider;
 exports.useCedrosTheme = useCedrosTheme;
 exports.useCedrosThemeOptional = useCedrosThemeOptional;
+const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = require("react");
 // Frozen to prevent accidental mutations at runtime
 const defaultLightTokens = Object.freeze({
@@ -113,31 +114,7 @@ function CedrosThemeProvider({ initialMode = 'light', overrides, unstyled = fals
             setStableOverrides(overrides);
         }
     }, [overrides]);
-    // PERFORMANCE OPTIMIZATION: Consolidate all theme computation into a single useMemo
-    //
-    // WHY THIS MATTERS:
-    // - Reduces memoization checks from 3 to 1 per render (tokens → style → value)
-    // - Single memoization boundary = simpler React reconciliation
-    // - All derived values (tokens, style, className) computed together
-    //
-    // DEPENDENCY ARRAY EXPLANATION:
-    // - `mode`: State value, changes when user toggles theme
-    // - `stableOverrides`: State value that only updates when override VALUES change (not reference)
-    //                      This prevents recalc when parent passes overrides={{ ... }} on every render
-    // - `setMode`: INTENTIONALLY EXCLUDED - useState setters are stable by React's guarantee
-    //              Including it would violate exhaustive-deps and cause unnecessary recalcs
-    //
-    // OVERRIDES HANDLING:
-    // The useEffect above does deep comparison of override values before updating stableOverrides state.
-    // If parent passes overrides={{ color: 'red' }} on every render, the effect detects that the
-    // actual color value hasn't changed and skips the state update, preventing this useMemo from running.
-    // This is critical for preventing cascading re-renders in large component trees.
-    //
-    // AUDIT NOTE: This file has been reviewed exhaustively for performance and React best practices.
-    // - Do not add `setMode` to deps (useState setters are stable)
-    // - Do not split into multiple useMemos (consolidation is intentional)
-    // - Do not move deep comparison to render phase (causes React concurrent mode issues)
-    // - Do not replace deep comparison with JSON.stringify (performance cost on every render)
+    // Keep derived theme values behind one memo; stableOverrides changes only when values change.
     const value = (0, react_1.useMemo)(() => {
         const tokens = mergeTokens(mode, stableOverrides);
         const style = unstyled ? {} : tokensToStyle(tokens);
@@ -151,9 +128,7 @@ function CedrosThemeProvider({ initialMode = 'light', overrides, unstyled = fals
             unstyled,
         };
     }, [mode, stableOverrides, unstyled]);
-    return (<CedrosThemeContext.Provider value={value}>
-      {children}
-    </CedrosThemeContext.Provider>);
+    return ((0, jsx_runtime_1.jsx)(CedrosThemeContext.Provider, { value: value, children: children }));
 }
 /**
  * Access current Cedros theme settings and utilities.

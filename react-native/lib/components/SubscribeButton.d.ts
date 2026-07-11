@@ -1,4 +1,3 @@
-import React from 'react';
 import { ViewStyle, TextStyle } from 'react-native';
 import type { BillingInterval } from '../types';
 /**
@@ -47,6 +46,6 @@ interface SubscribeButtonProps {
  *
  * Supports both hosted redirect checkout and native PaymentSheet subscriptions.
  */
-export declare function SubscribeButton({ resource, flow, interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, }: SubscribeButtonProps): React.JSX.Element;
+export declare function SubscribeButton({ resource, flow, interval, intervalDays, trialDays, successUrl, cancelUrl, metadata, customerEmail, couponCode, label, disabled, onAttempt, onSuccess, onError, style, textStyle, loadingColor, }: SubscribeButtonProps): import("react/jsx-runtime").JSX.Element;
 export {};
 //# sourceMappingURL=SubscribeButton.d.ts.map

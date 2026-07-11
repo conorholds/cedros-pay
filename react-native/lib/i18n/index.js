@@ -19,6 +19,7 @@ exports.loadLocale = loadLocale;
 exports.createTranslator = createTranslator;
 exports.getLocalizedError = getLocalizedError;
 const errorMessages_1 = require("../utils/errorMessages");
+const locales_1 = require("./locales");
 /**
  * Static translation map — Metro requires all imports to be statically resolvable.
  * Each entry is a lazy getter so we only parse the JSON when first accessed.
@@ -33,10 +34,13 @@ const TRANSLATION_MAP = {
     fr: () => require('./translations/fr.json'),
     he: () => require('./translations/he.json'),
     id: () => require('./translations/id.json'),
-    in: () => require('./translations/in.json'),
+    hi: () => require('./translations/hi.json'),
+    in: () => require('./translations/hi.json'),
     it: () => require('./translations/it.json'),
-    jp: () => require('./translations/jp.json'),
-    kr: () => require('./translations/kr.json'),
+    ja: () => require('./translations/ja.json'),
+    jp: () => require('./translations/ja.json'),
+    ko: () => require('./translations/ko.json'),
+    kr: () => require('./translations/ko.json'),
     ms: () => require('./translations/ms.json'),
     nl: () => require('./translations/nl.json'),
     pa: () => require('./translations/pa.json'),
@@ -48,7 +52,8 @@ const TRANSLATION_MAP = {
     tr: () => require('./translations/tr.json'),
     uk: () => require('./translations/uk.json'),
     ur: () => require('./translations/ur.json'),
-    vn: () => require('./translations/vn.json'),
+    vi: () => require('./translations/vi.json'),
+    vn: () => require('./translations/vi.json'),
     zh: () => require('./translations/zh.json'),
 };
 /**
@@ -58,7 +63,7 @@ const translationCache = new Map();
 /**
  * Load a translation synchronously via static require.
  */
-function loadTranslation(locale) {
+function loadTranslationFile(locale) {
     if (translationCache.has(locale)) {
         return translationCache.get(locale);
     }
@@ -69,17 +74,44 @@ function loadTranslation(locale) {
     try {
         const data = loader();
         translationCache.set(locale, data);
+        translationCache.set((0, locales_1.normalizeLocale)(data.locale), data);
         return data;
     }
     catch {
         return null;
     }
 }
+function loadTranslation(locale) {
+    for (const candidate of (0, locales_1.getLocaleFileCandidates)(locale)) {
+        const translation = loadTranslationFile(candidate);
+        if (translation) {
+            return translation;
+        }
+    }
+    return null;
+}
+function mergeTranslations(fallback, translation) {
+    return {
+        ...fallback,
+        ...translation,
+        ui: { ...fallback.ui, ...translation.ui },
+        errors: { ...fallback.errors, ...translation.errors },
+        validation: { ...fallback.validation, ...translation.validation },
+        wallet: { ...fallback.wallet, ...translation.wallet },
+    };
+}
+function getEnglishTranslations() {
+    const fallback = loadTranslationFile('en');
+    if (!fallback) {
+        throw new Error('Critical: No translation files found, not even en.json');
+    }
+    return fallback;
+}
 /**
  * Get list of available locales
  */
-async function getAvailableLocales() {
-    return Object.keys(TRANSLATION_MAP);
+function getAvailableLocales() {
+    return Array.from(new Set(Object.keys(TRANSLATION_MAP).map(locales_1.normalizeLocale))).sort();
 }
 /**
  * Detect user's preferred locale from device-provided locale
@@ -90,46 +122,45 @@ async function getAvailableLocales() {
  */
 function detectLocale(deviceLocale) {
     if (deviceLocale) {
-        return deviceLocale.split('-')[0].toLowerCase();
+        return (0, locales_1.normalizeLocale)(deviceLocale);
     }
-    return 'en';
+    return (0, locales_1.getDeviceLocaleFallback)();
 }
 /**
  * Load translations for a specific locale with fallback to English.
- * Now synchronous internally but keeps async signature for API compat.
  */
-async function loadLocale(locale) {
-    const translation = loadTranslation(locale);
+function loadLocale(locale) {
+    const fallback = getEnglishTranslations();
+    const translation = loadTranslation((0, locales_1.normalizeLocale)(locale));
     if (translation) {
-        return translation;
+        return mergeTranslations(fallback, translation);
     }
-    // Fallback to English
-    const fallback = loadTranslation('en');
-    if (fallback) {
-        return fallback;
+    return fallback;
+}
+function lookupTranslation(translations, key) {
+    const parts = key.split('.');
+    let value = translations;
+    for (const part of parts) {
+        if (value && typeof value === 'object' && part in value) {
+            value = value[part];
+        }
+        else {
+            return undefined;
+        }
     }
-    throw new Error('Critical: No translation files found, not even en.json');
+    return value;
 }
 /**
  * Create a translation function for a specific locale
  */
-function createTranslator(translations) {
+function createTranslator(translations, fallbackTranslations = getEnglishTranslations()) {
     return (key, params) => {
-        const parts = key.split('.');
-        let value = translations;
-        for (const part of parts) {
-            if (value && typeof value === 'object' && part in value) {
-                value = value[part];
-            }
-            else {
-                return key;
-            }
-        }
+        const value = lookupTranslation(translations, key) ?? lookupTranslation(fallbackTranslations, key);
         if (typeof value !== 'string') {
             return key;
         }
         if (params) {
-            return Object.entries(params).reduce((str, [paramKey, paramValue]) => str.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), paramValue), value);
+            return Object.entries(params).reduce((str, [paramKey, paramValue]) => str.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue)), value);
         }
         return value;
     };

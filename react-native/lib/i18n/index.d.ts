@@ -11,6 +11,7 @@
  * - Type-safe translation keys
  * - Manual locale override via CedrosProvider
  */
+import { type Locale } from './locales';
 /**
  * Translation structure matching translations/*.json files
  */
@@ -20,10 +21,12 @@ export interface Translations {
         pay_with_card: string;
         pay_with_crypto: string;
         pay_with_usdc: string;
+        pay_with_credits: string;
         purchase: string;
         card: string;
         usdc_solana: string;
         crypto: string;
+        credits: string;
         connect_wallet: string;
         connecting: string;
         processing: string;
@@ -38,6 +41,7 @@ export interface Translations {
         payment_successful: string;
         subscribe: string;
         subscribe_with_crypto: string;
+        subscribe_with_credits: string;
         subscribed: string;
         subscribed_until: string;
         subscription_active: string;
@@ -66,14 +70,11 @@ export interface Translations {
         change: string;
     };
 }
-/**
- * Supported locales
- */
-export type Locale = string;
+export type { Locale } from './locales';
 /**
  * Get list of available locales
  */
-export declare function getAvailableLocales(): Promise<Locale[]>;
+export declare function getAvailableLocales(): Locale[];
 /**
  * Detect user's preferred locale from device-provided locale
  *
@@ -84,17 +85,17 @@ export declare function getAvailableLocales(): Promise<Locale[]>;
 export declare function detectLocale(deviceLocale?: string): Locale;
 /**
  * Load translations for a specific locale with fallback to English.
- * Now synchronous internally but keeps async signature for API compat.
  */
-export declare function loadLocale(locale: Locale): Promise<Translations>;
+export declare function loadLocale(locale: Locale): Translations;
 /**
  * Translation function type
  */
-export type TranslateFn = (key: string, params?: Record<string, string>) => string;
+export type TranslateParam = string | number | Date;
+export type TranslateFn = (key: string, params?: Record<string, TranslateParam>) => string;
 /**
  * Create a translation function for a specific locale
  */
-export declare function createTranslator(translations: Translations): TranslateFn;
+export declare function createTranslator(translations: Translations, fallbackTranslations?: Translations): TranslateFn;
 /**
  * Get error message in current locale
  */
