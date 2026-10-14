@@ -16,13 +16,14 @@ function git(root, args) {
 function isPublicSource(path) {
   const parts = path.split('/');
   const excluded = new Set([
-    '.git', '.context', '.codex', '.claude', '.gemini', '.opencode',
+    '.git', '.context', '.agents', '.codex', '.claude', '.gemini', '.opencode',
     'node_modules', 'target', 'dist', 'coverage', '.next', '__pycache__',
   ]);
   if (parts.some(part => excluded.has(part))) return false;
   if (parts[0] === 'artifacts') return false;
   if (path === 'extension-context.json') return false;
   const name = parts.at(-1);
+  if (/^(?:agents(?:\.override)?|claude(?:\.local)?|gemini)\.md$/i.test(name)) return false;
   if (['.mcp.json', 'opencode.json', '.DS_Store', 'credentials', 'credentials.toml'].includes(name)) return false;
   if (name.startsWith('.env') && !/^\.env(?:\.[\w-]+)?\.example$/.test(name)) return false;
   return !/\.(?:zip|tgz|wasm|pem|key|p12|log|tsbuildinfo)$/.test(name);
