@@ -10,7 +10,7 @@ workflow you are integrating.
 - [Repository README](../README.md): purpose, layout, prerequisites, and common commands.
 - [Feature map](feature-map.md): current ownership and source entry points.
 - [Command map](command-map.md): affected-scope development and release checks.
-- [Contributor instructions](../AGENTS.md): change scope, verification, and review.
+- [UI contributing guide](../ui/CONTRIBUTING.md): affected UI checks and build requirements.
 - [UI style guide](extension-ui-style-guide.md): current admin and pricing/program surfaces.
 
 ## Runtime and integration contracts

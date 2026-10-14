@@ -108,16 +108,16 @@ make publish-source PUBLISH_REPO=/path/to/public-checkout
 
 The destination must be clean, including untracked and ignored files, and use
 this public repository as its origin. The script preserves Git history and
-remotes, excludes local configuration and generated artifacts, and leaves the
-diff for review. It does not build, commit, push, or install an extension.
+remotes, excludes agent instructions, local configuration, and generated
+artifacts, and leaves the diff for review. It does not build, commit, push, or
+install an extension.
 Publication requires a separate review for credentials and private information.
 Historical releases retain their license notices in Git history; the current
 source uses [LICENSE.md](LICENSE.md).
 
 ## Documentation and contributions
 
-Browse the [documentation index](docs/README.md). Contributors and coding agents
-must follow [AGENTS.md](AGENTS.md); UI-specific checks are in the
+Browse the [documentation index](docs/README.md). UI-specific checks are in the
 [contributing guide](ui/CONTRIBUTING.md). Report vulnerabilities using the
 [security policy](SECURITY.md).
 

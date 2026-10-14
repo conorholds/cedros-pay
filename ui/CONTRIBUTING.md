@@ -1,7 +1,7 @@
 # Contributing to the extension UI
 
-Follow the repository's [AGENTS.md](../AGENTS.md). The admin/web component and
-native registration component are private inputs to one Cedros extension archive.
+The admin/web component and native registration component are built together
+into one Cedros extension archive.
 
 From `ui/`, run `npm run ci:checks`, then `npm run build` and
 `npm run verify:exports`. Admin runtime changes also need

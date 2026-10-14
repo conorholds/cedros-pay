@@ -92,6 +92,33 @@ test('excludes local configuration, credentials, generated archives and untracke
   assert.equal(existsSync(join(options.destination, 'ui/.npmrc')), true);
 }));
 
+test('removes root and nested agent instructions while retaining public documentation', () => fixture(options => {
+  const privatePaths = [
+    'AGENTS.md', 'CLAUDE.md', 'GEMINI.md',
+    'ui/AGENTS.md', 'ui/CLAUDE.md', 'ui/GEMINI.md',
+    'server/agents.md', 'server/claude.md', 'server/gemini.md',
+    'AGENTS.override.md', 'ui/CLAUDE.local.md',
+    '.agents/skills/local/SKILL.md', 'ui/.agents/settings.json',
+  ];
+  for (const path of privatePaths) {
+    write(options.sourceRoot, path, 'Private agent instructions');
+    write(options.destination, path, 'Previously published instructions');
+  }
+  write(options.sourceRoot, 'docs/CONTRIBUTING.md', 'Public contribution guidance');
+  commit(options.sourceRoot);
+  commit(options.destination);
+  const previous = git(options.destination, 'rev-parse', 'HEAD');
+  const result = prepareSource(options);
+  for (const path of privatePaths) {
+    assert.equal(existsSync(join(options.destination, path)), false, path);
+    assert.equal(existsSync(join(options.sourceRoot, path)), true, path);
+  }
+  assert.equal(result.fileCount, 8);
+  assert.equal(readFileSync(join(options.destination, 'docs/CONTRIBUTING.md'), 'utf8'), 'Public contribution guidance');
+  assert.equal(readFileSync(join(options.destination, 'README.md'), 'utf8'), 'Current extension source');
+  assert.equal(git(options.destination, 'rev-parse', 'HEAD'), previous);
+}));
+
 for (const state of ['tracked', 'staged', 'untracked', 'ignored']) {
   test(`rejects ${state} destination work without overwriting it`, () => fixture(options => {
     if (state === 'ignored') {
