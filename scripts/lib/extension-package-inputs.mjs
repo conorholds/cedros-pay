@@ -82,6 +82,7 @@ export function isPackagedInput(path) {
   if (path.startsWith('ui/src/') && !isTestPath(path)) return true;
   if (path.startsWith('ui/shared/')) return true;
   if (path.startsWith('ui/vendor/bigint-buffer/') && !isTestPath(path)) return true;
+  if (path.startsWith('ui/vendor/sprintf-js/') && !isTestPath(path)) return true;
   return false;
 }
 
