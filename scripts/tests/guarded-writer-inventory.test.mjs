@@ -40,7 +40,7 @@ function fixture() {
         enrollmentSource: 'server-wasm/domain/src/routes/guarded_policy_enrollment.rs',
         markerModelId: 'cedros-pay:guarded-write-policy-state',
         markerEntryKey: 'active',
-        productionEvidence: 'pending Cedros Data 0.1.9 staging deployment',
+        productionEvidence: 'pending Cedros platform 0.1.9 staging deployment',
       },
     },
     sources: new Map([

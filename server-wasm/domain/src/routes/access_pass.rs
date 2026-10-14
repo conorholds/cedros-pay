@@ -1,6 +1,6 @@
 //! Pay-owned short-lived access-pass contract.
 //!
-//! Offer resolution and authorization are called only through Cedros Data's
+//! Offer resolution and authorization are called only through Cedros platform's
 //! host-attested extension-services seam. Purchase is public x402; management
 //! is a normal Pay admin surface.
 

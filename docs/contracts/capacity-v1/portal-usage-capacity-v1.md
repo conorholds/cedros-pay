@@ -1,12 +1,12 @@
 # Portal Usage and purchased capacity — financial protocol 1.0.0, accounting revision 2
 
-**Final protocol decision by Cedros Data, under the user's delegated authority.**
-Portal, Pay, Providers Manager, Providers and Data must implement accounting revision 2.
+**Final protocol decision by Cedros platform, under the user's delegated authority.**
+Portal, Pay, Providers Manager, Providers and platform must implement accounting revision 2.
 The product-owner correction supersedes earlier category and charging definitions.
 Financial protocol envelopes remain 1.0.0 so accepted quotes retain their original digest;
 `accountingVersion: 2` identifies the new usage/binding semantics. The contract
 agreement gate is closed: teams do not need another acceptance round before
-implementation. Data owns this standard and resolves concrete implementation
+implementation. platform owns this standard and resolves concrete implementation
 conflicts through versioned changes; a requested amendment does not suspend
 unaffected work. Previous drafts 0.1.0–0.3.0 are superseded.
 
@@ -42,7 +42,7 @@ and reference transitions, not native enforcement or installed runtime readiness
 The native owner `GET /portal/v1/usage` preserves `windowDays` and the complete,
 customer-safe hosting `sites` projection. It now includes schema/version, complete
 canonical site count, organization and site meter identities, source availability,
-and a Data publication revision. Uninstrumented service usage and reservations
+and a platform publication revision. Uninstrumented service usage and reservations
 remain null/unavailable. Pending grants never appear as applied purchased capacity.
 The chart series retain their 500-point and 20-recommendation bounds; they are not
 commercial balances. Responses that cannot fit the facade limit fail explicitly.
@@ -123,10 +123,10 @@ Native X consumes a canonical organization-owned credential when selected and
 otherwise uses its explicitly configured native platform account. The customer
 path shares the existing X feature switches, fixed API origin, response bounds and
 no-retry publishing transport. Missing/invalid customer tokens never trigger
-platform-token fallback, and foreign-organization references are rejected before
+The Cedros platform-token fallback, and foreign-organization references are rejected before
 admission. Native SES still uses the platform account: a requested customer-key
 reference is rejected before reservation or dispatch until a credential-aware SES
-execution path exists. These are unfinished Data
+execution path exists. These are unfinished platform
 implementation tasks, not claims that another team has completed them.
 
 No change in this branch is deployed or verified live. Approved plan quantities,
@@ -140,12 +140,12 @@ Pay must export the additive `capacity.binding.read` operation. It has **only**
 the internal extension-service route `cedros-pay:capacity-binding-read-v1` at
 `POST /extensions/cedros-pay/capacity/v1/binding/read`; there is no public HTTP
 buyer endpoint. The `Invocation` has null delegation and request key and command
-`{organizationId}`. Native Data supplies authenticated extension-service context,
+`{organizationId}`. Native platform supplies authenticated extension-service context,
 principal/actor `cedros-data`, the exact capability claim and the same organization.
 Pay verifies installation/environment from its installed settings and confines the
 organization to its trusted customer/base-subscription bindings. This read must
-never call back into Data. Public/internal IDs for the existing Pay buyer operations
-remain distinct and unchanged. The four Data core operations likewise declare
+never call back into platform. Public/internal IDs for the existing Pay buyer operations
+remain distinct and unchanged. The four platform core operations likewise declare
 `transport: extension-service-only`; their operation paths now match their existing
 service bindings instead of suggesting unimplemented HTTP aliases.
 
@@ -165,16 +165,16 @@ Finite applicable contributions add; duplicate subscription IDs or scope/meter r
 are rejected. Conflicting limit states are unavailable until the owner mapping is
 corrected. Revision-2 contributions use canonical site IDs for explicit site ceilings and
 null scope for organization pools. The legacy site-local meters retain their old scope. A binding revision is opaque and immutable for its contents;
-Data orders observations by their timestamp and rejects revision-content conflicts.
+The Cedros platform orders observations by their timestamp and rejects revision-content conflicts.
 Freshness is at most 60 seconds. Oversized/incomplete projections fail rather than
-truncate. This read is required for Data discovery, delegation and reconciliation;
+truncate. This read is required for platform discovery, delegation and reconciliation;
 its absence keeps those operations unavailable without manufacturing subscription
 ownership from Deploy records. Pay's financial quote, purchase and grant wire shapes
 are unchanged.
 
 Reviewed prerequisites: Portal `1e095d6`, Providers Manager `8d86f69`
 (`HOST_HANDOFF.md`, managed usage policy), Pay `a823f02b` (base-plan isolation).
-Data adopts the service identities, units, precision and lifecycle rules below
+The Cedros platform adopts the service identities, units, precision and lifecycle rules below
 as the final integration standard, incorporating the teams' concrete amendments.
 
 ## Usage read
@@ -264,12 +264,12 @@ verification are separate activation requirements.
 Platform-owned provider profile `accountingV2` holds immutable-at-admission pricing
 rules. Customer-owned profile metadata cannot price Cedros-funded operations;
 native synchronized SES/X tenant profiles resolve pricing from the matching
-platform-owned profile through the existing profile store. Admission snapshots
+The Cedros platform-owned profile through the existing profile store. Admission snapshots
 the pricing profile ID, revision and configured version in the pricing version
 identity. Missing or disabled platform pricing is unavailable for funded admission.
 BYOK execution does not load Cedros pricing. The existing revision-fenced
 `PATCH /admin/runtime/cedros-providers-manager/provider-profiles` permits the
-platform operator with `OpsWrite` to change only `metadata.accountingV2` on
+The Cedros platform operator with `OpsWrite` to change only `metadata.accountingV2` on
 system-managed SES/X profiles, preserving all native connection settings and
 other metadata. An empty rule array disables funded execution. Bootstrap
 preserves these rules; full profile replacement and native credential mutation
@@ -277,12 +277,12 @@ remain disallowed through that profile endpoint.
 
 Organization-owned X tokens use the existing authenticated
 `PUT /admin/runtime/cedros-providers-manager/provider-profiles/x/credential`.
-Data binds `providers-manager/{organizationId}/x` before storing the secret.
+The Cedros platform binds `providers-manager/{organizationId}/x` before storing the secret.
 Deletion retains the customer account binding: an absent or invalid token fails
 without platform fallback, including after bootstrap or a feature-switch change.
 The native client retains the fixed X origin, response/request limits, no automatic
 publish retries and separate publishing switch. SES still consumes its native
-platform account; unsupported credential references fail before reservation.
+The Cedros platform account; unsupported credential references fail before reservation.
 
 Existing notification/channel identities, calendar effect IDs and extension
 email outbox idempotency keys now feed hashed email operation identities into
@@ -351,7 +351,7 @@ customer data.
 
 The standard incorporates Pay's patch against `a12fa68c67`, Providers Manager's
 catalog/lifecycle and R1/R2 requests recorded at `7326d1f`, and Portal's discovery,
-permissions, recovery, freshness and reservation requirements. Data's final
+permissions, recovery, freshness and reservation requirements. platform's final
 decision supersedes the former unanimous-review workflow. The record below
 explains what was incorporated; it does not solicit another sign-off round.
 
@@ -394,20 +394,20 @@ there is no GET-body ambiguity. No caller-supplied headers are forwarded. The re
 accepts `X-Cedros-Capacity-Delegation` and `Idempotency-Key` alongside existing
 Login authentication, and moves those values into the Invocation body. The
 operation requestSchema remains the JSON command. These are required header
-bindings that Pay must implement. Native Data owner HTTP routes
+bindings that Pay must implement. Native platform owner HTTP routes
 continue using their established verified owner authentication.
 
 Pay public HTTP route IDs end in `-http-v1`; internal service route IDs keep
 their `-v1` IDs. The capability ID names the authorized operation and remains the
 internal service ID. Public and internal paths share a domain command, not a
-route registration. Register both IDs from the exact tables; the Data registry
+route registration. Register both IDs from the exact tables; the platform registry
 permits one method/path per extension/route ID. The checker validates the union
 of public Pay and internal service registrations, not each table in isolation.
 
 `requestKey` is the public Idempotency-Key transported as JSON. It is required
 for mutations and null for reads. Missing keys and inconsistent header/body keys
 are 422. Keep the exact key on retries. Service handlers reject an operation ID,
-method, path or exact capability mismatch. Data registrations are enumerated in
+method, path or exact capability mismatch. platform registrations are enumerated in
 `coreCapabilityRegistrations`, all **required-not-registered**. Implementation must
 update the published-core allowlist in `extension_service_routes.rs`, Core
 capability declarations in `extension_platform.rs`, and compose dispatch into
@@ -439,7 +439,7 @@ is still required on every replay.
 
 Portal first obtains a delegation through the owner route specified here
 `POST /portal/v1/billing/capacity/delegations` using the existing verified owner
-facade identity. Data verifies current Login membership and the authority needed
+facade identity. platform verifies current Login membership and the authority needed
 for the requested operation. It stores a hash of a cryptographically random
 opaque token, exact operation/command/request key, acting user, organization,
 canonical site, target Pay installation and environment, allowed calling
@@ -449,10 +449,10 @@ Do not put it in URLs, logs or durable customer projections. Store tokens using
 the existing secret handling pattern; no new shared browser or provider secret.
 
 A Pay HTTP request must still authenticate its Login buyer. Its domain adapter
-presents the delegation to Data `capacity.delegation.check` via the host service
+presents the delegation to platform `capacity.delegation.check` via the host service
 route and requires that the returned acting user matches that Login buyer.
-A host invocation from Portal has no second buyer header: Pay uses Data's checked
-delegation as the original buyer evidence. Data verifies the host-fixed caller,
+A host invocation from Portal has no second buyer header: Pay uses platform's checked
+delegation as the original buyer evidence. platform verifies the host-fixed caller,
 token hash, command, operation and key, then current membership and expiry.
 For scope-check/redemption, the adapter supplies the original delegated operation
 and command to delegation-check, then compares the extracted target or accepted
@@ -465,21 +465,21 @@ Installation identity comes from the host's installed Pay record and server-side
 billing-account binding; `test/live` comes from that installation's verified Pay
 configuration. The generic route-context environment label (managed/self-hosted)
 is not a payment environment. Missing or inconsistent mapping returns 503 and
-withholds offers. Data scope-check/delegation-check/redemption are **leaf local
+withholds offers. platform scope-check/delegation-check/redemption are **leaf local
 operations**, using verified persisted organization/subscription bindings, and
 never call Pay. Binding synchronization/discovery is a separate native job. No
-Data scope check may infer account ownership just from a Deploy subscription ID.
+The Cedros platform scope check may infer account ownership just from a Deploy subscription ID.
 
-Trusted Data reads of Pay quote/purchase/grant records use a new **native Data
+Trusted platform reads of Pay quote/purchase/grant records use a new **native platform
 adapter** into the installed Pay service routes, with host-fixed core principal,
 exact capability, installation/environment/org confinement and null delegation.
 The current `client("cedros-data")` is not this adapter: normal clients require
 an installed calling manifest. Implement this explicit core dispatch path before
 publishing it. Pay's trusted-read branch validates the native host identity and
-returns persisted records without calling Data. Thus Data authorization → Pay
-quote read ends at Pay; Portal → Pay → Data delegation check ends at Data. Grant
+returns persisted records without calling platform. Thus platform authorization → Pay
+quote read ends at Pay; Portal → Pay → platform delegation check ends at platform. Grant
 hints only durably enqueue work; reconciliation runs after the hint call returns.
-No nested Pay → Data → Pay callback or invented Data guest manifest is allowed.
+No nested Pay → platform → Pay callback or invented platform guest manifest is allowed.
 The exact native context fields are in `invocationMechanism.nativeDataContext`;
 only the native dispatcher may construct that principal. A guest body claiming
 those fields is rejected. Internal trusted replay is restricted to an existing
@@ -488,7 +488,7 @@ delegation can never create a new acceptance.
 
 ## Target discovery, permissions and safe actions
 
-Data `capacity.targets` returns canonical organization/site names and eligible
+The Cedros platform `capacity.targets` returns canonical organization/site names and eligible
 base-subscription targets from verified billing ownership and the complete site
 eligibility projection. It returns every supported target through explicit opaque
 cursors pinned to one discovery snapshot, never a paginated UI-site inference.
@@ -519,7 +519,7 @@ provider secrets. URLs are returned only by this action response.
 Pay constructs checkout success/cancel URLs from the installed Portal's approved
 origin and fixed recovery route, with an opaque expiring return reference bound
 to purchase/installation/environment. The customer cannot choose an arbitrary
-return URL. Return parameters never prove payment. Data's organization-scoped
+return URL. Return parameters never prove payment. platform's organization-scoped
 `capacity.purchases.list` supports a `quoteId` filter and snapshot-pinned cursors,
 so lost responses/session storage do not strand purchases. After Login recovery,
 authorized users can recover accepted purchases by organization without the
@@ -556,23 +556,23 @@ No Unicode normalization is applied. Prefix the lowercase hex digest `sha256:`.
 Duplicate JSON keys must be rejected before parsing. The fixture runner includes
 the canonicalizer; it is not claimed to be general RFC canonical JSON.
 
-Data fetches the stored quote through the leaf trusted read, validates digest,
+The Cedros platform fetches the stored quote through the leaf trusted read, validates digest,
 current membership, scope and runtime eligibility, and persists the full immutable
-snapshot with authorization. Pay redemption sends quote ID and digest; Data
+snapshot with authorization. Pay redemption sends quote ID and digest; platform
 compares against the stored snapshot, never a subset Binding. Any changed tax,
 amount, effective date or paid-through date invalidates authorization. Quote and
 snapshot remain available through authorized purchase reads after quote expiry.
 
-Pay durably claims a purchase ID **before** invoking Data redemption. Acceptance
-is the atomic Data redemption at a server timestamp strictly before quote expiry,
-recorded in Pay through retry/reconciliation. Data rechecks current mutation
+Pay durably claims a purchase ID **before** invoking platform redemption. Acceptance
+is the atomic platform redemption at a server timestamp strictly before quote expiry,
+recorded in Pay through retry/reconciliation. platform rechecks current mutation
 authority on first redemption. Pay must not create a charge before confirmed
 redemption. Lost redemption responses query/replay the durable result. Expiry
 prevents first acceptance, not replay or completion of an accepted purchase.
 
 There is one accepted purchase per `(installation, environment, quoteId)` and one
 redemption target per authorization, independent of Idempotency-Key, buyer retry
-key, or multiple authorizations. Data additionally binds the quote itself to the
+key, or multiple authorizations. platform additionally binds the quote itself to the
 purchase ID, so minting a second authorization cannot evade uniqueness. Pay
 returns the existing purchase for compatible retries; conflicting bindings fail
 409. Concurrent attempts under different keys cannot create a second charge.
@@ -610,7 +610,7 @@ Partial refunds do not translate money into units. Pay publishes an explicit
 approved revised allowance, possibly unchanged for a monetary-only refund.
 Dispute opening may revoke at its explicit effective time; a won dispute may
 restore via a higher active revision, while a lost dispute retains revocation.
-Data does not infer reinstatement from a payment status string. Preserve consumed
+The Cedros platform does not infer reinstatement from a payment status string. Preserve consumed
 units and all admitted reservations throughout refund/dispute changes. A failed
 renewal with active paid capacity is expressly valid in `StatusResponse`.
 
@@ -664,7 +664,7 @@ prevents replacement grants split across pages being counted together. Absence
 is not revocation; Pay must retain explicit tombstones until all consumers have
 reconciled. Older/conflicting snapshots cannot replace newer published state.
 
-Data maps a published source revision to a desired organization revision
+The Cedros platform maps a published source revision to a desired organization revision
 `{epoch, sequence}`; sequence increases within a persistent epoch. The mapping is
 stored, never inferred by Portal from Pay revision numbers. Scheduled changes
 create a new desired revision when effective. Applied revision advances only
@@ -673,13 +673,13 @@ same desired state. Mixed application remains applying; reads use each owner's
 actual applied state with unavailable/partial status and no invented remaining.
 Unknown epochs cannot be compared; restore/migration requires explicit fencing.
 
-Active status includes affected MeterRefs and an opaque Data-issued `usageReceipt`
+Active status includes affected MeterRefs and an opaque platform-issued `usageReceipt`
 bound to organization, purchase and applied revision. Portal sends it as
-`minimumReceipt` on the existing Usage GET. Data returns Usage at that revision
+`minimumReceipt` on the existing Usage GET. platform returns Usage at that revision
 or a newer same-epoch revision, otherwise 409 `revision_not_applied` or 503 if
 unavailable. Portal discards earlier in-flight responses after observing active;
 it never compares opaque strings or mixes pre-receipt balances into that view.
-Data invalidates caches on publication and application, rejects late cache fills
+The Cedros platform invalidates caches on publication and application, rejects late cache fills
 from an old revision, and also aligns `cedros.portal.siteQuantity` with this
 resolver before sales. A current lower cap after revocation is valid newer data.
 
@@ -697,7 +697,7 @@ active and supports recovery without repurchasing.
 
 ## Local quota accounting and signed read/apply/ack
 
-Data owns transport, reconciliation and both ends of runtime application. Native
+The Cedros platform owns transport, reconciliation and both ends of runtime application. Native
 mail plus Dovecot own mail enforcement; local-media storage owns media enforcement.
 Manager owns policy review. Exact required POST paths are the three
 `capacity.local.*` operation bindings below `/managed-services/controls/v1/capacity/`.
@@ -778,10 +778,10 @@ Acknowledgement freshness must expire no later than the next interval/fallback/
 lease transition; used/reserved remain null if their source cannot be verified.
 No timestamp refresh can manufacture readiness or a measurement.
 
-`LocalOrganizationRevisionMapping` is a **Data-internal persisted mapping**, not
+`LocalOrganizationRevisionMapping` is a **platform-internal persisted mapping**, not
 an instruction from Pay or the runtime. It binds runtime/site/meter, the exact
 enforcing schedule/selection, numeric cap, and organization allowance revision.
-Data precomputes mappings for every interval and base-fallback transition and
+The Cedros platform precomputes mappings for every interval and base-fallback transition and
 persists a new desired organization revision when each becomes effective. A
 stored schedule acknowledgement alone cannot satisfy that mapping. Publishing
 active or issuing a Usage receipt requires current writer readiness and exact
@@ -844,11 +844,11 @@ The separate browser read binding is
 `GET /admin/runtime/cedros-providers-manager/organizations/{organizationId}/sites/{siteId}/local-quotas`,
 with the same authenticated OpsRead/scope checks. `LocalQuotaAdminResponse`
 contains exactly one row for each mail/media meter. Each row has a nullable
-`observation` (the last Data-validated `LocalQuotaAck`) and independent freshness.
+`observation` (the last platform-validated `LocalQuotaAck`) and independent freshness.
 No observation means null, never a fabricated runtime installation/boot identity
 or zero usage. An old acknowledgement remains visible as stale evidence;
 `state=applied` inside that historical observation does not override its expired
-freshness. Data validates runtime ownership, signature, schedule identity and
+freshness. platform validates runtime ownership, signature, schedule identity and
 acknowledgement before storing or projecting it. This operation remains
 unavailable until that persistence and transport are implemented. Manager may
 wire this browser operation and handle 503; it must never call the signed
@@ -857,7 +857,7 @@ wire this browser operation and handle 503; it must never call the signed
 ### Portal bootstrap and import binding (bootstrap implemented; native migration pending)
 
 The bootstrap read is implemented for compatibility with existing organizations.
-Data reads the JSONB `cedros-portal:site-quota-reservations` collection at the
+The Cedros platform reads the JSONB `cedros-portal:site-quota-reservations` collection at the
 lowercase SHA-256 organization key. A verified absent entry or a valid legacy
 reservation array with no migration markers yields `state=legacy` and 15-second
 freshness, starting before the database read. Portal can continue its existing
@@ -868,7 +868,7 @@ Source errors and timeouts use the shared 503 envelope; neither becomes legacy.
 The read requires current SiteManage authority and is never cached.
 
 This compatibility read never issues an epoch, starts import, removes a hold,
-or treats a Portal-supplied activation marker as Data evidence. Native Deploy
+or treats a Portal-supplied activation marker as platform evidence. Native Deploy
 creation checks the same source inside the site/job transaction under the same
 entry lock used by Portal CAS, including absent entries. A committed freeze
 blocks new creation; an earlier accepted transaction completes before the freeze
@@ -896,12 +896,12 @@ through the trusted Portal host/owner transport, with SiteManage and
 Idempotency-Key. Import retry identity is operation, verified Portal installation,
 organization, migration epoch and key. The full canonical page command is bound;
 changed input returns 409, and a new key cannot import the same snapshot twice.
-This is **not** a browser upload of purported holds: Data must
+This is **not** a browser upload of purported holds: platform must
 verify the frozen source CAS version and server-side organization against the
 registered Portal installation's `cedros-portal:site-quota-reservations` model.
 The entry key is the existing lowercase SHA-256 of organizationId. Portal freezes
-that entry with the Data-issued epoch using CAS before reading its full contents;
-Data must also fence every creation path and reconcile previously dispatched jobs.
+that entry with the platform-issued epoch using CAS before reading its full contents;
+The Cedros platform must also fence every creation path and reconcile previously dispatched jobs.
 No epoch or source version supplied by a buyer is authority for this transition.
 
 The snapshot digest covers `{organizationId,migrationEpoch,snapshotId,sourceVersion,holds}`
@@ -919,7 +919,7 @@ recoverable. The response distinguishes staged pages from the completed import.
 
 Expiry alone never releases an imported hold. Verify `requestHash` against any
 known creationRequestId, requestDigest against the original payload, and both
-original/fallback identities against durable Data creation records. Deduplicate
+original/fallback identities against durable platform creation records. Deduplicate
 only with verified matching organization and creation identity. Unknown records
 remain uncertain and counted. `cleanupAllowed` is false until every imported
 identity is reconciled and all old writers are fenced/drained; Portal must retain
@@ -931,7 +931,7 @@ source-version verification, importer and worker fences are implemented and
 tested together. Publishing these shapes resolves the transport ambiguity; it
 does not authorize Portal to install an epoch or discard existing holds today.
 
-Data is the single site-admission owner. The schemas specify reserve,
+The Cedros platform is the single site-admission owner. The schemas specify reserve,
 commit, reconcile and release. Reserve requires SiteManage and exact creation
 request ID/digest/base subscription/migration epoch. The organization allowance,
 complete eligibility count and live uncommitted holds are checked under one
@@ -951,7 +951,7 @@ Migration phases: (1) persist a new organization migration epoch and fence both
 legacy and new creation entry points; old workers check the fence before side
 effects, and already-dispatched jobs are drained/reconciled; (2) import Portal's
 CAS holds with their original request hashes and payload identity, including
-uncertain entries, deduplicating against created Deploy/Fleet sites and Data's
+uncertain entries, deduplicating against created Deploy/Fleet sites and platform's
 idempotency records; (3) prove complete eligibility + holds and the effective
 `cedros.portal.siteQuantity` agree, then atomically switch admission ownership;
 (4) publish the epoch and unfreeze only updated clients/workers. Legacy clients
@@ -1041,7 +1041,7 @@ annual/monthly allocation, admission-period settlement and revision-aware reads.
 These are executable **contract reference checks**, not native enforcement tests.
 They cannot establish concurrency, real payment, Dovecot readiness or host trust.
 
-Implementation is authorized now. Data implements native persistence, trusted
+Implementation is authorized now. platform implements native persistence, trusted
 adapters, the effective-cap resolver, atomic admission/settlement, reconciliation,
 site/guard migrations, runtime quota application and customer-safe reads. Pay
 implements the financial owner interfaces and durable lifecycle. Portal consumes
@@ -1056,15 +1056,15 @@ teams work against this fixed contract.
 
 ## Implementation directives for the teams
 
-Data is the integration owner and final protocol decision-maker. Pin this standard
+The Cedros platform is the integration owner and final protocol decision-maker. Pin this standard
 and its companion schemas/fixtures; report implementation defects with an exact
-operation/field and a failing case. Continue unaffected implementation while Data
+operation/field and a failing case. Continue unaffected implementation while platform
 resolves the issue. Do not request blanket contract acceptance or define competing
 route, scope, unit, grant, or lifecycle semantics.
 
 **Portal:** implement target discovery, Usage and Upgrade pages, exact quote and
 purchase flow, member-safe recovery/status, BillingManage role mapping and
-revision-aware refresh. Move site holds to Data's fenced reserve/commit/reconcile/
+revision-aware refresh. Move site holds to platform's fenced reserve/commit/reconcile/
 release boundary. Use capability detection and explicit unavailable states until
 installed handlers are ready. Preserve unsubscribed/past-due recovery.
 
@@ -1079,9 +1079,9 @@ configuration before enabling live purchases.
 review/approval, and customer-safe recovery states with this standard. Treat
 schedule storage and enforcing interval acknowledgement separately. Preserve
 operator safety accounting and keep unmigrated/unready scopes sales-ineligible.
-Data owns transport, persistence and native mail/media/provider enforcement.
+The Cedros platform owns transport, persistence and native mail/media/provider enforcement.
 
-**Data:** implement the remaining backend now, without further protocol approval:
+**platform:** implement the remaining backend now, without further protocol approval:
 trusted host/owner adapters and durable authority records; shared grant/capacity
 ledger with atomic admission and reconciliation; authoritative Usage, site quota
 migration and signed runtime read/apply/ack. Coordinate installed integration

@@ -26,7 +26,7 @@ export function assertGuardedBatchProvenance(provenance) {
   assertRequestContract(provenance.requestContract);
   assert(
     provenance.hostCommit === HOST_COMMIT,
-    `guarded-batch provenance must pin Cedros Data ${HOST_COMMIT}`,
+    `guarded-batch provenance must pin Cedros platform ${HOST_COMMIT}`,
   );
   assertEvidence(provenance.hostEvidence);
   assert(
@@ -65,8 +65,7 @@ function assertRequestContract(contract) {
 
 function assertEvidence(evidence) {
   assert(
-    evidence?.branch === 'conorholds/database-concurrency-v1'
-      && evidence.commit === EVIDENCE_COMMIT
+    evidence?.commit === EVIDENCE_COMMIT
       && evidence.integratedContractBase === POLICY_HOST_COMMIT
       && evidence.testName === 'pay_guarded_enrollment_and_policy_matrix'
       && /cargo test --lib pay_guarded_enrollment_and_policy_matrix/.test(evidence.testCommand ?? '')

@@ -1,16 +1,13 @@
-# Cedros Data compare-and-set contract
+# Cedros platform compare-and-set contract
 
-Cedros Pay uses Cedros Data's schema-v1
+Cedros Pay uses Cedros platform's schema-v1
 `database.compare-and-set` import for concurrency-sensitive extension writes.
 It requires `cedros-data:extension-storage-cas-v1`; the older
 `database-concurrency-v1` name was a historical implementation label, not a
-public capability. This extension requires Cedros Data 0.1.81 or later.
+public capability. This extension requires Cedros platform 0.1.81 or later.
 
-The semantic source pin is Cedros Data commit
-`6a1ddc9beb31b6ab1765777365afeb576886c758`. Machine-readable provenance is in
-[`cedros-data-guarded-batch-provenance.json`](cedros-data-guarded-batch-provenance.json).
-The WIT world remains `cedros:extension@0.1.0`; compare-and-set is a named WIT
-function whose typed result distinguishes applied mutations from conflicts.
+The contract's immutable provenance and guarded-policy requirements are recorded
+in [`cedros-data-guarded-batch-provenance.json`](cedros-data-guarded-batch-provenance.json).
 
 ## Request and response
 
@@ -128,6 +125,6 @@ make cedros-verify
 ```
 
 Repository tests prove the domain and host-simulation contract. Production launch
-still requires the live exact 18-model policy matrix on Cedros Data 0.1.81 or
+still requires the live exact 18-model policy matrix on Cedros platform 0.1.81 or
 later and the joint Pay/Shop staging evidence recorded as missing in
 [`cedros-extension.release-readiness.json`](../cedros-extension.release-readiness.json).

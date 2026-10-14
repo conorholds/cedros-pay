@@ -72,7 +72,7 @@ test('dry-run validates the export without changing the destination', () => fixt
 }));
 
 test('excludes local configuration, credentials, generated archives and untracked files', () => fixture(options => {
-  for (const path of ['.codex/config.toml', '.mcp.json', 'ui/.env', 'ui/.env.production', '.cargo/credentials.toml', 'artifacts/release.json', 'ui/dist/bundle.js', 'server/target/debug/output', 'node_modules/pkg/index.js', 'release.cedros-extension.zip', 'key.pem']) {
+  for (const path of ['extension-context.json', '.codex/config.toml', '.mcp.json', 'ui/.env', 'ui/.env.production', '.cargo/credentials.toml', 'artifacts/release.json', 'ui/dist/bundle.js', 'server/target/debug/output', 'node_modules/pkg/index.js', 'release.cedros-extension.zip', 'key.pem']) {
     write(options.sourceRoot, path, 'private or generated');
   }
   write(options.sourceRoot, 'ui/.env.example', 'PUBLIC_SAMPLE=example');
@@ -82,6 +82,7 @@ test('excludes local configuration, credentials, generated archives and untracke
   write(options.sourceRoot, 'untracked-secret.txt', 'local');
   prepareSource(options);
   assert.equal(existsSync(join(options.destination, '.codex')), false);
+  assert.equal(existsSync(join(options.destination, 'extension-context.json')), false);
   assert.equal(existsSync(join(options.destination, 'ui/.env')), false);
   assert.equal(existsSync(join(options.destination, 'ui/.env.production')), false);
   assert.equal(existsSync(join(options.destination, 'ui/dist')), false);

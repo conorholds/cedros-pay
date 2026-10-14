@@ -6,7 +6,7 @@
   "releaseCommit": "63094149c2e1b2df71645714e892fda93cb5453d",
   "archive": {
     "fileName": "cedros-pay-5.0.8.cedros-extension.zip",
-    "relativePath": "../../../../../../Workspace/cedros/cedros-extension-zips/cedros-pay-5.0.8.cedros-extension.zip",
+    "relativePath": "artifacts/cedros-pay-5.0.8.cedros-extension.zip",
     "sha256": "d91555bf3146603e447539e01d89e612926a40863dffd44021fe6b14809b578b",
     "entryCount": 53,
     "zipBytes": 2348505,
@@ -28,7 +28,6 @@
   "supplyChainVerification": {
     "status": "not-provided",
     "summary": "The author-built Pay 5.0.8 archive includes checksum-covered source identity, packaged-input digest, in-toto provenance, and a CycloneDX SBOM; no marketplace or operator verifier has attested it.",
-    "sourceRepositoryUrl": "https://github.com/conorholds/cedros-pay-dev",
     "sourceRevision": "63094149c2e1b2df71645714e892fda93cb5453d",
     "sourceDirectory": ".",
     "archiveSha256": "d91555bf3146603e447539e01d89e612926a40863dffd44021fe6b14809b578b",
@@ -112,7 +111,7 @@
       "publishedStatus": "source-registered",
       "releaseStatus": "blocked",
       "owner": "Cedros Pay team",
-      "fallback": "Do not send checkout, cart, or access-pass mutation traffic until Cedros Data 0.1.81 staging proves the exact eighteen-model guarded marker and the joint Shop conformance run publishes immutable redacted evidence. No Pay 2 compatibility API exists."
+      "fallback": "Do not send checkout, cart, or access-pass mutation traffic until Cedros platform 0.1.81 staging proves the exact eighteen-model guarded marker and the joint Shop conformance run publishes immutable redacted evidence. No Pay 2 compatibility API exists."
     },
     {
       "extensionId": "cedros-notifications",
@@ -158,9 +157,9 @@
   },
   "launchGate": {
     "status": "blocked",
-    "meaning": "Production launch requires recorded Cedros Data 0.1.81+ deployment and acceptance, a live exact eighteen-model guarded-policy matrix, and joint Pay/Shop staging evidence with a credential-free immutable HTTPS run URL. Usage/Upgrade capacity sales also require verified commercial configuration, Data-owned native enforcement, and joint activation testing.",
-    "owner": "Cedros Data, Cedros Pay, and Cedros Shop release owners",
-    "deadline": "After Cedros Data 0.1.81 staging deployment"
+    "meaning": "Production launch requires recorded Cedros platform 0.1.81+ deployment and acceptance, a live exact eighteen-model guarded-policy matrix, and joint Pay/Shop staging evidence with a credential-free immutable HTTPS run URL. Usage/Upgrade capacity sales also require verified commercial configuration, Data-owned native enforcement, and joint activation testing.",
+    "owner": "Cedros platform, Cedros Pay, and Cedros Shop release owners",
+    "deadline": "After Cedros platform 0.1.81 staging deployment"
   },
   "readinessTable": [
     {
@@ -438,7 +437,7 @@
       "runtimePackagePresent": true,
       "hostHookBound": true,
       "status": "blocked",
-      "smokeTest": "On Cedros Data 0.1.81 staging, enumerate the exact compiled routes; prove pending x402 refunds and Solana initial collection fail closed without private-key reads, verify recovery of already-submitted refunds, then run checkout/cart/access-pass response-loss, restart, replay, mismatch, scope-isolation, and stale-generation matrices.",
+      "smokeTest": "On Cedros platform 0.1.81 staging, enumerate the exact compiled routes; prove pending x402 refunds and Solana initial collection fail closed without private-key reads, verify recovery of already-submitted refunds, then run checkout/cart/access-pass response-loss, restart, replay, mismatch, scope-isolation, and stale-generation matrices.",
       "owner": "Cedros backend"
     },
     {
@@ -538,7 +537,7 @@
       "runtimePackagePresent": true,
       "hostHookBound": true,
       "status": "blocked",
-      "smokeTest": "Prove schemaVersion 1 conditions/ops, 32/128 limits, opaque versions, atomic conflict rollback, guarded-only enforcement, and SEO publication on Cedros Data 0.1.81 staging through the published database seam.",
+      "smokeTest": "Prove schemaVersion 1 conditions/ops, 32/128 limits, opaque versions, atomic conflict rollback, guarded-only enforcement, and SEO publication on Cedros platform 0.1.81 staging through the published database seam.",
       "owner": "Cedros backend"
     },
     {
@@ -608,16 +607,16 @@
   ],
   "doNotLaunch": [
     {
-      "hook": "Cedros Data 0.1.81 deployment",
+      "hook": "Cedros platform 0.1.81 deployment",
       "status": "blocked",
-      "owner": "Cedros Data host team",
+      "owner": "Cedros platform host team",
       "launchImpact": "Earlier hosts do not expose the exact current WIT and extension-services contract required by Pay 5.0.8.",
-      "nextAction": "Publish and deploy Cedros Data 0.1.81+ with WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9."
+      "nextAction": "Publish and deploy Cedros platform 0.1.81+ with WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9."
     },
     {
       "hook": "Seventeen-model and joint Shop staging evidence",
       "status": "blocked",
-      "owner": "Cedros Data, Pay, and Shop teams",
+      "owner": "Cedros platform, Pay, and Shop teams",
       "launchImpact": "Production correctness is unproven until the exact model digest and checkout/cart distributed matrices pass against the exact Shop artifact.",
       "nextAction": "Run the integrated matrix and publish a credential-free immutable HTTPS result URL with redacted assertion counts and environment id."
     },
@@ -639,34 +638,34 @@
       "hook": "Current public authoring-kit WIT alignment",
       "status": "host-coordinated",
       "owner": "Cedros backend and Cedros Pay teams",
-      "launchImpact": "Source and the recorded 5.0.8 archive are pinned to authoring kit 0.1.82 WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9; the matching Cedros Data 0.1.81+ deployment is not yet verified.",
-      "nextAction": "Verify the recorded archive against Cedros Data 0.1.81+ in staging."
+      "launchImpact": "Source and the recorded 5.0.8 archive are pinned to authoring kit 0.1.82 WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9; the matching Cedros platform 0.1.81+ deployment is not yet verified.",
+      "nextAction": "Verify the recorded archive against Cedros platform 0.1.81+ in staging."
     },
     {
       "hook": "Durable notification publication contract",
       "status": "blocked",
       "owner": "Cedros documentation and platform owners",
-      "launchImpact": "The public 0.1.82 guide has a same-precedence conflict: guide 16 says the durable publish/status family is unavailable, while guide 18 and notification-event-publication-v1.md say Cedros Data 0.1.75+ publishes it. Pay preserves its existing telemetry and notification-setup behavior and does not claim either undocumented resolution.",
+      "launchImpact": "The public 0.1.82 guide has a same-precedence conflict: guide 16 says the durable publish/status family is unavailable, while guide 18 and notification-event-publication-v1.md say Cedros platform 0.1.75+ publishes it. Pay preserves its existing telemetry and notification-setup behavior and does not claim either undocumented resolution.",
       "nextAction": "Publish a corrected version-matched contract and verify the exact host registry before Pay adopts durable notification publication."
     },
     {
       "hook": "Usage/Upgrade capacity sales activation",
       "status": "blocked",
-      "owner": "Product owner, Providers Manager, Cedros Pay, and Cedros Data",
+      "owner": "Product owner, Providers Manager, Cedros Pay, and Cedros platform",
       "launchImpact": "Data 02e4b247d7 adds native capacity.binding.read; existing financial wire shapes remain unchanged. Local native Data authority/reconciliation checks do not establish installed Data/Pay/Stripe activation or approved commercial configuration.",
       "nextAction": "Keep sales disabled. Configure approved organization/customer/base-plan/canonical-site mappings and provide the Stripe test target; verify product, price and allowance terms, then complete native enforcement and installed delegation/redemption/reconciliation replay and joint activation testing."
     },
     {
       "hook": "Wallet-owned x402 refund signing",
       "status": "host-coordinated",
-      "owner": "Cedros Wallet and Cedros Data",
+      "owner": "Cedros Wallet and Cedros platform",
       "launchImpact": "Pay declares policy-bound x402 refund provider access and fails closed with refund_signer_unavailable when the host grant is unavailable; no live host execution is recorded for this candidate.",
-      "nextAction": "Grant cedros-pay:blockchain-x402-refund in Cedros Data 0.1.81+ staging, then run exact success, retry, and response-loss conformance coverage."
+      "nextAction": "Grant cedros-pay:blockchain-x402-refund in Cedros platform 0.1.81+ staging, then run exact success, retry, and response-loss conformance coverage."
     },
     {
       "hook": "Wallet-owned Solana subscription collection signing",
       "status": "blocked",
-      "owner": "Cedros Wallet and Cedros Data",
+      "owner": "Cedros Wallet and Cedros platform",
       "launchImpact": "Initial Solana subscription collection intentionally returns collector_signer_unavailable; Pay cannot collect without taking ownership of a collector private key.",
       "nextAction": "Publish and grant a policy-bound collector signing contract, then add exact collection, retry, and response-loss conformance coverage."
     }
@@ -711,7 +710,7 @@
   ],
   "operatorHandoff": {
     "uploadLocation": "Do not upload the historical 5.0.8 archive; run make cedros-package to build updated main inputs.",
-    "archivePath": "../../../../../../Workspace/cedros/cedros-extension-zips/cedros-pay-5.0.8.cedros-extension.zip",
+    "archivePath": "artifacts/cedros-pay-5.0.8.cedros-extension.zip",
     "requiresFreshBuild": true,
     "freshBuildInstructions": [
       "Build fresh main inputs with make cedros-package.",
@@ -720,7 +719,7 @@
     "installSteps": [
       "Verify the archive SHA-256 and run node scripts/validate-extension.mjs and node scripts/validate-release-readiness.mjs.",
       "Install only the recorded freshly built and validated extension-only archive.",
-      "Install only in Cedros Data 0.1.81+ staging with the matching WIT and extension-services contracts advertised."
+      "Install only in Cedros platform 0.1.81+ staging with the matching WIT and extension-services contracts advertised."
     ],
     "enableSteps": [
       "Run explicit guarded-policy enrollment (Release A).",
@@ -754,10 +753,10 @@
       "cedros-pay:blockchain-assistant-x402-sign"
     ],
     "expectedSiteBrainAndLogs": "Enabled cleanup and webhook delivery plus disabled guarded jobs check the exact activation marker before provider, queue, RPC, or mutation access. Outcomes remain aggregate and redacted.",
-    "escalationPath": "Cedros Data owns 0.1.81 deployment and current host evidence; Cedros Wallet/Data own the remaining subscription-collector signing contract; Cedros Pay and Cedros Shop jointly own artifact-tied staging conformance."
+    "escalationPath": "Cedros platform owns 0.1.81 deployment and current host evidence; Cedros Wallet/Data own the remaining subscription-collector signing contract; Cedros Pay and Cedros Shop jointly own artifact-tied staging conformance."
   },
   "rollbackAndDisable": {
-    "owner": "Cedros Pay operator with Cedros Data host owner",
+    "owner": "Cedros Pay operator with Cedros platform host owner",
     "deadline": "Before canonical Cedros Pay 5.0.8 mutation traffic is enabled.",
     "disable": "Stop checkout/cart mutation traffic and pause all schedules. Leave every enrolled model guarded-only.",
     "rollback": "Never silently reopen guarded-only policies. Reinstall 3.0.34 only when the host confirms the unchanged WIT and guarded data model remain compatible; otherwise forward-fix on the 4.x line, then revalidate the exact marker before resuming traffic.",
@@ -766,7 +765,7 @@
   "knownRisksAndAcceptedGaps": [
     "Stripe sandbox acceptance exposed a first-configuration default hazard. The source safeguard and its new subscription_portal_discount_tests require post-merge Rust execution and a fresh versioned archive; the historical 4.0.40 archive lacks this fix.",
     "Current source inputs differ from the recorded archive. A fresh build and archive validation are required before installation.",
-    "No live Cedros Data 0.1.81+ acceptance evidence is recorded for this candidate; production launch remains blocked.",
+    "No live Cedros platform 0.1.81+ acceptance evidence is recorded for this candidate; production launch remains blocked.",
     "Source declares policy-bound x402 refund access but no live host grant is verified; a policy-bound Solana subscription collector contract is still absent. Both paths fail closed without private-key reads.",
     "The public authoring kit 0.1.82 conflicts on durable notification publication availability; Pay keeps the existing telemetry path and does not claim the disputed host capability until Cedros publishes a corrected contract.",
     "No credential-free immutable HTTPS staging-run URL exists yet; this packet does not fabricate one.",
@@ -801,8 +800,8 @@
   },
   "wasmRuntimeGate": {
     "status": "blocked",
-    "owner": "Cedros Data host team",
-    "meaning": "Cedros Pay 5.0.8 cannot receive production mutation traffic until a Cedros Data 0.1.81+ host provides the matching WIT/extension-services contract and persists the exact eighteen-model activation marker.",
+    "owner": "Cedros platform host team",
+    "meaning": "Cedros Pay 5.0.8 cannot receive production mutation traffic until a Cedros platform 0.1.81+ host provides the matching WIT/extension-services contract and persists the exact eighteen-model activation marker.",
     "requiredChecks": [
       "cedros-data-0.1.81-deployed",
       "extension-services-contract-available",
@@ -812,20 +811,20 @@
   },
   "launchPreflight": {
     "status": "blocked",
-    "meaning": "All required Cedros Pay 5.0.8 production gates are fail-closed and await the shared Cedros Data 0.1.81 staging environment.",
+    "meaning": "All required Cedros Pay 5.0.8 production gates are fail-closed and await the shared Cedros platform 0.1.81 staging environment.",
     "checks": [
       {
         "checkId": "cedros-data-0.1.81-staging",
-        "owner": "Cedros Data host team",
+        "owner": "Cedros platform host team",
         "required": true,
         "status": "blocked",
         "failClosed": true,
-        "description": "Cedros Data 0.1.81+ is published and deployed with the matching WIT and current extension-services contract before Pay install/activation.",
+        "description": "Cedros platform 0.1.81+ is published and deployed with the matching WIT and current extension-services contract before Pay install/activation.",
         "verification": "Record the immutable host artifact/version and staging environment identifier."
       },
       {
         "checkId": "eighteen-model-guarded-policy",
-        "owner": "Cedros Data and Cedros Pay teams",
+        "owner": "Cedros platform and Cedros Pay teams",
         "required": true,
         "status": "blocked",
         "failClosed": true,

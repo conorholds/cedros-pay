@@ -19,7 +19,7 @@ export const cedrosPaySetupSeeds: CedrosExtensionSetupSeedsManifest = {
       defaultChannels: ['email'],
       subjectTemplate: 'Cedros Pay purchase completed',
       bodyTemplate:
-        'A Cedros Pay purchase completed. Review payment activity in Cedros Data.',
+        'A Cedros Pay purchase completed. Review payment activity in Cedros platform.',
       tags: ['commerce', 'purchases', 'notifications'],
     },
     {
@@ -33,7 +33,7 @@ export const cedrosPaySetupSeeds: CedrosExtensionSetupSeedsManifest = {
       defaultChannels: ['email'],
       subjectTemplate: 'Cedros Pay refund settled',
       bodyTemplate:
-        'A Cedros Pay refund settled. Review refund activity in Cedros Data.',
+        'A Cedros Pay refund settled. Review refund activity in Cedros platform.',
       tags: ['commerce', 'refunds', 'notifications'],
     },
   ],

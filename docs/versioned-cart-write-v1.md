@@ -88,7 +88,7 @@ process and host restarts.
 
 The capability, five models, scopes, and authenticated routes are registered.
 Production launch still requires the live exact 18-model policy matrix on Cedros
-Data 0.1.81 or later, the named storage-CAS capability, and joint Pay/Shop
+The Cedros platform 0.1.81 or later, the named storage-CAS capability, and joint Pay/Shop
 distributed-process staging evidence. No
 integrated staging result is claimed here. The machine-readable fixture is
 `docs/versioned-cart-write-v1-contract.json`.

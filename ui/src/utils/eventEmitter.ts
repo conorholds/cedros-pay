@@ -123,7 +123,7 @@ function emitEvent<T>(eventName: string, detail: T): void {
 }
 
 /**
- * Host analytics bridge installed by Cedros Data on public pages. Structural
+ * Host analytics bridge installed by Cedros platform on public pages. Structural
  * subset of `window.cedrosAnalytics.trackExtensionEvent`; absent off-host.
  */
 interface CedrosHostAnalytics {

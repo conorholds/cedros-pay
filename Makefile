@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: install check-unused check-cycles check-autosave check-file-size check-writer-inventory check-security quality cedros-package cedros-verify verify-wit vendor-wit publish-source test-publish-source help
+.PHONY: install check-unused check-cycles check-autosave check-file-size check-writer-inventory check-security quality cedros-package cedros-verify verify-wit vendor-wit publish-source test-publish-source test-dependency-security help
 
 # Install JS dependencies (skips if node_modules is up to date)
 install:
@@ -47,9 +47,9 @@ verify-wit:
 vendor-wit:
 	node scripts/verify-wit.mjs --update
 
-# Build the self-contained Cedros admin runtime ZIP for Cedros Data intake.
+# Build the self-contained Cedros admin runtime ZIP for Cedros platform intake.
 # Source-validates before compilation, builds ui/ so workspace/react/dist/** is
-# fresh, packages, then performs full archive validation. Cedros Data will not fetch npm,
+# fresh, packages, then performs full archive validation. Cedros platform will not fetch npm,
 # tarballs, workspaces, registries, or crates, so the compiled admin/web runtime
 # closure and supply-chain evidence must already be inside the ZIP.
 cedros-package: verify-wit
@@ -65,6 +65,9 @@ cedros-package: verify-wit
 cedros-verify: verify-wit
 	node scripts/build-release-wasm.mjs
 	cargo test --manifest-path server-wasm/Cargo.toml
+
+test-dependency-security:
+	node --test scripts/tests/dependency-security.test.mjs
 
 # Prepare the separate public source checkout without building the extension.
 publish-source:
@@ -82,6 +85,7 @@ help:
 	@echo "  make check-autosave   Reject ad-hoc autosave timers and network loops"
 	@echo "  make check-file-size  Reject new or growing production files above 500 lines"
 	@echo "  make check-writer-inventory  Reject unconditional writers for guarded-only candidates"
+	@echo "  make test-dependency-security  Exercise the resolved dependency security fixes"
 	@echo "  make check-security   Audit Rust and npm runtime/development dependencies"
 	@echo "  make quality          Run static quality guardrails"
 	@echo "  make cedros-package   Build self-contained .cedros-extension.zip in $(CEDROS_PACKAGE_DIR)/"

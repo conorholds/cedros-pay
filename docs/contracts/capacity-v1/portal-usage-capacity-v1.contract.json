@@ -5,7 +5,7 @@
   "publicationStatus": "published-standard",
   "callable": false,
   "minimumCedrosDataVersion": null,
-  "owner": "Cedros Data \u2014 authoritative protocol owner; Portal, Pay and Providers Manager implement this standard",
+  "owner": "Cedros platform \u2014 authoritative protocol owner; Portal, Pay and Providers Manager implement this standard",
   "invocationMechanism": {
     "interface": "cedros:extension/extension-services@0.1.0",
     "witChangeRequired": false,

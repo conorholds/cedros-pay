@@ -142,6 +142,6 @@
     "markerModelId": "cedros-pay:guarded-write-policy-state",
     "markerEntryKey": "active",
     "releaseSequence": "Release A enrolls the exact guarded-only model set; canonical Release B traffic starts only after the marker validates. Both phases ship on the single Cedros Pay 4 code line.",
-    "productionEvidence": "pending Cedros Data 0.1.81 staging deployment with storage CAS and refreshed eighteen-model host matrix"
+    "productionEvidence": "pending Cedros platform 0.1.81 staging deployment with storage CAS and refreshed eighteen-model host matrix"
   }
 }

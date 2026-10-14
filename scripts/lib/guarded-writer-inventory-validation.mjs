@@ -177,7 +177,7 @@ function validateActivation(inventory, sources) {
     'guarded-only enrollment route must invoke the authenticated atomic enrollment core',
   );
   assert(
-    /^pending Cedros Data \d+\.\d+\.\d+ staging deployment/.test(activation.productionEvidence ?? ''),
+    /^pending Cedros platform \d+\.\d+\.\d+ staging deployment/.test(activation.productionEvidence ?? ''),
     'writer inventory must not claim unavailable production enrollment evidence',
   );
 }

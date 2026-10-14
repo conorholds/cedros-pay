@@ -224,7 +224,7 @@ impl<'a, S: HostSeams> Db<'a, S> {
 
     /// Durably enrolls or releases a content model's guarded-only host policy.
     /// Call only after the concurrency capability is required and the manifest
-    /// requires Cedros Data 0.1.9 or later; older v1 hosts lack this operation.
+    /// requires Cedros platform 0.1.9 or later; older v1 hosts lack this operation.
     pub fn set_write_policy(
         &self,
         model: &'static str,

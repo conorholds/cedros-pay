@@ -70,7 +70,7 @@ const cedrosPayAiSurface: CedrosExtensionAiSurface = {
       visibility: 'public',
       docs: {
         markdown:
-          '## Checkout\n\nUse the canonical `/extensions/cedros-pay/checkout*` routes for authoritative quote and checkout operations and `/extensions/cedros-pay/cart/*` for authenticated versioned-cart synchronization. These operations fail closed until Cedros Data proves the exact eighteen-model guarded-policy marker. No legacy one-time checkout aliases are published.',
+          '## Checkout\n\nUse the canonical `/extensions/cedros-pay/checkout*` routes for authoritative quote and checkout operations and `/extensions/cedros-pay/cart/*` for authenticated versioned-cart synchronization. These operations fail closed until Cedros platform proves the exact eighteen-model guarded-policy marker. No legacy one-time checkout aliases are published.',
       },
     },
     {
@@ -92,7 +92,7 @@ const cedrosPayAiSurface: CedrosExtensionAiSurface = {
       visibility: 'admin',
       docs: {
         markdown:
-          '## Admin\n\nUse Cedros Pay admin APIs for payment configuration, products/catalog, orders, shipping, tax, subscriptions, refunds, invoices, checkout state, and operational billing workflows with admin authentication. Customer/person profiles live in Cedros Data CRM.',
+          '## Admin\n\nUse Cedros Pay admin APIs for payment configuration, products/catalog, orders, shipping, tax, subscriptions, refunds, invoices, checkout state, and operational billing workflows with admin authentication. Customer/person profiles live in Cedros platform CRM.',
       },
     },
   ],

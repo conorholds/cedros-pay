@@ -2,7 +2,7 @@
 
 Status: registered as the canonical Cedros Pay 4 server-Wasm checkout contract. Every
 route fails closed until the exact eighteen-model guarded-policy marker is
-present. Production launch evidence remains pending the Cedros Data 0.1.81
+present. Production launch evidence remains pending the Cedros platform 0.1.81
 staging deployment and joint Shop conformance run.
 
 The canonical payload version is `schemaVersion: 1`. There are no versioned
@@ -310,7 +310,7 @@ following are complete:
    target-environment rail, replay, recovery, and fail-closed matrix.
 5. Route adapters preserve the exact body/header and error contracts without
    accepting legacy aliases.
-6. Multi-instance and multi-process tests pass against the target Cedros Data
+6. Multi-instance and multi-process tests pass against the target Cedros platform
    storage implementation for claim, completion, replay, return correlation,
    and settlement transitions.
 7. Cedros Shop adopts these exact schemas and the coordinated hard cutover is
