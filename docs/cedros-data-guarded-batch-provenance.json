@@ -16,11 +16,8 @@
     "rotateVersionOnEveryCommittedWrite": true,
     "reuseVersionAfterDeleteRecreate": false
   },
-  "hostRepository": "https://github.com/conorholds/cedros-data",
-  "hostBranch": "conorholds/database-concurrency-v1",
   "hostCommit": "6a1ddc9beb31b6ab1765777365afeb576886c758",
   "hostEvidence": {
-    "branch": "conorholds/database-concurrency-v1",
     "commit": "2bde8949177ecdfad264544bf008ec4dc276aeb5",
     "integratedContractBase": "4b77968f8211791a198da6b71e1465a7ffa932cc",
     "testName": "pay_guarded_enrollment_and_policy_matrix",

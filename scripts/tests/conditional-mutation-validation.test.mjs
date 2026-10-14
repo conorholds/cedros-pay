@@ -86,7 +86,7 @@ test('rejects non-opaque or reusable version semantics', () => {
 test('rejects provenance and guarded-model digest drift', () => {
   const commit = fixture();
   commit.provenance.hostCommit = 'ebc8a7dbbb91130fe7be911e941e2af2b44e9080';
-  assert.throws(() => validate(commit), /must pin Cedros Data/);
+  assert.throws(() => validate(commit), /must pin Cedros platform/);
 
   const digest = fixture();
   digest.inventory.modelSetSha256 = 'a'.repeat(64);

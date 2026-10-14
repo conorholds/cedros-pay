@@ -1,4 +1,4 @@
-//! Typed boundary for Cedros Data's schema-v1 `database.compare-and-set` contract.
+//! Typed boundary for Cedros platform's schema-v1 `database.compare-and-set` contract.
 //!
 //! The named import and required `cedros-data:extension-storage-cas-v1`
 //! capability make older hosts fail closed before a guarded mutation runs.

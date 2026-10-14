@@ -1,7 +1,7 @@
 /**
  * Self-injected admin styles for the host-loaded admin bundle.
  *
- * The Cedros Data host imports `admin/register` straight from the extension
+ * The Cedros platform host imports `admin/register` straight from the extension
  * archive. Older host builds never inject the archive's standalone CSS files
  * (`pay-react.css`), so the bundle must carry its own styles: the admin CSS is
  * inlined into this chunk as a string and appended as one id-guarded <style>

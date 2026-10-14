@@ -81,7 +81,7 @@ impl SimStore {
     }
 
     /// Restores one local verification snapshot. This format is test-only and
-    /// intentionally not a Cedros Data persistence contract.
+    /// intentionally not a Cedros platform persistence contract.
     pub fn from_snapshot(value: Value) -> Result<Self, String> {
         serde_json::from_value(value).map_err(|_| "invalid hostsim snapshot".into())
     }

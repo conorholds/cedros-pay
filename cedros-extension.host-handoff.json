@@ -59,21 +59,21 @@
       "item": "Public authoring kit 0.1.82 WIT alignment",
       "manifestId": "cedros-pay:authoring-kit-wit-alignment",
       "type": "host ABI compatibility",
-      "runtimePackage": "Cedros Data host and cedros-extension.server.wasm",
-      "hostHookRequired": "none; Pay vendors the exact public authoring kit 0.1.82 WIT, sourced from Cedros Data 0.1.81.",
+      "runtimePackage": "Cedros platform host and cedros-extension.server.wasm",
+      "hostHookRequired": "none; Pay vendors the exact public authoring kit 0.1.82 WIT, sourced from Cedros platform 0.1.81.",
       "status": "metadata-only",
       "owner": "Cedros Pay",
-      "launchGate": "Cedros Data 0.1.81 or later with WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9.",
+      "launchGate": "Cedros platform 0.1.81 or later with WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9.",
       "blocking": false
     },
     {
       "item": "Cedros Compliance screening delegation",
       "manifestId": "cedros-pay:compliance-policy-delegation",
       "type": "cross-extension contract",
-      "runtimePackage": "Cedros Data host / Cedros Compliance / cedros-extension.server.wasm",
+      "runtimePackage": "Cedros platform host / Cedros Compliance / cedros-extension.server.wasm",
       "hostHookRequired": "Bind the published cedros-compliance:policy-read-check-run-audit-record contract through an exact versioned host route and schema before Pay delegates; do not infer a route from capability metadata.",
       "status": "host-hook-requested",
-      "owner": "Cedros Compliance and Cedros Data",
+      "owner": "Cedros Compliance and Cedros platform",
       "launchGate": "Required before claiming KYC, token-gate, accredited-investor, or Compliance-owned sanctions decisions; the shipped Pay route continues only its documented local sanctions check.",
       "blocking": false
     },
@@ -81,10 +81,10 @@
       "item": "Wallet-owned Solana subscription plan management",
       "manifestId": "cedros-pay:solana-plan-wallet-binding",
       "type": "cross-extension contract",
-      "runtimePackage": "Cedros Wallet / Cedros Data admin runtime",
+      "runtimePackage": "Cedros Wallet / Cedros platform admin runtime",
       "hostHookRequired": "Publish an exact versioned Wallet-owned create/update/delete subscription-plan contract, approval flow, and submission/read-back binding. The current typed Wallet actions do not include plan management; Pay must not discover injected wallets or submit to browser RPC.",
       "status": "host-hook-requested",
-      "owner": "Cedros Wallet and Cedros Data",
+      "owner": "Cedros Wallet and Cedros platform",
       "launchGate": "On-chain plan actions remain disabled; existing Pay plan configuration and provider-backed payment flows are preserved.",
       "blocking": false
     }
@@ -123,13 +123,13 @@
     {
       "id": "cedros-pay:x402-refund-signer",
       "status": "host-coordinated",
-      "owner": "Cedros Wallet and Cedros Data",
+      "owner": "Cedros Wallet and Cedros platform",
       "requirement": "Publish and grant a policy-bound refund-signing capability before enabling new x402 refund execution. Pay never stores or loads a wallet private key; pending x402 refunds fail closed until this contract exists."
     },
     {
       "id": "cedros-pay:solana-subscription-collector-signer",
       "status": "host-coordinated",
-      "owner": "Cedros Wallet and Cedros Data",
+      "owner": "Cedros Wallet and Cedros platform",
       "requirement": "Publish and grant a policy-bound subscription collection-signing capability before enabling Solana subscription collection. Pay never stores or loads a collector private key; initial collection fails closed until this contract exists."
     }
   ],
@@ -163,7 +163,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 authenticated checkout descriptor route; no versioned alias.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout/descriptor",
       "rollbackBehavior": "Unbind with canonical checkout traffic stopped; no durable checkout state is mutated.",
-      "launchGate": "Cedros Data 0.1.81 storage CAS and guarded marker, Cedros Login verification, and a configured Stripe account must be available.",
+      "launchGate": "Cedros platform 0.1.81 storage CAS and guarded marker, Cedros Login verification, and a configured Stripe account must be available.",
       "failureMode": "Fails closed before descriptor disclosure when marker, auth, trusted context, account configuration, rate policy, or storage is unavailable."
     },
     {
@@ -566,7 +566,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "No buyer identifiers, return reasons, item details, or metadata are logged or emitted to analytics.",
-      "launchGate": "Cedros Data 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
+      "launchGate": "Cedros platform 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
       "failureMode": "Fails closed with a sanitized Cedros error envelope when auth, CSRF, validation, guarded policy, or database access is unavailable.",
       "routeId": "cedros-pay:admin-returns-list",
       "path": "/admin/returns",
@@ -596,7 +596,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "No buyer identifiers, return reasons, item details, or metadata are logged or emitted to analytics.",
-      "launchGate": "Cedros Data 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
+      "launchGate": "Cedros platform 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
       "failureMode": "Fails closed with a sanitized Cedros error envelope when auth, CSRF, validation, guarded policy, or database access is unavailable.",
       "routeId": "cedros-pay:admin-returns-create",
       "path": "/admin/returns",
@@ -629,7 +629,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "No buyer identifiers, return reasons, item details, or metadata are logged or emitted to analytics.",
-      "launchGate": "Cedros Data 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
+      "launchGate": "Cedros platform 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
       "failureMode": "Fails closed with a sanitized Cedros error envelope when auth, CSRF, validation, guarded policy, or database access is unavailable.",
       "routeId": "cedros-pay:admin-returns-get",
       "path": "/admin/returns/{id}",
@@ -659,7 +659,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "No buyer identifiers, return reasons, item details, or metadata are logged or emitted to analytics.",
-      "launchGate": "Cedros Data 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
+      "launchGate": "Cedros platform 0.1.81 or later with the exact guarded-write policy enrolled for return mutations.",
       "failureMode": "Fails closed with a sanitized Cedros error envelope when auth, CSRF, validation, guarded policy, or database access is unavailable.",
       "routeId": "cedros-pay:admin-returns-status-update",
       "path": "/admin/returns/{id}/status",
@@ -774,7 +774,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-disputes-status-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/disputes/test/status",
       "rollbackBehavior": "Disabling the mutation route preserves the last durable status and does not remove webhook reconciliation.",
-      "launchGate": "Cedros Data 0.1.81 extension-services and the exact guarded-write policy marker must be active.",
+      "launchGate": "Cedros platform 0.1.81 extension-services and the exact guarded-write policy marker must be active.",
       "failureMode": "Fails closed before mutation on auth, CSRF, validation, missing data, stale version, policy, or database failure; never reports a partial success."
     },
     {
@@ -891,7 +891,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Mutations emit a durable redacted catalog-administration record containing only record type, stable handle, and create/update outcome; no secrets, activation codes, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
       "failureMode": "Fail closed with sanitized JSON when authentication, request validation, or bounded catalog reads fail.",
       "routeId": "cedros-pay:admin-catalog-records-query",
       "path": "/admin/catalog/records/query",
@@ -987,7 +987,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Mutations emit a durable redacted catalog-administration record containing only record type, stable handle, and create/update outcome; no secrets, activation codes, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
       "failureMode": "Fail closed with a sanitized JSON error before mutation when authentication, CSRF, guarded policy, validation, duplicate identity, or database version fencing fails.",
       "routeId": "cedros-pay:admin-catalog-product-upsert",
       "path": "/admin/catalog/products/upsert",
@@ -1021,7 +1021,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Emits a durable redacted catalog-administration record containing only the product identifier and operation; no secrets, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract, exact guarded-policy enrollment, and host MCP capability dispatch.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract, exact guarded-policy enrollment, and host MCP capability dispatch.",
       "failureMode": "Fail closed before mutation when authentication, the exact bearer route claim or browser CSRF proof, guarded policy, product validation, or database version fencing fails.",
       "routeId": "cedros-pay:admin-catalog-product-active-set",
       "path": "/admin/catalog/products/active",
@@ -1055,7 +1055,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Emits a durable redacted catalog-administration record containing only the product identifier and operation; no secrets, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract, exact guarded-policy enrollment, and host MCP capability dispatch.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract, exact guarded-policy enrollment, and host MCP capability dispatch.",
       "failureMode": "Fail closed before mutation when authentication, the exact bearer route claim or browser CSRF proof, guarded policy, validation, inventory protection, or database version fencing fails.",
       "routeId": "cedros-pay:admin-catalog-product-delete",
       "path": "/admin/catalog/products/delete",
@@ -1089,7 +1089,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Mutations emit a durable redacted catalog-administration record containing only record type, stable handle, and create/update outcome; no secrets, activation codes, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
       "failureMode": "Fail closed with a sanitized JSON error before mutation when authentication, CSRF, guarded policy, validation, duplicate identity, or database version fencing fails.",
       "routeId": "cedros-pay:admin-catalog-price-upsert",
       "path": "/admin/catalog/prices/upsert",
@@ -1191,7 +1191,7 @@
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "none",
       "analyticsSiteBrainLogs": "Mutations emit a durable redacted catalog-administration record containing only record type, stable handle, and create/update outcome; no secrets, activation codes, provider ids, or buyer data.",
-      "launchGate": "Cedros Data 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
+      "launchGate": "Cedros platform 0.1.81 extension-services contract and exact guarded-policy enrollment for mutations.",
       "failureMode": "Fail closed with a sanitized JSON error before mutation when authentication, CSRF, guarded policy, validation, duplicate identity, or database version fencing fails.",
       "routeId": "cedros-pay:admin-program-entitlement-upsert",
       "path": "/admin/catalog/program-entitlements/upsert",
@@ -1966,7 +1966,7 @@
       "idempotencyKeyStrategy": "Request header must be affiliate-payout-settlement:{batchId}. No key is claimed while Pay lacks the destination and provider executor required to finish accepted work.",
       "webhookSignatureSource": "not applicable",
       "hostProviderCalls": "Current route makes no provider calls and returns 503 before any payout side effect. Future settlement execution may call approved payout providers only after durable Core acceptance.",
-      "databaseCalls": "Current route performs no database call. Cedros Data 0.1.10 offers durable payout operations, but Pay deliberately does not accept operations until its destination and provider executor can complete them.",
+      "databaseCalls": "Current route performs no database call. Cedros platform 0.1.10 offers durable payout operations, but Pay deliberately does not accept operations until its destination and provider executor can complete them.",
       "analyticsSiteBrainLogs": "No buyer PII, raw destination details, provider payloads, wallet private keys, or compliance details may be logged. Future settled payouts may emit redacted payout audit events only after durable Pay settlement state exists.",
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-affiliate-payouts-settle.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/affiliate-payouts/settlements",
@@ -2033,7 +2033,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-history.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/history",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2095,7 +2095,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-stripe-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/stripe",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2126,7 +2126,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-stripe-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/stripe",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2157,7 +2157,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-x402-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/x402",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2188,7 +2188,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-x402-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/x402",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2219,7 +2219,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-cedros-login-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/cedros_login",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2250,7 +2250,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-cedros-login-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/cedros_login",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2281,7 +2281,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-native-store-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/native_store",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2312,7 +2312,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-native-store-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/native_store",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2343,7 +2343,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-shop-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/shop",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2374,7 +2374,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-shop-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/shop",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2405,7 +2405,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-subscriptions-get.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/subscriptions",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -2436,7 +2436,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-config-subscriptions-update.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/config/subscriptions",
       "rollbackBehavior": "Unbind route and fall back to manifest-only admin status; existing extension settings and secrets remain host-owned and can be ignored by the previous package version.",
-      "launchGate": "Cedros Data 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
+      "launchGate": "Cedros platform 0.1.10 extension-config-cas-v1 and extension-shared-cache-v1 staged",
       "failureMode": "Fail closed with sanitized JSON error when auth, settings, or secrets seams are unavailable."
     },
     {
@@ -3875,7 +3875,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route; no legacy or versioned alias is registered.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout/quote",
       "rollbackBehavior": "Stop checkout traffic and retain guarded-only policies; restore or forward-fix a guarded Cedros Pay 5.0.8 release.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Fails closed before mutation unless the exact guarded-policy marker and authoritative inputs validate."
     },
     {
@@ -3909,7 +3909,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route; no legacy or versioned alias is registered.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout",
       "rollbackBehavior": "Stop checkout traffic and retain guarded-only policies; indeterminate claims remain recoverable after restoring a guarded Cedros Pay 5.0.8 release.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Transport uncertainty remains indeterminate; terminal is returned only from durable provider or Pay proof."
     },
     {
@@ -3941,7 +3941,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route; no legacy or versioned alias is registered.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout/{operationId}",
       "rollbackBehavior": "Status may be unbound only with checkout traffic stopped; guarded state remains durable.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Unknown or cross-scope operations return not found without disclosure."
     },
     {
@@ -3975,7 +3975,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route; no legacy or versioned alias is registered.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout/resolve",
       "rollbackBehavior": "Unbind resolution with checkout traffic stopped; durable operations remain available for recovery.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Any correlation or provider uncertainty returns no URL and preserves the durable outcome."
     },
     {
@@ -4009,7 +4009,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route; no legacy or versioned alias is registered.",
       "stagingTestUrl": "/extensions/cedros-pay/checkout/return/verify",
       "rollbackBehavior": "Stop verification traffic and preserve guarded claims for webhook/retry recovery.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Unverified or uncertain returns never settle payment or inventory."
     },
     {
@@ -4041,7 +4041,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route for the registered versioned-cart capability.",
       "stagingTestUrl": "/extensions/cedros-pay/cart/open",
       "rollbackBehavior": "Stop cart writes and preserve guarded-only state; restore or forward-fix a guarded Cedros Pay 5.0.8 release.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Marker, auth, quota, rate, or storage failure creates no partial generation."
     },
     {
@@ -4073,7 +4073,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route for the registered versioned-cart capability.",
       "stagingTestUrl": "/extensions/cedros-pay/cart/read",
       "rollbackBehavior": "Read may be unbound only with cart mutation traffic stopped; durable state remains intact.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Missing or cross-scope carts return not found without disclosure."
     },
     {
@@ -4106,7 +4106,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route for the registered versioned-cart capability.",
       "stagingTestUrl": "/extensions/cedros-pay/cart/rotate",
       "rollbackBehavior": "Stop cart writes and preserve guarded-only generations; never reopen models.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Stale or conflicting rotations leave authoritative state unchanged."
     },
     {
@@ -4139,7 +4139,7 @@
       "routeDiscovery": "Static Cedros Pay 5.0.8 route for the registered versioned-cart capability.",
       "stagingTestUrl": "/extensions/cedros-pay/cart/apply",
       "rollbackBehavior": "Stop cart writes and preserve guarded-only state; restore or forward-fix a guarded Cedros Pay 5.0.8 release.",
-      "launchGate": "blocked until Cedros Data 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
+      "launchGate": "blocked until Cedros platform 0.1.81 staging proves the exact eighteen-model marker and joint Shop conformance evidence exists",
       "failureMode": "Duplicate, stale, conflicting, malformed, or partial-failure inputs apply zero unintended mutations."
     },
     {
@@ -4212,7 +4212,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-program-invite-upsert.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/catalog/program-invites/upsert",
       "rollbackBehavior": "Revoke the invite without deleting customer work.",
-      "launchGate": "Cedros Data guarded-policy enrollment including cedros-pay:program-access.",
+      "launchGate": "Cedros platform guarded-policy enrollment including cedros-pay:program-access.",
       "failureMode": "Fails closed before mutation on auth, policy, program, identity, state-transition, or version-fence failure."
     },
     {
@@ -4246,7 +4246,7 @@
       "routeDiscovery": "Host mounts route under /extensions/cedros-pay by routeId cedros-pay:admin-program-membership-upsert.",
       "stagingTestUrl": "/extensions/cedros-pay/admin/catalog/program-memberships/upsert",
       "rollbackBehavior": "Revoke or expire membership and retain customer work with a transition plan.",
-      "launchGate": "Cedros Data guarded-policy enrollment including cedros-pay:program-access.",
+      "launchGate": "Cedros platform guarded-policy enrollment including cedros-pay:program-access.",
       "failureMode": "Fails closed before mutation on auth, policy, program, identity, or version-fence failure."
     },
     {
@@ -4384,7 +4384,7 @@
         "POST"
       ],
       "handlerExport": "cedros-extension.server.wasm::routes.handle-route",
-      "auth": "Bearer-authenticated Cedros Data context derived from a verified signed Assistant request; requires the exact route capability, ai-assistant identity, action, stable run/request/idempotency values, explicit approval, and positive authorized ceiling.",
+      "auth": "Bearer-authenticated Cedros platform context derived from a verified signed Assistant request; requires the exact route capability, ai-assistant identity, action, stable run/request/idempotency values, explicit approval, and positive authorized ceiling.",
       "permissionRequirement": "cedros-pay:assistant-x402-purchase bearer capability",
       "requestSchema": {
         "additionalProperties": false,
@@ -4662,10 +4662,10 @@
       "hostProviderCalls": "blockchain.config.read plus only cedros-pay:blockchain-assistant-x402-sign / blockchain.solana.sign.assistant-x402; HTTPS x402 discovery/submission and redacted Solana RPC metadata.",
       "databaseCalls": "Guarded absent/version-fenced durable purchase state in the private cedros-pay:support-ai model.",
       "analyticsSiteBrainLogs": "Only redacted state, public keys, request ids, transaction signatures, and policy decision ids; never transaction bytes, secrets, raw authorization, RPC credentials, or Vault policy internals.",
-      "routeDiscovery": "Cedros Data binds Assistant action cedros.monetization.x402.purchase to /extensions/cedros-pay/assistant/v1/x402/purchase and signs the returned cedros_pay_x402_purchase result envelope.",
+      "routeDiscovery": "Cedros platform binds Assistant action cedros.monetization.x402.purchase to /extensions/cedros-pay/assistant/v1/x402/purchase and signs the returned cedros_pay_x402_purchase result envelope.",
       "stagingTestUrl": "/extensions/cedros-pay/assistant/v1/x402/purchase",
       "rollbackBehavior": "Irreversible; rollback is always null.",
-      "launchGate": "Cedros Data signed Assistant execution binding, exact guarded-write marker, active funded dedicated assistant wallet, exact narrow signer grant, and allowlisted resource/RPC egress.",
+      "launchGate": "Cedros platform signed Assistant execution binding, exact guarded-write marker, active funded dedicated assistant wallet, exact narrow signer grant, and allowlisted resource/RPC egress.",
       "failureMode": "Unavailable, rotating, disabled, blocked, unfunded, mismatched, changed, denied, rejected, or ambiguous state fails closed without operational, treasury, browser, or legacy wallet fallback."
     },
     {
@@ -4674,7 +4674,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:access-pass-offer-resolve",
       "path": "/access-passes/v1/offers/resolve",
@@ -4709,7 +4709,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:access-pass-purchase",
       "path": "/access-passes/v1/purchase",
@@ -4745,7 +4745,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:access-pass-authorize",
       "path": "/access-passes/v1/authorize",
@@ -4787,7 +4787,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:admin-access-pass-offer-upsert",
       "path": "/admin/access-passes/v1/offers",
@@ -4818,7 +4818,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:admin-access-pass-offer-state",
       "path": "/admin/access-passes/v1/offers/state",
@@ -4848,7 +4848,7 @@
       "webhookSignatureSource": "not applicable",
       "analyticsSiteBrainLogs": "No raw wallet, delegated key, provider secret, transaction bytes, or internal ledger identifier is returned or logged.",
       "rollbackBehavior": "Disable the capability and routes; existing payment and pass records remain isolated and authorization fails closed.",
-      "launchGate": "Cedros Data 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
+      "launchGate": "Cedros platform 0.1.81, exact guarded-policy enrollment, active Pay x402 configuration, and the declared caller dependency/capability grant.",
       "failureMode": "Missing, malformed, unavailable, uncertain, inactive, or mismatched state fails closed.",
       "routeId": "cedros-pay:admin-access-pass-revoke",
       "path": "/admin/access-passes/v1/passes/revoke",
@@ -6921,7 +6921,7 @@
     "disabledJobIds": [],
     "stagingEvidenceUrl": null,
     "eighteenModelHostEvidenceStatus": "refresh-required-after-cedros-data-0.1.81-staging-deploy",
-    "requiredRuntime": "Cedros Data 0.1.81 database.compare-and-set with cedros-data:extension-storage-cas-v1 and guarded-only write policy"
+    "requiredRuntime": "Cedros platform 0.1.81 database.compare-and-set with cedros-data:extension-storage-cas-v1 and guarded-only write policy"
   },
   "assistantActionContracts": [
     {
@@ -6945,7 +6945,7 @@
       },
       "authentication": {
         "transport": "bearer-token",
-        "source": "Cedros Data verified signed tool request",
+        "source": "Cedros platform verified signed tool request",
         "requiredCapabilityClaim": "cedros-pay:assistant-x402-purchase",
         "trustedServerContextSchema": {
           "type": "object",
@@ -7012,7 +7012,7 @@
           "requestId": "request.request_id",
           "idempotencyKey": "request.idempotency_key",
           "confirmationVerified": "valid, unexpired request.confirmation bound to request.scope.user_id",
-          "authorizedMaxAmountMicrounits": "positive approved ceiling derived by Cedros Data from the signed request and site budget policy"
+          "authorizedMaxAmountMicrounits": "positive approved ceiling derived by Cedros platform from the signed request and site budget policy"
         }
       },
       "modelControlledArgumentsSchema": {
@@ -7218,7 +7218,7 @@
         ],
         "requiredBoundary": "cedros_pay_x402_purchase",
         "resultDigest": "SHA-256 of canonical response.output",
-        "signature": "Cedros Data response signature over the complete response envelope",
+        "signature": "Cedros platform response signature over the complete response envelope",
         "blocks": "empty/redacted only"
       },
       "signingContract": {

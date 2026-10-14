@@ -21,6 +21,7 @@ function isPublicSource(path) {
   ]);
   if (parts.some(part => excluded.has(part))) return false;
   if (parts[0] === 'artifacts') return false;
+  if (path === 'extension-context.json') return false;
   const name = parts.at(-1);
   if (['.mcp.json', 'opencode.json', '.DS_Store', 'credentials', 'credentials.toml'].includes(name)) return false;
   if (name.startsWith('.env') && !/^\.env(?:\.[\w-]+)?\.example$/.test(name)) return false;

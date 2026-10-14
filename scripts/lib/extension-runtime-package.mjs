@@ -346,7 +346,7 @@ const unsupportedNodeGlobals = [
   ['__filename', /\b__filename\b/u],
 ];
 
-/** Mirror Cedros Data's static Node-global rejection for browser ESM. */
+/** Mirror Cedros platform's static Node-global rejection for browser ESM. */
 export function verifyRuntimeBrowserSafety(entries) {
   const violations = [];
   let esmFileCount = 0;
@@ -434,7 +434,7 @@ function verifyRuntimeImportRewriteCompatibility(entries) {
   }
   assert(
     violations.length === 0,
-    `runtime files must be compatible with the Cedros Data ZIP import rewriter:\n  ${violations
+    `runtime files must be compatible with the Cedros platform ZIP import rewriter:\n  ${violations
       .slice(0, 20)
       .join('\n  ')}${violations.length > 20 ? `\n  ...and ${violations.length - 20} more` : ''}`,
   );

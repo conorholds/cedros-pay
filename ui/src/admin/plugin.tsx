@@ -401,7 +401,7 @@ export const cedrosPayPlugin: AdminPlugin = {
     const orgContext = getHostService<NonNullable<HostContext['org']>>(hostContext, HOST_SERVICE_IDS.org);
 
     // Admin auth is owned by Cedros Login. Without it, admin calls fail closed.
-    // In an installed Cedros Data host, Pay APIs are mounted below the host
+    // In an installed Cedros platform host, Pay APIs are mounted below the host
     // runtime origin instead of at root `/admin/*`.
     const serverUrl = resolvePayRuntimeBaseUrl(payContext, loginContext);
     const locale = payContext?.locale || loginContext?.locale || hostContext.locale;

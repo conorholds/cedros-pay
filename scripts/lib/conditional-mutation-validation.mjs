@@ -149,7 +149,7 @@ function assertHandoffContract(handoff) {
   const request = gate?.requestContract;
   assert(
     gate?.requiredCapability === STORAGE_CAS_CAPABILITY
-      && gate.requiredRuntime === 'Cedros Data 0.1.81 database.compare-and-set with cedros-data:extension-storage-cas-v1 and guarded-only write policy'
+      && gate.requiredRuntime === 'Cedros platform 0.1.81 database.compare-and-set with cedros-data:extension-storage-cas-v1 and guarded-only write policy'
       && gate.minCedrosDataVersion === CURRENT_EXTENSION_SERVICES_MIN_HOST
       && gate.guardedBatchSemanticHostCommit === '6a1ddc9beb31b6ab1765777365afeb576886c758'
       && gate.requiredGuardedModelCount === 18

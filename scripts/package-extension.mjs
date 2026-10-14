@@ -30,10 +30,10 @@ import {
 import { packagedSourceEntries } from './lib/extension-package-inputs.mjs';
 const outputDir = resolve(root, process.argv[2] ?? 'artifacts');
 const fixedDate = new Date('2026-01-01T00:00:00Z');
-// Match Cedros Data's extensionPackageArchive.ts MAX_LOCAL_PACKAGE_ARCHIVE_BYTES.
+// Match Cedros platform's extensionPackageArchive.ts MAX_LOCAL_PACKAGE_ARCHIVE_BYTES.
 // The 2 MiB bound below applies to individual non-Wasm entries, not the ZIP.
 const maxZipBytes = 64 * 1024 * 1024;
-// Cedros Data 41a2bd3bf, docs/extension-authoring/07-wasm-server-backends.md:
+// Cedros platform 41a2bd3bf, docs/extension-authoring/07-wasm-server-backends.md:
 // the root component is independently bounded at 64 MiB; every other entry is
 // <=2 MiB and their combined uncompressed size is <=8 MiB.
 const maxComponentBytes = 64 * 1024 * 1024;
@@ -132,7 +132,7 @@ function buildReadme(manifest) {
     '',
     `Extension: ${manifest.extensionId}@${manifest.version}`,
     '',
-    'This ZIP is the self-contained Cedros extension deliverable for Cedros Data intake.',
+    'This ZIP is the self-contained Cedros extension deliverable for Cedros platform intake.',
     'It includes cedros-extension.server.wasm at the archive root and bundles the',
     'compiled React admin runtime under workspace/react/dist/** so that the host',
     'does not need to fetch npm packages, tarballs, workspaces, registries, or crates.',

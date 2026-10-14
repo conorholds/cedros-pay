@@ -9,7 +9,7 @@ integration, and embedded administration UI.
 
 Pay provides catalog and pricing records, authoritative carts and checkout,
 payment and subscription processing, refunds, entitlements, and commerce
-administration. Its backend runs as a WebAssembly component inside Cedros Data.
+administration. Its backend runs as a WebAssembly component inside the Cedros platform.
 Cedros Shop owns the buyer-facing storefront and checkout experience; Pay owns
 the payment and commerce contracts it consumes.
 
@@ -39,7 +39,7 @@ required capabilities.
 
 ## Local development
 
-Use Node.js 24.17.0 ([`.nvmrc`](.nvmrc)), npm 11.13.0, and Rust 1.94.0 with
+Use Node.js 24.17.0 ([`.nvmrc`](.nvmrc)), npm 11.13.0, and Rust 1.97.0 with
 `rustfmt` and `clippy` ([`rust-toolchain.toml`](rust-toolchain.toml)). Docker is
 required for the deterministic release Wasm build. Python 3 runs the capacity
 contract fixtures.
@@ -76,11 +76,9 @@ suites sequentially.
 
 ## Extension builds and release status
 
-The public repository is a source snapshot with its own Git history. Release
-verification requires the original provenance commits recorded in
-`cedros-extension.release-inputs.json` and `cedros-extension.release-readiness.json`;
-those private development commits are not imported into this repository. In a
-maintainer checkout with that history available:
+Release packaging requires reviewed, committed inputs and current provenance
+and acceptance evidence. Run these commands from a maintainer checkout prepared
+for a release:
 
 ```sh
 make verify-wit
@@ -101,18 +99,20 @@ require fresh evidence and an archive rebuild before installation.
 
 ## Public source publication
 
-`make publish-source` prepares the existing `~/Workspace/published/cedros-pay/`
-Git checkout from committed source without compiling or uploading an extension.
-Use `make publish-source PUBLISH_ARGS=--dry-run` first; override the checkout root
-with `PUBLISH_REPO`. The destination must be clean (including untracked and
-ignored files) and have `conorholds/cedros-pay` as its origin. Preparation replaces
-legacy package artifacts while preserving Git history and remotes. It excludes
-local configuration, environment secrets, generated output, and extension ZIPs;
-review the source for publication separately, since exclusions are not a secret
-audit. Review the destination diff before committing or pushing. Historical MIT
-releases retain their original license notices in Git history; the current
-snapshot uses [LICENSE.md](LICENSE.md). Extension acceptance and installation
-remain separate release operations.
+Maintainers can export committed source into a separate public Git checkout:
+
+```sh
+make publish-source PUBLISH_REPO=/path/to/public-checkout PUBLISH_ARGS=--dry-run
+make publish-source PUBLISH_REPO=/path/to/public-checkout
+```
+
+The destination must be clean, including untracked and ignored files, and use
+this public repository as its origin. The script preserves Git history and
+remotes, excludes local configuration and generated artifacts, and leaves the
+diff for review. It does not build, commit, push, or install an extension.
+Publication requires a separate review for credentials and private information.
+Historical releases retain their license notices in Git history; the current
+source uses [LICENSE.md](LICENSE.md).
 
 ## Documentation and contributions
 

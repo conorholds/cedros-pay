@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "extensionId": "cedros-pay",
   "version": "5.0.8",
-  "reviewedSourceCommit": "43f3fb7a3d546a06c05b9bffff921f247a75ca64",
+  "reviewedSourceCommit": "c0d4465ac8780a6bf6b1e5a08ccf8d134109db3c",
   "packagedInputDigest": {
     "algorithm": "sha256",
     "scopeVersion": 1,
-    "sha256": "cdcc1caa04c82de159eac1e4c0ebd2b3a94d3e7cf62b05e65c752c268cc4ea3c",
+    "sha256": "c830ab2b91e3adf69576072816067916e57c1899b1bb53437cc5be84bd49b1cb",
     "fileCount": 661
   }
 }

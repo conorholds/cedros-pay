@@ -100,8 +100,8 @@ export function updateReadableEvidence(release, sourceCommit, archive) {
     .find((gate) => gate.hook === 'Current public authoring-kit WIT alignment');
   if (witGate) {
     witGate.status = 'host-coordinated';
-    witGate.launchImpact = `Source and the recorded ${release.version} archive are pinned to authoring kit 0.1.82 WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9; the matching Cedros Data 0.1.81+ deployment is not yet verified.`;
-    witGate.nextAction = 'Verify the recorded archive against Cedros Data 0.1.81+ in staging.';
+    witGate.launchImpact = `Source and the recorded ${release.version} archive are pinned to authoring kit 0.1.82 WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9; the matching Cedros platform 0.1.81+ deployment is not yet verified.`;
+    witGate.nextAction = 'Verify the recorded archive against Cedros platform 0.1.81+ in staging.';
   }
   const buildStep = release.installEnableSmokeChecklist?.[0];
   if (buildStep?.step === 'Build fresh Cedros Pay artifact') {
@@ -114,11 +114,11 @@ export function updateReadableEvidence(release, sourceCommit, archive) {
     ];
   }
   if (release.operatorHandoff) {
-    release.operatorHandoff.uploadLocation = `Cedros Data 0.1.81+ local or staging extension installer for ${release.version} candidate acceptance; production launch remains blocked.`;
+    release.operatorHandoff.uploadLocation = `Cedros platform 0.1.81+ local or staging extension installer for ${release.version} candidate acceptance; production launch remains blocked.`;
     release.operatorHandoff.installSteps = [
       'Verify the archive SHA-256 and run node scripts/validate-extension.mjs and node scripts/validate-release-readiness.mjs.',
       'Install only the recorded freshly built and validated extension-only archive.',
-      'Install only in Cedros Data 0.1.81+ staging with the matching WIT and extension-services contracts advertised.',
+      'Install only in Cedros platform 0.1.81+ staging with the matching WIT and extension-services contracts advertised.',
     ];
   }
   release.knownRisksAndAcceptedGaps = (release.knownRisksAndAcceptedGaps ?? [])

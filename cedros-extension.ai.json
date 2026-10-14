@@ -307,7 +307,7 @@
     "Catalog mutations are idempotent by stable handle, reject duplicates, and return read-back identities.",
     "Legacy discovery endpoints remain non-Cedros capability execution surfaces.",
     "Manifest publishes the exact cedros.monetization.x402.purchase action contract and cedros_pay_x402_purchase boundary.",
-    "Assistant identity, approval, run, request, and idempotency values come only from Cedros Data authenticated server context.",
+    "Assistant identity, approval, run, request, and idempotency values come only from Cedros platform authenticated server context.",
     "Assistant purchases expose no wallet locator, transaction bytes, signing authority, RPC secret, or Vault policy internals."
   ],
   "assistantActionContracts": [
@@ -332,7 +332,7 @@
       },
       "authentication": {
         "transport": "bearer-token",
-        "source": "Cedros Data verified signed tool request",
+        "source": "Cedros platform verified signed tool request",
         "requiredCapabilityClaim": "cedros-pay:assistant-x402-purchase",
         "trustedServerContextSchema": {
           "type": "object",
@@ -399,7 +399,7 @@
           "requestId": "request.request_id",
           "idempotencyKey": "request.idempotency_key",
           "confirmationVerified": "valid, unexpired request.confirmation bound to request.scope.user_id",
-          "authorizedMaxAmountMicrounits": "positive approved ceiling derived by Cedros Data from the signed request and site budget policy"
+          "authorizedMaxAmountMicrounits": "positive approved ceiling derived by Cedros platform from the signed request and site budget policy"
         }
       },
       "modelControlledArgumentsSchema": {
@@ -605,7 +605,7 @@
         ],
         "requiredBoundary": "cedros_pay_x402_purchase",
         "resultDigest": "SHA-256 of canonical response.output",
-        "signature": "Cedros Data response signature over the complete response envelope",
+        "signature": "Cedros platform response signature over the complete response envelope",
         "blocks": "empty/redacted only"
       },
       "retryContract": {

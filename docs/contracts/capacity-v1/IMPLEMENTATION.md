@@ -4,23 +4,23 @@ The machine-readable `portal-usage-capacity-v1` contract is vendored from the
 public Cedros extension authoring kit 0.1.82 (contract document v1.2.0,
 accounting revision 2). Its Pay operation schemas remain unchanged and the
 financial wire envelopes remain v1.0.0. Pay keeps the ownership and funding
-policy wording aligned with the current provider boundary; Data owns the
+policy wording aligned with the current provider boundary; platform owns the
 standard. The matching public fixture set is checked by the repository's
 extended behavioral checker. The Rust domain validates against the
 pinned financial wire schema, including duplicate-key rejection and the exact
 whole-quote digest. Synthetic fixtures are not commercial configuration.
 
 The adapter supports the native-only `capacity.binding.read` operation.
-Existing financial wire shapes are unchanged. Data's four core service paths
+Existing financial wire shapes are unchanged. platform's four core service paths
 remain the published extension-service bindings. Native enforcement and joint
-activation remain Data-owned; sales gates remain in force.
+activation remain platform-owned; sales gates remain in force.
 
 Pay registers eight HTTP routes and nine internal service routes. See the
 pinned `operations` and `serviceBindings` tables for exact paths, IDs and schemas.
 Internal calls use the existing WIT extension-services import. Public requests
 use Login authentication plus `X-Cedros-Capacity-Delegation`; mutations also need
-`Idempotency-Key`. Native Data reads require its exact host-fixed principal,
-capability and `orgId`, and never call back to Data. Missing Data adapters return
+`Idempotency-Key`. Native platform reads require its exact host-fixed principal,
+capability and `orgId`, and never call back to platform. Missing platform adapters return
 503; Login identity alone never binds an organization.
 
 ## Configuration before activation
@@ -39,7 +39,7 @@ configuration. Operators configure `capacity_v1` through the existing
 - `organizations`: keyed by verified organization ID, with `stripeCustomerId`,
   `baseSubscriptionIds`, `commercialVerified` and `runtimeReady` for each owner.
   These are operator-owned installation/billing bindings, not buyer assertions.
-  Data independently verifies scope on each delegated operation. Stripe customer
+  platform independently verifies scope on each delegated operation. Stripe customer
   metadata must match `capacityOrganizationId` and `capacityPayInstallationId`;
   Pay checks it before quoting, and requires zero customer balance, no inherited
   discount and no tax exemption to keep the accepted totals authoritative. Never bind an individual's financial customer to
@@ -70,7 +70,7 @@ The native binding read additionally uses these operator-owned organization fiel
 - `baseCustomerRefs` maps every listed subscription ID to its approved Pay
   `customerRef`. The read verifies both against the stored subscription. This
   explicit ownership binding is required even when that ref is a Login identity.
-- `canonicalSiteIds` lists Data's canonical site IDs owned by this organization.
+- `canonicalSiteIds` lists platform's canonical site IDs owned by this organization.
   Accounting revision 2 allows configured site ceilings underneath organization
   pools; a site ceiling is not another included organization allowance. Legacy
   bindings retain their original local meter identities for historical reads.
@@ -90,7 +90,7 @@ purchased add-ons retain their separately verified grant intervals.
 Duplicate scopes, conflicting aggregate states, unsafe totals and incomplete or
 changing source reads return 503. The content revision excludes freshness; its
 60-second validity is shortened at the nearest contributing expiry. No Stripe
-IDs, customer refs, approval metadata, Data callbacks or provider IO are exposed
+IDs, customer refs, approval metadata, platform callbacks or provider IO are exposed
 by this leaf read. Sales activation is neither required nor enabled by reading.
 
 Use the existing `capacityAddOn` catalog model and the reserved handles below.
@@ -121,11 +121,11 @@ rounds half up in minor units. Catalog changes cannot replace a stored quote.
 
 ## Upgrade catalog
 
-The adapter maps the following handles to Data's accounting meters. A supported
+The adapter maps the following handles to platform's accounting meters. A supported
 mapping does not establish an installed product, approved pricing, or runtime
 readiness.
 
-| Pay offer handle | Data service / meter | Unit and allowance basis | Configuration status |
+| Pay offer handle | platform service / meter | Unit and allowance basis | Configuration status |
 | --- | --- | --- | --- |
 | `cedros-addon-sites` | `sites` / `sites.count` | site; simultaneous organization occupancy | Requires approved catalog terms and organization binding |
 | `cedros-addon-managed-credits-v2` | `managed-services` / `managed.credits` | integer credit; organization pool per UTC calendar month, no rollover | Existing mapping; only explicitly approved recurring no-rollover policy is accepted |
@@ -147,18 +147,18 @@ Eligibility requires an active/public/purchasable product and selected price,
 exact meter/unit/basis, approved policy metadata, a bound organization and base
 subscription, and BillingManage authority. Non-site v2 offers require explicit
 accounting revision 2. Pay's sales/commercial/runtime/joint-test gates remain
-required. Data independently checks current complete coverage, binding revision,
+required. platform independently checks current complete coverage, binding revision,
 base eligibility and the offer IDs on the applicable included allowance before
 issuing/redeeming authorization. A Pay mapping alone does not establish readiness.
 Missing mappings return an unconfigured offer; unavailable sources return 503.
 
-Data owns shared Storage allocation across retained assets, mail and media. Site
+The Cedros platform owns shared Storage allocation across retained assets, mail and media. Site
 ceilings consume the same organization pool and never multiply it. R2 public and
 DigitalOcean private routing are storage breakdowns, not extra customer budgets.
-Before Storage sales, Data must verify current writers, root/legacy inventory
+Before Storage sales, platform must verify current writers, root/legacy inventory
 adoption, allocation and runtime acknowledgement. No byte quantity or per-site
 CPU, RAM, physical disk or traffic allocation follows from purchasing a site.
-Those hosting dimensions and grandfathered allocations need Data's explicit
+Those hosting dimensions and grandfathered allocations need platform's explicit
 allocation policy before activating the new base plans.
 
 Use distinct approved catalog entries and Stripe price IDs for new contracts.
@@ -172,11 +172,11 @@ or Email.
 Capacity records have a distinct `capacityRecordType` discriminator and
 `capacity:` key namespace in the existing guarded subscription collection.
 They contain no legacy subscription-selection `customerRef` or `status` fields.
-Base selection/provisioning uses its existing records. Data combines base
+Base selection/provisioning uses its existing records. platform combines base
 entitlements with verified grants; Pay does not invent new entitlement keys or
 aggregate cross-organization capacity into the legacy unscoped entitlement read.
 
-Pay claims the purchase before Data redemption and never dispatches payment
+Pay claims the purchase before platform redemption and never dispatches payment
 before confirmed acceptance. The existing subscription-sync schedule recovers
 redemption, provider state and grant hints without a browser session. Its capacity
 work follows base-plan reconciliation, so a capacity dependency failure does not
@@ -198,17 +198,17 @@ not schedule a run. Base processing retains its existing 240-second budget.
 Budgets are cooperative: host HTTP/database/service deadlines must still bound
 in-flight calls within the 300-second job timeout.
 
-Data/Portal recovery must treat timeout/503 as unavailable or paid-but-capacity-pending,
+The Cedros platform/Portal recovery must treat timeout/503 as unavailable or paid-but-capacity-pending,
 retain the original quote/authorization/purchase identifiers, and recover status
 and revisioned snapshots without creating a new financial purchase. Same- and
 different-key retries of the same accepted quote converge on the durable purchase.
-A browser redirect never grants service. Data must preserve paid grants while
+A browser redirect never grants service. platform must preserve paid grants while
 refresh is pending and enforce only applicable confirmed grant intervals; Portal
-must refresh from Data's applied revision, not infer activation from Pay payment.
+must refresh from platform's applied revision, not infer activation from Pay payment.
 
 Before enabling the existing schedule in an approved test installation, verify
 scheduler registration/identity, persisted job metadata (neither dry-run nor
-x402-only), Stripe test credentials, guarded writes and Data hint transport.
+x402-only), Stripe test credentials, guarded writes and platform hint transport.
 Capture at least two **automatically dispatched** runs with a failed notification
 followed by recovery, restart persistence, a slow provider and a bounded backlog.
 With `maxRetries: 0`, recovery depends on subsequent scheduled runs; alert on
@@ -232,8 +232,8 @@ Grant revisions and the organization source revision commit together. Snapshots
 pin the complete grant history, digest and page cursors in a guarded commit.
 Reads fail explicitly when collection/batch bounds cannot produce a complete
 snapshot. Cursors expire after one hour; existing cursors replay identical pages.
-Data owns atomic application, active-capacity status, Usage receipts and native
-enforcement. A paid purchase remains recoverable if Data's hint endpoint fails.
+The Cedros platform owns atomic application, active-capacity status, Usage receipts and native
+enforcement. A paid purchase remains recoverable if platform's hint endpoint fails.
 
 ## Verification
 
@@ -257,7 +257,7 @@ cargo test --locked --manifest-path server-wasm/Cargo.toml -p cedros-pay-extensi
 
 The hostsim tests exercise host-service transport, scope rejection, persisted
 snapshots, and purchase replay across fresh guest instances. They use synthetic
-provider replies. Live Stripe behavior, native Data enforcement, automatic
+provider replies. Live Stripe behavior, native platform enforcement, automatic
 scheduling, and joint activation require a configured test installation with
 approved product, price, and allowance mappings. Fixture IDs and amounts must
 not be used as commercial configuration.
