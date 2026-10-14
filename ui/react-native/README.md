@@ -18,8 +18,7 @@ After editing the [root manifest](../../cedros-extension.manifest.json), run
 
 `npm run build` generates `esm/`, `lib/`, and `types/`. The archive uses
 `esm/register.js`; CommonJS and declarations support local verification.
-Generated build directories should not be committed. Build the complete archive
-with `make cedros-package` from the repository root after satisfying the
-[release prerequisites](../../docs/command-map.md).
+Generated build directories should not be committed. The [root README](../../README.md)
+lists component build and test commands.
 
 This component uses the repository's [PILL-1.0.0 license](../../LICENSE.md).

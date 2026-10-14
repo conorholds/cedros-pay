@@ -11,5 +11,4 @@ and must not be edited or committed.
 
 Host integration contracts are in [docs/admin-embedding-contract.md](docs/admin-embedding-contract.md)
 and [docs/admin-shell-embedding-guide.md](docs/admin-shell-embedding-guide.md).
-Release verification and packaging commands are in the root
-[command map](../docs/command-map.md).
+The [root README](../README.md) lists component build and test commands.

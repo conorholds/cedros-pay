@@ -1,128 +1,68 @@
 # Cedros Pay
 
-[Documentation](docs/README.md) · [Architecture](#architecture) ·
-[Development](#local-development) · [Security](SECURITY.md) · [License](LICENSE.md)
+[Web UI](ui/README.md) · [Native registration](ui/react-native/README.md) · [Security](SECURITY.md) · [License](LICENSE.md)
 
-Cedros Pay is the commerce and payments extension for Cedros sites. This
-source-available repository is a reference for its payment domain, host
-integration, and embedded administration UI.
+Cedros Pay provides commerce and payments for the Cedros platform. Its extension
+backend handles checkout, subscriptions, credits, refunds, inventory, and durable
+settlement effects. React registration modules provide the host-embedded admin
+and web surfaces; Cedros Shop supplies the buyer-facing storefront.
 
-Pay provides catalog and pricing records, authoritative carts and checkout,
-payment and subscription processing, refunds, entitlements, and commerce
-administration. Its backend runs as a WebAssembly component inside the Cedros platform.
-Cedros Shop owns the buyer-facing storefront and checkout experience; Pay owns
-the payment and commerce contracts it consumes.
+## Source layout
 
-## Architecture
-
-| Directory | Responsibility |
+| Path | Purpose |
 | --- | --- |
-| `server-wasm/domain/` | Payment rules, routes, and jobs behind testable host interfaces |
-| `server-wasm/guest/` | WebAssembly adapter for the Cedros host capabilities |
-| `server-wasm/hostsim/` | Wasmtime integration tests with simulated host services |
-| `ui/` | Host-embedded React admin and web registration surfaces |
+| `server-wasm/domain/` | Payment rules, request handling, and unit tests |
+| `server-wasm/guest/` | WebAssembly component and host-capability adapters |
+| `server-wasm/hostsim/` | Wasmtime integration harness |
+| `ui/` | React admin and web registration modules |
 | `ui/react-native/` | Native extension manifest registration |
-| `docs/` | Integration contracts, architecture, and development commands |
-| `scripts/` | Validation, extension packaging, and release evidence |
+| `docs/` | Runtime contracts and test fixtures |
 
-Runtime services, storage, secrets, authentication, and provider capabilities
-come from a compatible Cedros host. The supported deployment unit is a
-`.cedros-extension.zip` archive containing the Wasm component and UI runtimes.
-This repository has no standalone payment server or database. The npm components
-are private archive inputs; their package names are host registration identifiers.
+The canonical version and declared extension surfaces are in
+[cedros-extension.manifest.json](cedros-extension.manifest.json). The Wasm backend
+runs inside a Cedros host that supplies scoped storage, authentication, provider,
+secret, and telemetry capabilities. It has no standalone HTTP server.
 
-For a guided source tour, start with the [feature map](docs/feature-map.md),
-[checkout contract](docs/cedros-pay-checkout-contract.md), and
-[financial invariants](docs/financial-state-invariants.md). The
-[manifest](cedros-extension.manifest.json) declares the host-facing surfaces and
-required capabilities.
+## Build and test
 
-## Local development
-
-Use Node.js 24.17.0 ([`.nvmrc`](.nvmrc)), npm 11.13.0, and Rust 1.97.0 with
-`rustfmt` and `clippy` ([`rust-toolchain.toml`](rust-toolchain.toml)). Docker is
-required for the deterministic release Wasm build. Python 3 runs the capacity
-contract fixtures.
-
-From the repository root:
+Use Node.js `24.17.0`, npm `11.13.0`, and the Rust toolchain pinned in
+[rust-toolchain.toml](rust-toolchain.toml). Install the Wasm target with
+`rustup target add wasm32-wasip2`.
 
 ```sh
-npm --prefix ui ci
-npm --prefix ui/react-native ci
-make help
+make install                 # install locked web and native dependencies
+make build-ui                # build the React registration modules
+make build-native            # build native manifest registration
+make build-wasm              # compile the Wasm guest component
+make test-ui                 # run React tests
+make test-domain             # run Rust domain tests
+make test-dependency-security # exercise dependency security regressions
+make check-security          # audit Rust and npm dependencies
 ```
 
-Choose checks for the area you change. Domain tests use simulated host services
-and do not require Docker or a running Cedros installation:
+Run compilation and test commands sequentially. The Wasm build may require
+native dependencies for transitive C code; see the guest crate's dependency
+configuration for the selected toolchain. Built components require host grants
+and provider configuration before they can serve an installed extension.
 
-```sh
-cargo test --locked --manifest-path server-wasm/Cargo.toml -p cedros-pay-extension-domain
-```
+The React modules are extension build inputs; their current package metadata
+marks them private. They are not standalone storefront applications or npm SDKs.
+The [UI guide](ui/README.md) covers registration and browser export checks.
 
-For the admin/web runtime:
+## Integration contracts
 
-```sh
-npm --prefix ui run type-check
-npm --prefix ui run lint
-npm --prefix ui test
-npm --prefix ui run build
-npm --prefix ui run verify:exports
-```
+- [Admin embedding](ui/docs/admin-embedding-contract.md) and
+  [host services](ui/docs/admin-shell-embedding-guide.md)
+- [Financial state invariants](docs/financial-state-invariants.md)
+- [Canonical settlement effects](docs/canonical-settlement-effects.md)
+- [Admin autosave](docs/autosave.md)
 
-For native registration, run `npm --prefix ui/react-native run ci:checks`.
-See the [command map](docs/command-map.md) for focused checks and the
-[UI README](ui/README.md) for embedding details. Run heavyweight builds and test
-suites sequentially.
+The repository contains source and component checks. Installing a complete
+extension and verifying its host permissions, providers, and payment flows are
+separate deployment steps.
 
-## Extension builds and release status
+## Security and license
 
-Release packaging requires reviewed, committed inputs and current provenance
-and acceptance evidence. Run these commands from a maintainer checkout prepared
-for a release:
-
-```sh
-make verify-wit
-make cedros-verify
-# Requires reviewed, committed inputs and current release-input evidence:
-make cedros-package
-```
-
-`make cedros-verify` builds the Wasm component and runs domain and Wasmtime host
-simulation tests. `make cedros-package` produces the archive in `artifacts/`,
-including compiled admin/web and native registration runtimes plus supply-chain
-evidence. The [command map](docs/command-map.md) describes validation prerequisites.
-
-Source publication does not establish deployment readiness. The
-[release-readiness record](cedros-extension.release-readiness.json) tracks archive
-provenance and outstanding host/provider acceptance gates. Changed package inputs
-require fresh evidence and an archive rebuild before installation.
-
-## Public source publication
-
-Maintainers can export committed source into a separate public Git checkout:
-
-```sh
-make publish-source PUBLISH_REPO=/path/to/public-checkout PUBLISH_ARGS=--dry-run
-make publish-source PUBLISH_REPO=/path/to/public-checkout
-```
-
-The destination must be clean, including untracked and ignored files, and use
-this public repository as its origin. The script preserves Git history and
-remotes, excludes agent instructions, local configuration, and generated
-artifacts, and leaves the diff for review. It does not build, commit, push, or
-install an extension.
-Publication requires a separate review for credentials and private information.
-Historical releases retain their license notices in Git history; the current
-source uses [LICENSE.md](LICENSE.md).
-
-## Documentation and contributions
-
-Browse the [documentation index](docs/README.md). UI-specific checks are in the
-[contributing guide](ui/CONTRIBUTING.md). Report vulnerabilities using the
-[security policy](SECURITY.md).
-
-## License
-
-Cedros Pay is source-available under PILL-1.0.0, the Personal and Internal Limited
-License. See [LICENSE.md](LICENSE.md) for permitted uses and restrictions.
-SPDX-style source headers use `LicenseRef-PILL-1.0.0`.
+Report vulnerabilities through the [security policy](SECURITY.md).
+Cedros Pay is source-available under [PILL-1.0.0](LICENSE.md), the Personal and
+Internal Limited License. See the license for permitted uses and restrictions.

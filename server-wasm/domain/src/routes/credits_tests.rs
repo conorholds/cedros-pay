@@ -429,7 +429,7 @@ fn credit_contract_uses_stable_generic_error_codes() {
 #[test]
 fn host_handoff_exposes_only_read_only_credit_balance() {
     let handoff: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../cedros-extension.host-handoff.json"
+        "../../../../docs/fixtures/cedros-pay-route-contracts.json"
     ))
     .unwrap();
     let contracts = handoff["routeContracts"].as_array().unwrap();
