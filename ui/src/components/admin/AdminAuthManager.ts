@@ -1,60 +1,28 @@
-/**
- * Admin Authentication Manager
- *
- * Handles Ed25519 signature authentication for admin API endpoints.
- * Supports two authentication methods:
- * 1. Wallet-based signing (Solana wallet adapter)
- * 2. Cedros-login JWT (if user is admin)
- */
+/** Admin authentication uses Cedros Login or the host-verified admin session. */
 
-import bs58 from 'bs58';
-import { Base64 } from 'js-base64';
 import { getLogger } from '../../utils/logger';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
+import { AdminReadCache } from './AdminReadCache';
+import { AdminDataEvents } from './AdminDataEvents';
 
 /** Auth method type */
-export type AdminAuthMethod = 'wallet' | 'cedros-login' | 'none';
-
-/** Nonce response from server */
-interface NonceResponse {
-  nonce: string;
-  expiresAt: number;
-  purpose: string;
-}
-
-/** Admin auth credentials */
-export interface AdminCredentials {
-  method: AdminAuthMethod;
-  /** For wallet auth: base58-encoded public key */
-  publicKey?: string;
-  /** For cedros-login auth: JWT token */
-  jwtToken?: string;
-  /** Whether user is confirmed admin (for cedros-login) */
-  isAdmin?: boolean;
-}
-
-/** Wallet signer interface (subset of wallet adapter) */
-export interface WalletSigner {
-  publicKey: { toBytes(): Uint8Array } | null;
-  signMessage?(message: Uint8Array): Promise<Uint8Array>;
-}
-
-/** Admin auth headers for API requests */
-export interface AdminAuthHeaders {
-  'X-Signer': string;
-  'X-Message': string;
-  'X-Signature': string;
-}
-
-/** Canonical admin request target used for server-side nonce resolution */
-export interface AdminAuthTarget {
-  path: string;
-  method: string;
-}
+export type AdminAuthMethod = 'cedros-login' | 'host-session' | 'none';
 
 /** JWT auth headers for cedros-login */
 export interface JwtAuthHeaders {
   'Authorization': string;
+}
+
+/** Host-session auth relies on the embedding host's same-origin admin session. */
+export type HostSessionAuthHeaders = Record<string, never>;
+export type AdminAuthHeaders = JwtAuthHeaders | HostSessionAuthHeaders;
+
+/** Preserve HTTP status so consumers can distinguish lost access from transient failures. */
+export class AdminApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'AdminApiError';
+  }
 }
 
 /** Public interface for admin auth management */
@@ -65,42 +33,58 @@ export interface IAdminAuthManager {
   /** Check if authenticated */
   isAuthenticated(): boolean;
 
-  /** Set wallet signer for wallet-based auth */
-  setWalletSigner(signer: WalletSigner | null): void;
-
   /** Set cedros-login JWT for JWT-based auth */
   setCedrosLoginAuth(token: string | null, isAdmin?: boolean): void;
 
   /** Create auth headers for admin request */
-  createAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders | JwtAuthHeaders>;
+  createAuthHeaders(): Promise<AdminAuthHeaders>;
 
   /** Fetch with admin auth headers */
   fetchWithAuth<T>(path: string, options?: RequestInit): Promise<T>;
+
+  /** Retain one shared Core invalidation stream for a mounted admin surface. */
+  retainDataEvents?(): () => void;
+
+  /** Monotonic identity fence for clients that retain mutation state. */
+  getIdentityGeneration?(): number;
 }
 
 /**
  * Admin Authentication Manager
  *
  * Manages authentication for admin API endpoints.
- * Prioritizes wallet auth over cedros-login when both available.
+ * Server routes independently enforce host identity, Pay permissions, and CSRF.
  */
 export class AdminAuthManager implements IAdminAuthManager {
   private readonly serverUrl: string;
-  private walletSigner: WalletSigner | null = null;
   private jwtToken: string | null = null;
   private isAdminUser: boolean = false;
+  private hostSessionAllowed: boolean = false;
+  private identityGeneration = 0;
+  // A stale financial read must reach the screen as an error. Screens can keep
+  // their last snapshot visible, but must not mistake it for a successful refresh.
+  private readonly readCache = new AdminReadCache({ staleIfErrorMs: 0 });
+  private readonly dataEvents: AdminDataEvents;
 
   constructor(serverUrl: string) {
     this.serverUrl = serverUrl;
+    this.dataEvents = new AdminDataEvents({
+      serverUrl,
+      authHeaders: async () => ({
+        ...(await this.createAuthHeaders()),
+      }),
+      credentials: () => this.getAuthMethod() === 'host-session' ? 'include' : 'same-origin',
+      invalidate: () => this.readCache.invalidate(),
+    });
   }
 
   getAuthMethod(): AdminAuthMethod {
-    if (this.walletSigner?.publicKey && this.walletSigner.signMessage) {
-      return 'wallet';
-    }
-    // UI-01 fix: require isAdmin flag for cedros-login auth
+    // Cedros Login auth must include the admin claim.
     if (this.jwtToken && this.isAdminUser) {
       return 'cedros-login';
+    }
+    if (this.hostSessionAllowed) {
+      return 'host-session';
     }
     return 'none';
   }
@@ -109,52 +93,33 @@ export class AdminAuthManager implements IAdminAuthManager {
     return this.getAuthMethod() !== 'none';
   }
 
-  setWalletSigner(signer: WalletSigner | null): void {
-    this.walletSigner = signer;
-    getLogger().debug('[AdminAuthManager] Wallet signer updated:', !!signer?.publicKey);
-  }
-
   setCedrosLoginAuth(token: string | null, isAdmin?: boolean): void {
+    if (this.jwtToken !== token || this.isAdminUser !== (isAdmin ?? false)) {
+      this.resetIdentity();
+    }
     this.jwtToken = token;
     this.isAdminUser = isAdmin ?? false;
     getLogger().debug('[AdminAuthManager] Cedros-login auth updated:', { hasToken: !!token, isAdmin: this.isAdminUser });
   }
 
-  async createAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders | JwtAuthHeaders> {
-    const method = this.getAuthMethod();
+  setHostSessionAuth(enabled: boolean): void {
+    if (this.hostSessionAllowed !== enabled) this.resetIdentity();
+    this.hostSessionAllowed = enabled;
+    getLogger().debug('[AdminAuthManager] Host-session auth updated:', { enabled });
+  }
 
-    if (method === 'wallet') {
-      return this.createWalletAuthHeaders(target);
-    }
+  async createAuthHeaders(): Promise<AdminAuthHeaders> {
+    const method = this.getAuthMethod();
 
     if (method === 'cedros-login') {
       return this.createJwtAuthHeaders();
     }
 
-    throw new Error('No admin authentication configured. Connect a wallet or sign in as admin.');
-  }
-
-  private async createWalletAuthHeaders(target: string | AdminAuthTarget): Promise<AdminAuthHeaders> {
-    if (!this.walletSigner?.publicKey || !this.walletSigner.signMessage) {
-      throw new Error('Wallet not connected or does not support message signing');
+    if (method === 'host-session') {
+      return {};
     }
 
-    // Fetch nonce from server
-    const nonce = await this.fetchNonce(target);
-
-    // Sign the issued nonce exactly as returned by the server
-    const messageBytes = new TextEncoder().encode(nonce.nonce);
-    const signatureBytes = await this.walletSigner.signMessage(messageBytes);
-
-    // Server expects a base58 signer and a base64-encoded raw Ed25519 signature.
-    const publicKeyBase58 = bs58.encode(this.walletSigner.publicKey.toBytes());
-    const signatureBase64 = Base64.fromUint8Array(signatureBytes);
-
-    return {
-      'X-Signer': publicKeyBase58,
-      'X-Message': nonce.nonce,
-      'X-Signature': signatureBase64,
-    };
+    throw new Error('No admin authentication configured. Sign in as admin.');
   }
 
   private createJwtAuthHeaders(): JwtAuthHeaders {
@@ -167,36 +132,48 @@ export class AdminAuthManager implements IAdminAuthManager {
     };
   }
 
-  private async fetchNonce(target: string | AdminAuthTarget): Promise<NonceResponse> {
-    const url = `${this.serverUrl}/paywall/v1/nonce`;
-    const nonceRequest = typeof target === 'string'
-      ? { purpose: target }
-      : { path: target.path, method: target.method.toUpperCase() };
-    getLogger().debug('[AdminAuthManager] Fetching nonce:', nonceRequest);
-
-    const response = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nonceRequest),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Failed to fetch nonce: ${response.status} ${text}`);
+  async fetchWithAuth<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const reqMethod = (options.method || 'GET').toUpperCase();
+    if (reqMethod === 'GET' && !options.signal) {
+      return this.readCache.read(path, () => this.performFetch<T>(path, options, reqMethod));
     }
-
-    return await response.json();
+    const mutation = reqMethod !== 'GET' && reqMethod !== 'HEAD';
+    if (mutation) this.readCache.invalidate();
+    try {
+      return await this.performFetch<T>(path, options, reqMethod);
+    } finally {
+      // A timeout or unreadable response may follow a committed mutation.
+      // Also fence GETs started while that mutation was in flight.
+      if (mutation) this.readCache.invalidate();
+    }
   }
 
-  async fetchWithAuth<T>(path: string, options: RequestInit = {}): Promise<T> {
+  retainDataEvents(): () => void {
+    return this.dataEvents.retain();
+  }
+
+  getIdentityGeneration(): number {
+    return this.identityGeneration;
+  }
+
+  private resetIdentity(): void {
+    this.identityGeneration += 1;
+    this.readCache.resetIdentity();
+    this.dataEvents.restartIdentity();
+  }
+
+  private async performFetch<T>(
+    path: string,
+    options: RequestInit,
+    reqMethod: string
+  ): Promise<T> {
     const method = this.getAuthMethod();
 
     if (method === 'none') {
       throw new Error('No admin authentication configured');
     }
 
-    const reqMethod = (options.method || 'GET').toUpperCase();
-    const authHeaders = await this.createAuthHeaders({ path, method: reqMethod });
+    const authHeaders = await this.createAuthHeaders();
     const headers: Record<string, string> = {
       // Only set Content-Type for methods that typically carry a body
       ...(reqMethod !== 'GET' && reqMethod !== 'HEAD' ? { 'Content-Type': 'application/json' } : {}),
@@ -204,8 +181,16 @@ export class AdminAuthManager implements IAdminAuthManager {
       ...authHeaders,
     };
 
+    // Host-session auth rides the embedding host's admin session cookie. The
+    // admin SPA and the data API can sit on different origins (e.g. sibling
+    // dev-stack ports), where 'same-origin' silently drops the cookie and the
+    // host fails closed with 401. 'include' lets the host's CORS allowlist and
+    // admin-trusted-origin CSRF checks decide instead.
+    const defaultCredentials: RequestCredentials =
+      method === 'host-session' ? 'include' : 'same-origin';
     const response = await fetchWithTimeout(`${this.serverUrl}${path}`, {
       ...options,
+      credentials: options.credentials ?? defaultCredentials,
       headers,
     });
 
@@ -216,35 +201,22 @@ export class AdminAuthManager implements IAdminAuthManager {
         const body = await response.json();
         if (body && typeof body.error === 'string') {
           safeMessage = body.error;
+        } else if (body && typeof body.error?.message === 'string') {
+          // Wasm extension error envelope: { error: { code, message } }
+          safeMessage = body.error.message;
         } else if (body && typeof body.message === 'string') {
           safeMessage = body.message;
         }
       } catch {
         // Non-JSON error body — use status code only
       }
-      throw new Error(safeMessage);
+      throw new AdminApiError(safeMessage, response.status);
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
     }
 
     return await response.json();
   }
 }
-
-/** Nonce purposes for admin endpoints */
-export const ADMIN_NONCE_PURPOSES = {
-  STATS: 'admin_stats',
-  PRODUCTS_LIST: 'admin_products_list',
-  PRODUCTS_CREATE: 'admin_products_create',
-  PRODUCTS_UPDATE: 'admin_products_update',
-  PRODUCTS_DELETE: 'admin_products_delete',
-  TRANSACTIONS_LIST: 'admin_transactions_list',
-  COUPONS_LIST: 'admin_coupons_list',
-  COUPONS_CREATE: 'admin_coupons_create',
-  COUPONS_UPDATE: 'admin_coupons_update',
-  COUPONS_DELETE: 'admin_coupons_delete',
-  REFUNDS_LIST: 'admin_refunds_list',
-  REFUNDS_PROCESS: 'admin_refunds_process',
-  CONFIG_LIST: 'admin_config_list',
-  CONFIG_GET: 'admin_config_get',
-  CONFIG_UPDATE: 'admin_config_update',
-  CONFIG_PATCH: 'admin_config_patch',
-} as const;

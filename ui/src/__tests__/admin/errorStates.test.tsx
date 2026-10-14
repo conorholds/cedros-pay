@@ -1,8 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ErrorBanner } from '../../components/admin/ErrorBanner';
-import { OverviewSection } from '../../components/admin/OverviewSection';
+import type { IAdminAuthManager } from '../../components/admin/AdminAuthManager';
 import { ProductsSection } from '../../components/admin/ProductsSection';
-import { FAQSection } from '../../components/admin/FAQSection';
 
 // ─── ErrorBanner unit tests ─────────────────────────────────────────────────
 
@@ -12,21 +11,18 @@ describe('ErrorBanner', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders error message without retry button when no onRetry', () => {
+  it('renders the error message with no retry/refresh control', () => {
     render(<ErrorBanner message="Something went wrong" />);
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    // Recovery happens in the background, so the banner exposes no button.
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('renders retry button that calls onRetry when clicked', () => {
+  it('runs an explicit safe retry when provided', () => {
     const onRetry = vi.fn();
-    render(<ErrorBanner message="Network error" onRetry={onRetry} />);
+    render(<ErrorBanner message="Something went wrong" onRetry={onRetry} />);
 
-    expect(screen.getByText('Network error')).toBeInTheDocument();
-    const retryButton = screen.getByRole('button');
-    expect(retryButton).toHaveTextContent('Retry');
-
-    fireEvent.click(retryButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 });
@@ -35,23 +31,8 @@ describe('ErrorBanner', () => {
 
 const SECTION_PROPS = { serverUrl: 'http://localhost:9999' };
 
-describe('OverviewSection error state', () => {
-  it('shows error banner with retry on API failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
-
-    render(<OverviewSection {...SECTION_PROPS} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load payment stats')).toBeInTheDocument();
-    });
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-
-    vi.restoreAllMocks();
-  });
-});
-
 describe('ProductsSection error state', () => {
-  it('shows error banner with retry on API failure', async () => {
+  it('surfaces a first-load error with a retry button', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
     render(<ProductsSection {...SECTION_PROPS} />);
@@ -59,23 +40,51 @@ describe('ProductsSection error state', () => {
     await waitFor(() => {
       expect(screen.getByText('Failed to load products')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
 
     vi.restoreAllMocks();
   });
-});
 
-describe('FAQSection error state', () => {
-  it('shows error banner with retry on API failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+  it('ignores an older failed load after a newer load succeeds', async () => {
+    let rejectInitialLoad: ((reason?: unknown) => void) | undefined;
+    let productFetches = 0;
+    const fetchWithAuth = vi.fn(async (path: string) => {
+      if (path.startsWith('/admin/config/shop')) {
+        return { config: {} };
+      }
+      if (path === '/admin/subscriptions/settings') {
+        return { enabled: true, plans: [] };
+      }
+      if (path === '/admin/v1/status') {
+        return {};
+      }
 
-    render(<FAQSection {...SECTION_PROPS} />);
+      productFetches += 1;
+      if (productFetches === 1) {
+        return new Promise((_, reject) => {
+          rejectInitialLoad = reject;
+        });
+      }
+      return {
+        products: [{ id: 'developer', title: 'Developer', active: true }],
+      };
+    }) as unknown as IAdminAuthManager['fetchWithAuth'];
+    const authManager: IAdminAuthManager = {
+      getAuthMethod: () => 'cedros-login',
+      isAuthenticated: () => true,
+      setCedrosLoginAuth: () => {},
+      createAuthHeaders: async () => ({ Authorization: 'Bearer token' }),
+      fetchWithAuth,
+    };
 
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load FAQs')).toBeInTheDocument();
-    });
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    render(<ProductsSection {...SECTION_PROPS} authManager={authManager} />);
+    await waitFor(() => expect(productFetches).toBe(1));
 
-    vi.restoreAllMocks();
+    window.dispatchEvent(new Event('cedros-pay:data-invalidated'));
+    expect(await screen.findByText('Developer')).toBeInTheDocument();
+
+    rejectInitialLoad?.(new Error('Admin data changed during request'));
+    await waitFor(() => expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'false'));
+    expect(screen.queryByText('Failed to load products')).not.toBeInTheDocument();
   });
 });

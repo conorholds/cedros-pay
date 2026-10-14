@@ -3,14 +3,20 @@
  *
  * List return requests with status filter, view details, update status.
  * Server: GET /admin/returns, GET /admin/returns/:id,
- *         POST /admin/returns, PUT /admin/returns/:id/status
+ *         POST /admin/returns, POST /admin/returns/:id/status
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Icons } from './icons';
 import { ErrorBanner } from './ErrorBanner';
+import { StatsBar, type StatItem } from './StatsBar';
+import { FilterDropdown, FormDropdown } from './Dropdown';
+import { SortableHeader } from './SortableHeader';
+import { TableEmptyRow, TableErrorRow, TableLoadingRows } from './TableStateRows';
+import { useBackgroundRefresh } from './useBackgroundRefresh';
+import { useTableSort, type SortValue } from './useTableSort';
 import type { SectionProps } from './types';
 import { formatDateTime } from '../../utils/dateHelpers';
+import { fetchAdminJson } from './authFetch';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +56,19 @@ const statusBadgeVariant = (status: ReturnStatus): string => {
   }
 };
 
+const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Stable accessor for the sortable return columns (see useTableSort). */
+function returnSortValue(r: ReturnRequest, key: string): SortValue {
+  switch (key) {
+    case 'orderId': return r.orderId;
+    case 'items': return r.items.length;
+    case 'status': return r.status;
+    case 'created': return r.createdAt;
+    default: return null;
+  }
+}
+
 // ─── Detail View ─────────────────────────────────────────────────────────────
 
 interface DetailViewProps {
@@ -70,7 +89,7 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
     try {
       const updated = await fetchWithAuth<ReturnRequest>(
         `/admin/returns/${encodeURIComponent(r.id)}/status`,
-        { method: 'PUT', body: JSON.stringify({ status: newStatus }) }
+        { method: 'POST', body: JSON.stringify({ status: newStatus }) }
       );
       onStatusUpdated(updated);
     } catch {
@@ -84,7 +103,7 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
     <div>
       <button
         type="button"
-        className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
+        className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
         onClick={onBack}
         style={{ marginBottom: '1rem' }}
       >
@@ -95,7 +114,7 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
         <h3 className="cedros-admin__section-title">
           Return <code style={{ fontSize: '0.8rem' }}>{r.id.slice(0, 12)}</code>
           <span
-            className={`cedros-admin__badge cedros-admin__badge--${statusBadgeVariant(r.status)}`}
+            className={`cedros-data-pill cedros-admin__badge cedros-admin__badge--${statusBadgeVariant(r.status)}`}
             style={{ marginLeft: '0.5rem' }}
           >
             {r.status}
@@ -103,8 +122,8 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
         </h3>
       </div>
 
-      <div className="cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1rem' }}>
-        <table className="cedros-admin__table">
+      <div className="cedros-data-table-wrap cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1rem' }}>
+        <table className="cedros-data-table cedros-admin__table">
           <tbody>
             <tr>
               <td style={{ fontWeight: 600, width: '35%' }}>Order ID</td>
@@ -122,13 +141,13 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
             </tr>
             {r.statusUpdatedAt && (
               <tr>
-                <td style={{ fontWeight: 600 }}>Status Updated</td>
+                <td style={{ fontWeight: 600 }}>Status updated</td>
                 <td>{formatDateTime(r.statusUpdatedAt)}</td>
               </tr>
             )}
             {r.updatedAt && (
               <tr>
-                <td style={{ fontWeight: 600 }}>Last Updated</td>
+                <td style={{ fontWeight: 600 }}>Last updated</td>
                 <td>{formatDateTime(r.updatedAt)}</td>
               </tr>
             )}
@@ -140,8 +159,8 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
       <h4 style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem' }}>
         Items ({r.items.length})
       </h4>
-      <div className="cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1.25rem' }}>
-        <table className="cedros-admin__table">
+      <div className="cedros-data-table-wrap cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1.25rem' }}>
+        <table className="cedros-data-table cedros-admin__table">
           <thead>
             <tr>
               <th>Product ID</th>
@@ -156,7 +175,7 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
                 <td>
                   {item.variantId
                     ? <code style={{ fontSize: '0.75rem' }}>{item.variantId}</code>
-                    : <span style={{ color: 'var(--cedros-admin-text-muted, #888)' }}>—</span>}
+                    : <span className="cedros-admin__text-muted">—</span>}
                 </td>
                 <td>{item.quantity}</td>
               </tr>
@@ -169,8 +188,8 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
       {Object.keys(r.metadata).length > 0 && (
         <>
           <h4 style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.5rem' }}>Metadata</h4>
-          <div className="cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1.25rem' }}>
-            <table className="cedros-admin__table">
+          <div className="cedros-data-table-wrap cedros-admin__table-container" style={{ maxWidth: '500px', marginBottom: '1.25rem' }}>
+            <table className="cedros-data-table cedros-admin__table">
               <tbody>
                 {Object.entries(r.metadata).map(([k, v]) => (
                   <tr key={k}>
@@ -186,25 +205,20 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
 
       {/* Status update */}
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', maxWidth: '400px' }}>
-        <div className="cedros-admin__field" style={{ flex: 1 }}>
-          <label className="cedros-admin__field-label">Update Status</label>
-          <select
-            className="cedros-admin__input"
-            value={newStatus}
-            onChange={(e) => setNewStatus(e.target.value as ReturnStatus)}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
+        <FormDropdown
+          label="Update status"
+          value={newStatus}
+          onChange={(value) => setNewStatus(value as ReturnStatus)}
+          options={STATUS_OPTIONS.map((s) => ({ value: s, label: titleCase(s) }))}
+          style={{ flex: 1 }}
+        />
         <button
           type="button"
-          className="cedros-admin__button cedros-admin__button--primary"
+          className="cedros-data-btn cedros-admin__button cedros-data-btn--primary cedros-admin__button--primary"
           onClick={updateStatus}
           disabled={isUpdating || newStatus === r.status}
         >
-          {isUpdating ? 'Updating...' : 'Update'}
+          {isUpdating ? 'Updating…' : 'Update'}
         </button>
       </div>
     </div>
@@ -213,25 +227,22 @@ function ReturnDetailView({ returnRequest: r, onBack, onStatusUpdated, onError, 
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function ReturnsSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+export function ReturnsSection({ pageSize = 20, authManager }: SectionProps) {
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [statusFilter, setStatusFilter] = useState<'all' | ReturnStatus>('all');
   const [selectedReturn, setSelectedReturn] = useState<ReturnRequest | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const { sorted: sortedReturns, sortKey, sortDirection, toggleSort } = useTableSort(
+    returns,
+    returnSortValue,
+    { key: 'created', direction: 'desc' }
+  );
 
   const fetchWithAuth = useCallback(async <T,>(path: string, options?: RequestInit): Promise<T> => {
-    if (authManager?.isAuthenticated()) {
-      return authManager.fetchWithAuth<T>(path, options);
-    }
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['X-API-Key'] = apiKey;
-    const res = await fetch(`${serverUrl}${path}`, { ...options, headers: { ...headers, ...options?.headers } });
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    return res.json();
-  }, [serverUrl, apiKey, authManager]);
+    return fetchAdminJson<T>(authManager, path, options);
+  }, [authManager]);
 
   const fetchReturns = useCallback(async () => {
     setIsLoading(true);
@@ -246,24 +257,21 @@ export function ReturnsSection({ serverUrl, apiKey, pageSize = 20, authManager }
       setReturns(data.returns ?? []);
     } catch {
       setFetchError('Failed to load returns');
-      setReturns([]);
     } finally {
       setIsLoading(false);
     }
   }, [fetchWithAuth, pageSize, offset, statusFilter]);
 
   useEffect(() => { fetchReturns(); }, [fetchReturns]);
+  useBackgroundRefresh(fetchReturns);
 
   const openDetail = async (id: string) => {
-    setLoadingDetail(true);
     setFetchError(null);
     try {
       const data = await fetchWithAuth<ReturnRequest>(`/admin/returns/${encodeURIComponent(id)}`);
       setSelectedReturn(data);
     } catch {
       setFetchError('Failed to load return details');
-    } finally {
-      setLoadingDetail(false);
     }
   };
 
@@ -288,82 +296,103 @@ export function ReturnsSection({ serverUrl, apiKey, pageSize = 20, authManager }
 
   // ─── List view ──────────────────────────────────────────────────────────
 
+  // Stats are derived from the loaded page until returns has a dedicated
+  // aggregate stats endpoint, matching the lightweight list-first workflow here.
+  const countByStatus = (status: ReturnStatus) => returns.filter((r) => r.status === status).length;
+  const statItems: StatItem[] = [
+    { label: 'Total', value: returns.length },
+    {
+      label: 'Requested',
+      value: countByStatus('requested'),
+      variant: countByStatus('requested') > 0 ? 'warning' : 'muted',
+    },
+    { label: 'Approved', value: countByStatus('approved') },
+    { label: 'Refunded', value: countByStatus('refunded'), variant: 'success' },
+  ];
+
   return (
-    <div>
-      <div className="cedros-admin__section-header">
-        <h3 className="cedros-admin__section-title">Returns</h3>
+    <div className="cedros-data-stack cedros-admin__page">
+      <ErrorBanner message={returns.length > 0 ? fetchError : null} />
+      <StatsBar stats={statItems} isLoading={isLoading && returns.length === 0} />
+
+      <div className="cedros-data-toolbar cedros-admin__toolbar">
+        <div className="cedros-admin__filter">
+          <span className="cedros-admin__filter-label">Status</span>
+          <FilterDropdown
+            ariaLabel="Status"
+            value={statusFilter}
+            onChange={(value) => { setStatusFilter(value as 'all' | ReturnStatus); setOffset(0); }}
+            options={[
+              { value: 'all', label: 'All statuses' },
+              ...STATUS_OPTIONS.map((s) => ({ value: s, label: titleCase(s) })),
+            ]}
+          />
+        </div>
       </div>
 
-      <ErrorBanner message={fetchError} />
-
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
-        <select
-          className="cedros-admin__input"
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value as 'all' | ReturnStatus); setOffset(0); }}
-          style={{ width: 'auto', fontSize: '0.85rem' }}
-        >
-          <option value="all">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
-        <span style={{ fontSize: '0.85rem', color: 'var(--cedros-admin-text-muted, #888)' }}>
-          {returns.length} result{returns.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {isLoading || loadingDetail ? (
-        <div className="cedros-admin__loading">{Icons.loading} Loading returns...</div>
-      ) : returns.length === 0 ? (
-        <div className="cedros-admin__empty">No returns found.</div>
-      ) : (
-        <>
-          <div className="cedros-admin__table-container">
-            <table className="cedros-admin__table">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Items</th>
-                  <th>Status</th>
-                  <th>Reason</th>
-                  <th>Created</th>
-                  <th></th>
+      <>
+          <div className="cedros-data-table-wrap cedros-admin__table-container">
+          <table className="cedros-data-table cedros-admin__table" aria-busy={isLoading}>
+            <thead>
+              <tr>
+                <SortableHeader label="Order ID" sortKey="orderId" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                <SortableHeader label="Items" sortKey="items" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                <SortableHeader label="Status" sortKey="status" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                <th>Reason</th>
+                <SortableHeader label="Created" sortKey="created" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && sortedReturns.length === 0 ? (
+                <TableLoadingRows columns={6} label="Loading returns…" />
+              ) : fetchError && sortedReturns.length === 0 ? (
+                <TableErrorRow columns={6} message={fetchError} onRetry={fetchReturns} />
+              ) : sortedReturns.length === 0 ? (
+                <TableEmptyRow
+                  columns={6}
+                  filtered={statusFilter !== 'all'}
+                  title={statusFilter !== 'all' ? 'No returns match this filter' : 'No returns yet'}
+                  description={statusFilter !== 'all' ? 'Try a different status filter to see more returns.' : 'No return requests have been created yet.'}
+                  action={statusFilter !== 'all' ? (
+                    <button type="button" className="cedros-data-btn cedros-data-btn--ghost cedros-data-btn--sm" onClick={() => setStatusFilter('all')}>
+                      Clear filters
+                    </button>
+                  ) : undefined}
+                />
+              ) : sortedReturns.map((r) => (
+                <tr key={r.id}>
+                  <td><code style={{ fontSize: '0.75rem' }}>{r.orderId}</code></td>
+                  <td>{r.items.length}</td>
+                  <td>
+                    <span className={`cedros-data-pill cedros-admin__badge cedros-admin__badge--${statusBadgeVariant(r.status)}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.reason ?? <span className="cedros-admin__text-muted">—</span>}
+                  </td>
+                  <td>{formatDateTime(r.createdAt)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
+                      onClick={() => openDetail(r.id)}
+                    >
+                      View
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {returns.map((r) => (
-                  <tr key={r.id}>
-                    <td><code style={{ fontSize: '0.75rem' }}>{r.orderId}</code></td>
-                    <td>{r.items.length}</td>
-                    <td>
-                      <span className={`cedros-admin__badge cedros-admin__badge--${statusBadgeVariant(r.status)}`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.reason ?? <span style={{ color: 'var(--cedros-admin-text-muted, #888)' }}>—</span>}
-                    </td>
-                    <td>{formatDateTime(r.createdAt)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
-                        onClick={() => openDetail(r.id)}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.85rem' }}>
+          {returns.length > 0 ? (
+          <div className="cedros-data-pagination">
             <button
               type="button"
-              className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
+              className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
               disabled={offset === 0}
               onClick={() => setOffset(Math.max(0, offset - pageSize))}
             >
@@ -372,15 +401,15 @@ export function ReturnsSection({ serverUrl, apiKey, pageSize = 20, authManager }
             <span>Showing {returns.length} return{returns.length !== 1 ? 's' : ''}</span>
             <button
               type="button"
-              className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
+              className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
               disabled={returns.length < pageSize}
               onClick={() => setOffset(offset + pageSize)}
             >
               Next
             </button>
           </div>
+          ) : null}
         </>
-      )}
     </div>
   );
 }

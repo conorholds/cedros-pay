@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "contractId": "cedros-pay:versioned-cart-write-v1",
+  "capabilityId": "cedros-pay:versioned-cart-write-v1",
+  "storageModels": {
+    "carts": "cedros-pay:customer-carts",
+    "generations": "cedros-pay:customer-cart-generations",
+    "operations": "cedros-pay:customer-cart-operations",
+    "tombstones": "cedros-pay:customer-cart-tombstones",
+    "lanes": "cedros-pay:customer-cart-lanes"
+  },
+  "implementationReady": true,
+  "registered": true,
+  "active": true,
+  "intendedConsumer": "cedros-shop@3.x",
+  "authority": {
+    "customerIdentity": "authenticated-pay-subject",
+    "providerIdentity": "hashed-host-site-environment-plus-cedros-shop-family",
+    "generation": "host-entry-revision",
+    "lane": "fixed-default-only",
+    "operationId": "caller-issued CSPRNG identifier preserved byte-for-byte; never normalized or truncated",
+    "acceptedItemFields": ["resource", "variantId", "qty", "displayMetadata"],
+    "serverResolvedItemFields": [
+      "unitAmountCents",
+      "currency",
+      "titleSnapshot",
+      "imageSnapshot",
+      "paymentResource",
+      "inventory",
+      "holdId",
+      "holdExpiresAt"
+    ],
+    "promotionInput": "normalized-code-only",
+    "promotionDiscountInputAccepted": false,
+    "inventoryHoldInputAccepted": false,
+    "customerDisplayMetadataAuthoritative": false,
+    "callerCustomerTagAccepted": false,
+    "callerGenerationNumberAccepted": false,
+    "callerProviderScopeAccepted": false
+  },
+  "storage": {
+    "pricedSettlementModel": "cedros-pay:cart",
+    "overloadsPricedSettlementModel": false,
+    "records": ["generation", "cart", "operation", "tombstone", "lane-registry"],
+    "rawSubjectInKeys": false,
+    "publicVersion": "checked-monotonic-u64",
+    "hostRevision": "opaque-equality-only",
+    "operationRetention": "permanent-operation-and-tombstone",
+    "operationReplay": "fingerprint-bound forever; an accepted operationId is never re-executed",
+    "maxCommittedOperationsPerLane": 100000,
+    "guardedBatchRequestSchemaVersion": 1
+  },
+  "generationLifecycle": {
+    "open": "atomically create epoch 1 or return the existing host revision",
+    "recover": "read the current host revision from a fresh service instance",
+    "rotate": "version-guard the current generation record and increment its checked epoch",
+    "staleWrite": "return stale_generation with authoritative generation and cart state"
+  },
+  "applyGuards": [
+    "current generation host revision",
+    "cart host revision or absence",
+    "operation record absence",
+    "operation tombstone absence"
+  ],
+  "outcomes": [
+    "applied",
+    "replayed",
+    "conflict",
+    "stale_generation",
+    "idempotency_conflict"
+  ],
+  "limits": {
+    "maxLines": 100,
+    "maxLanesPerSubjectProvider": 1,
+    "maxQuantityPerLine": 999,
+    "maxUnitAmountCents": 100000000,
+    "maxTotalQuantity": 99900,
+    "maxSubtotalCents": 1000000000,
+    "maxCartVersion": 100000,
+    "maxGenerationEpoch": 1000000,
+    "maxLaneBytes": 64,
+    "maxIdentifierBytes": 128,
+    "maxGenerationBytes": 256,
+    "currency": "three-uppercase-ascii-letters"
+  },
+  "requestFixture": {
+    "lane": "default",
+    "generation": "opaque-host-revision-from-open",
+    "expectedVersion": 0,
+    "operationId": "shop-cart-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "mutation": {
+      "kind": "add",
+      "item": {
+        "resource": "sku-001",
+        "variantId": "blue-medium",
+        "qty": 2,
+        "displayMetadata": {"giftMessage": "Happy birthday"}
+      }
+    }
+  },
+  "appliedFixture": {
+    "outcome": "applied",
+    "state": {
+      "lane": "default",
+      "generationEpoch": 1,
+      "version": 1,
+      "hostRevision": "opaque-host-cart-revision",
+      "totalQuantity": 2,
+      "subtotalCents": 3000,
+      "currency": "USD"
+    }
+  },
+  "transport": {
+    "registered": true,
+    "operations": ["open", "read", "rotate", "apply"],
+    "routeBindings": [
+      ["cedros-pay:versioned-cart-open", "POST", "/cart/open"],
+      ["cedros-pay:versioned-cart-read", "POST", "/cart/read"],
+      ["cedros-pay:versioned-cart-rotate", "POST", "/cart/rotate"],
+      ["cedros-pay:versioned-cart-apply", "POST", "/cart/apply"]
+    ],
+    "buyerAuthority": "cedros-login-verified-bearer-subject",
+    "fixedLane": "default",
+    "maxBodyBytes": 16384,
+    "unknownFields": "rejected",
+    "authoritativeCatalogValidationBound": true,
+    "authoritativeInventoryValidationBound": true,
+    "authoritativePromotionValidationBound": true,
+    "authoritativeHoldValidationBound": false,
+    "durableLaneQuotaBound": true,
+    "hostRequestRatePolicyBound": true,
+    "guardedMarkerFirst": true,
+    "retryBehavior": "retry the exact operationId and material; replay returns its recorded applied version plus latest authoritative state",
+    "rateLimitError": "429 rate_limited with no identity or key disclosure"
+  },
+  "ratePolicy": {
+    "storageModel": "cedros-pay:customer-cart-lanes",
+    "entryKey": "rate:{sha256(trusted subject, provider, lane)}:{operation}",
+    "windowSeconds": 60,
+    "limitsPerWindow": {"open": 30, "read": 120, "rotate": 12, "apply": 60},
+    "concurrency": "opaque-version guarded CAS with five bounded retries",
+    "restartBehavior": "durable across adapters, processes, and restarts",
+    "expiryBehavior": "the single per-scope-operation row is replaced in place at the exact next window boundary",
+    "cleanupBehavior": "bounded version-fenced cleanup helper deletes inactive expired rows without racing renewed windows",
+    "clockRollbackBehavior": "never resets a counter while a later stored window remains active"
+  },
+  "holds": {
+    "callerInputAccepted": false,
+    "authority": "Pay catalog repricing only",
+    "currentBehavior": "no hold is returned until Pay creates one; caller material can never create or extend a hold"
+  },
+  "activationRequirements": [
+    "register the capability and five distinct content models with database scopes",
+    "require cedros-data:extension-storage-cas-v1 and use database.compare-and-set schemaVersion 1",
+    "bind a real authoritative inventory-hold service before exposing hold semantics",
+    "register authenticated Pay routes for the dormant adapter",
+    "run Shop distributed-process conformance against the real shared backend",
+    "keep checkout catalog, promotion, inventory, and settlement totals authoritative"
+  ],
+  "shopConformanceReference": {
+    "repository": "cedros-plugins/cedros-shop",
+    "sourceCommit": "6f08586",
+    "reportCommit": "ab06fa7",
+    "version": "3.0.0",
+    "archiveSha256": "87af93c16d02f7dfafbea2b3585c72b88be02c7d195ec5c5b4c07f2202bd5f52",
+    "wasmSha256": "9e9532653274bb038844d6ce12b3d87493fa660b445dd414d743457415cedb99",
+    "protocols": [
+      "cedros-cart-conformance-v1",
+      "cedros-distributed-process-worker-v1"
+    ]
+  }
+}

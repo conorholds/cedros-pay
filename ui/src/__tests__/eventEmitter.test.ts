@@ -25,6 +25,7 @@ describe('Event Emitter', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   describe('CEDROS_EVENTS constants', () => {
@@ -238,17 +239,72 @@ describe('Event Emitter', () => {
 
   describe('timestamp accuracy', () => {
     it('uses current timestamp for each event', () => {
+      const now = new Date('2026-06-01T12:34:56Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
       window.addEventListener(CEDROS_EVENTS.PAYMENT_START, eventListener);
 
-      const beforeEmit = Date.now();
       emitPaymentStart('stripe', 'demo-item', undefined);
-      const afterEmit = Date.now();
 
       const event = eventListener.mock.calls[0][0] as CustomEvent<PaymentStartDetail>;
-      expect(event.detail.timestamp).toBeGreaterThanOrEqual(beforeEmit);
-      expect(event.detail.timestamp).toBeLessThanOrEqual(afterEmit);
+      expect(event.detail.timestamp).toBe(now.getTime());
 
       window.removeEventListener(CEDROS_EVENTS.PAYMENT_START, eventListener);
+    });
+  });
+
+  describe('host analytics bridge', () => {
+    afterEach(() => {
+      delete window.cedrosAnalytics;
+    });
+
+    it('forwards payment-started with a redacted rail and no PII', () => {
+      const track = vi.fn();
+      window.cedrosAnalytics = { trackExtensionEvent: track };
+
+      emitPaymentStart('crypto', 'secret-resource', 3);
+
+      expect(track).toHaveBeenCalledOnce();
+      const input = track.mock.calls[0][0];
+      expect(input.extensionId).toBe('cedros-pay');
+      expect(input.eventId).toBe('cedros-pay:payment-started');
+      expect(input.metadata).toEqual({
+        sourceSurface: 'checkout-block',
+        paymentRail: 'x402',
+        amountBucket: 'unknown',
+      });
+      // Never leak the resource id or item count to the host pipeline.
+      expect(JSON.stringify(input)).not.toContain('secret-resource');
+      expect(JSON.stringify(input)).not.toContain('"3"');
+    });
+
+    it('forwards wallet-connected without the wallet address', () => {
+      const track = vi.fn();
+      window.cedrosAnalytics = { trackExtensionEvent: track };
+
+      emitWalletConnected('Phantom', 'PUBLIC_KEY_SECRET');
+
+      const input = track.mock.calls[0][0];
+      expect(input.eventId).toBe('cedros-pay:wallet-connected');
+      expect(input.metadata).toEqual({
+        sourceSurface: 'checkout-block',
+        walletProviderKind: 'browser-wallet',
+        network: 'solana',
+      });
+      expect(JSON.stringify(input)).not.toContain('PUBLIC_KEY_SECRET');
+    });
+
+    it('no-ops when the host bridge is absent', () => {
+      expect(() => emitPaymentStart('stripe', 'demo', 1)).not.toThrow();
+    });
+
+    it('swallows host bridge errors so checkout is unaffected', () => {
+      window.cedrosAnalytics = {
+        trackExtensionEvent: () => {
+          throw new Error('host down');
+        },
+      };
+      expect(() => emitWalletConnected('Solflare', 'pk')).not.toThrow();
     });
   });
 });

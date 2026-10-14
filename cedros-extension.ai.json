@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "cedros-pay",
+  "version": "5.0.8",
+  "surfaceStatus": {
+    "mode": "skills-and-capabilities",
+    "packageRef": "server",
+    "runtimePackage": "cedros-pay@5.0.8",
+    "capabilityExecution": "manifest-owned-wasm-routes",
+    "siteBrainMetadataPublication": "published"
+  },
+  "skills": [
+    {
+      "skillId": "cedros-pay:checkout",
+      "name": "Checkout",
+      "visibility": "public",
+      "category": "commerce",
+      "docsSource": "manifest.surfaces.ai.skills",
+      "runtimeBehavior": "Discovery documentation only. Canonical checkout and versioned-cart execution uses the registered Cedros Pay 5.0.8 Wasm routes and fails closed until the exact eighteen-model guarded-policy marker validates."
+    },
+    {
+      "skillId": "cedros-pay:subscriptions",
+      "name": "Subscriptions",
+      "visibility": "authenticated",
+      "category": "billing",
+      "docsSource": "manifest.surfaces.ai.skills",
+      "runtimeBehavior": "Discovery documentation only; subscription execution is through the self-serve Wasm subscription routes."
+    },
+    {
+      "skillId": "cedros-pay:admin",
+      "name": "Admin",
+      "visibility": "admin",
+      "category": "admin",
+      "docsSource": "manifest.surfaces.ai.skills",
+      "runtimeBehavior": "Discovery documentation only; implemented admin execution uses the Wasm admin routes with Cedros Login admin auth. Returns are persisted in the guarded commerce ledger with validated lifecycle transitions. Reserved dispute compatibility routes remain unsupported, hidden by the packaged admin UI, and fail closed with 501 not_implemented."
+    }
+  ],
+  "capabilityRouteMappings": [
+    {
+      "capabilityId": "cedros-pay:assistant-x402-purchase",
+      "assistantAction": "cedros.monetization.x402.purchase",
+      "operationId": "cedros_pay_x402_purchase",
+      "endpointPath": "/extensions/cedros-pay/assistant/v1/x402/purchase",
+      "serverRouteId": "cedros-pay:assistant-x402-purchase",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:guarded-policy-enroll",
+      "endpointPath": "/extensions/cedros-pay/admin/guarded-policy/enroll",
+      "serverRouteId": "cedros-pay:guarded-policy-enroll",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-records-query",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/records/query",
+      "serverRouteId": "cedros-pay:admin-catalog-records-query",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-activation-status",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/activation/status",
+      "serverRouteId": "cedros-pay:admin-capacity-activation-status",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-tax-readiness",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/tax/readiness",
+      "serverRouteId": "cedros-pay:admin-capacity-tax-readiness",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-product-upsert",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/products/upsert",
+      "serverRouteId": "cedros-pay:admin-catalog-product-upsert",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-product-active-set",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/products/active",
+      "serverRouteId": "cedros-pay:admin-catalog-product-active-set",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-product-delete",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/products/delete",
+      "serverRouteId": "cedros-pay:admin-catalog-product-delete",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-price-upsert",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/prices/upsert",
+      "serverRouteId": "cedros-pay:admin-catalog-price-upsert",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-stripe-tax-code-set",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/products/stripe-tax-code",
+      "serverRouteId": "cedros-pay:admin-catalog-stripe-tax-code-set",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:catalog-stripe-sync",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/products/sync-stripe",
+      "serverRouteId": "cedros-pay:admin-catalog-stripe-sync",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:subscription-settings-update",
+      "endpointPath": "/extensions/cedros-pay/admin/subscriptions/settings",
+      "serverRouteId": "cedros-pay:admin-subscriptions-settings-update",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:program-entitlement-upsert",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/program-entitlements/upsert",
+      "serverRouteId": "cedros-pay:admin-program-entitlement-upsert",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:program-invite-upsert",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/program-invites/upsert",
+      "serverRouteId": "cedros-pay:admin-program-invite-upsert",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:program-membership-upsert",
+      "endpointPath": "/extensions/cedros-pay/admin/catalog/program-memberships/upsert",
+      "serverRouteId": "cedros-pay:admin-program-membership-upsert",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:storefront-products-query",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/products/query",
+      "serverRouteId": "cedros-pay:ai-storefront-products-query",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:physical-product-create",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/products/create",
+      "serverRouteId": "cedros-pay:ai-physical-product-create",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:physical-product-update",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/products/update",
+      "serverRouteId": "cedros-pay:ai-storefront-product-update",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:physical-product-delete",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/products/delete",
+      "serverRouteId": "cedros-pay:ai-physical-product-delete",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:orders-query",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/orders/query",
+      "serverRouteId": "cedros-pay:ai-orders-query",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:order-get",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/orders/get",
+      "serverRouteId": "cedros-pay:ai-order-get",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:physical-order-fulfillment",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/orders/fulfillment",
+      "serverRouteId": "cedros-pay:ai-order-fulfillment",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:shipping-setup-query",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/shipping/query",
+      "serverRouteId": "cedros-pay:ai-shipping-setup-query",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:shipping-profile-save",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/shipping/profile",
+      "serverRouteId": "cedros-pay:ai-shipping-profile-save",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:shipping-rate-save",
+      "endpointPath": "/extensions/cedros-pay/admin/assistant/shipping/rate",
+      "serverRouteId": "cedros-pay:ai-shipping-rate-save",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-read",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/read",
+      "serverRouteId": "cedros-pay:admin-capacity-read",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-configure",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/configure",
+      "serverRouteId": "cedros-pay:admin-capacity-configure",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-enroll",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/enroll",
+      "serverRouteId": "cedros-pay:admin-capacity-enroll",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-activate",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/activate",
+      "serverRouteId": "cedros-pay:admin-capacity-activate",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    },
+    {
+      "capabilityId": "cedros-pay:capacity-coupon-ensure",
+      "endpointPath": "/extensions/cedros-pay/admin/capacity/coupon-ensure",
+      "serverRouteId": "cedros-pay:admin-capacity-coupon-ensure",
+      "ownedByExtension": true,
+      "runtime": "wasm-route"
+    }
+  ],
+  "discoveryEndpoints": [
+    {
+      "path": "/ai.txt",
+      "purpose": "Crawler summary emitted by the current server package.",
+      "cedrosAiCapability": false
+    },
+    {
+      "path": "/llms.txt",
+      "purpose": "LLM summary emitted by the current server package.",
+      "cedrosAiCapability": false
+    },
+    {
+      "path": "/skill.json",
+      "purpose": "Machine-readable skill metadata emitted by the current server package.",
+      "cedrosAiCapability": false
+    },
+    {
+      "path": "/skills/:id",
+      "purpose": "Markdown skill docs emitted by the current server package.",
+      "cedrosAiCapability": false
+    }
+  ],
+  "capabilityPolicy": {
+    "status": "active",
+    "reason": "Cedros Pay publishes ten admin catalog, subscription, and program capabilities plus the authenticated, confirmation-gated Site Assistant x402 purchase action.",
+    "futureEndpointRule": "Every future surfaces.ai.capabilities[] entry must map to a manifest-declared Wasm server route id or a published external host capability endpoint.",
+    "reservedPrefixes": [
+      "/ai/capabilities"
+    ],
+    "authSchemes": [
+      "bearer-token"
+    ],
+    "stagingGate": "Every capability must pass package validation and staged shared-execution read-back tests before production."
+  },
+  "providerUse": {
+    "providerAccessId": "cedros-pay:intelligence",
+    "provider": "intelligence",
+    "runtimeStatus": "published",
+    "scope": "chat.generate",
+    "usage": "Optional AI support and catalog assistance only through the site-owned intelligence provider when an AI-assisted route is explicitly enabled.",
+    "assistantX402Signing": {
+      "accessId": "cedros-pay:blockchain-assistant-x402-sign",
+      "provider": "blockchain",
+      "operation": "blockchain.solana.sign.assistant-x402",
+      "contract": "docs/assistant-x402-signing-contract.json",
+      "isolation": "Dedicated Site Assistant wallet only; no operational, treasury, browser, or legacy fallback."
+    }
+  },
+  "runtimeRecords": {
+    "siteBrain": "Catalog AI mutations emit durable redacted site-brain records through telemetry.emit-record.",
+    "logs": "AI discovery and execution failures use redacted structured logs with extensionId, skillId or capabilityId, operation, and cause."
+  },
+  "acceptanceChecks": [
+    "AI surface packageRef is server.",
+    "Every capability maps to one manifest-declared Wasm route with admin bearer authentication.",
+    "Catalog mutations are idempotent by stable handle, reject duplicates, and return read-back identities.",
+    "Legacy discovery endpoints remain non-Cedros capability execution surfaces.",
+    "Manifest publishes the exact cedros.monetization.x402.purchase action contract and cedros_pay_x402_purchase boundary.",
+    "Assistant identity, approval, run, request, and idempotency values come only from Cedros Data authenticated server context.",
+    "Assistant purchases expose no wallet locator, transaction bytes, signing authority, RPC secret, or Vault policy internals."
+  ],
+  "assistantActionContracts": [
+    {
+      "schemaVersion": 1,
+      "assistantAction": "cedros.monetization.x402.purchase",
+      "operationId": "cedros_pay_x402_purchase",
+      "capabilityId": "cedros-pay:assistant-x402-purchase",
+      "serverRouteId": "cedros-pay:assistant-x402-purchase",
+      "endpoint": {
+        "method": "POST",
+        "path": "/extensions/cedros-pay/assistant/v1/x402/purchase"
+      },
+      "risk": "mutating",
+      "confirmationRequired": true,
+      "targetArgumentPaths": [
+        "/resourceUrl"
+      ],
+      "effect": {
+        "operation": "execute",
+        "rollbackSupported": false
+      },
+      "authentication": {
+        "transport": "bearer-token",
+        "source": "Cedros Data verified signed tool request",
+        "requiredCapabilityClaim": "cedros-pay:assistant-x402-purchase",
+        "trustedServerContextSchema": {
+          "type": "object",
+          "required": [
+            "authenticated",
+            "authScheme",
+            "capabilityClaims",
+            "assistantId",
+            "assistantAction",
+            "runId",
+            "requestId",
+            "idempotencyKey",
+            "confirmationVerified",
+            "authorizedMaxAmountMicrounits"
+          ],
+          "properties": {
+            "authenticated": {
+              "const": true
+            },
+            "authScheme": {
+              "const": "bearer-token"
+            },
+            "capabilityClaims": {
+              "type": "array",
+              "contains": {
+                "const": "cedros-pay:assistant-x402-purchase"
+              }
+            },
+            "assistantId": {
+              "const": "ai-assistant"
+            },
+            "assistantAction": {
+              "const": "cedros.monetization.x402.purchase"
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "requestId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 240,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "confirmationVerified": {
+              "type": "boolean"
+            },
+            "authorizedMaxAmountMicrounits": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "derivation": {
+          "assistantId": "request.scope.assistant_id; must equal ai-assistant",
+          "assistantAction": "request.tool_name; must equal cedros.monetization.x402.purchase",
+          "runId": "request.scope.run_id",
+          "requestId": "request.request_id",
+          "idempotencyKey": "request.idempotency_key",
+          "confirmationVerified": "valid, unexpired request.confirmation bound to request.scope.user_id",
+          "authorizedMaxAmountMicrounits": "positive approved ceiling derived by Cedros Data from the signed request and site budget policy"
+        }
+      },
+      "modelControlledArgumentsSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "maxAmountMicrounits": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "resourceUrl": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceUrl"
+        ],
+        "type": "object"
+      },
+      "payRouteResponseSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "boundary": {
+            "const": "cedros_pay_x402_purchase",
+            "type": "string"
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "output": {
+            "additionalProperties": false,
+            "properties": {
+              "assistantId": {
+                "const": "ai-assistant",
+                "type": "string"
+              },
+              "cluster": {
+                "enum": [
+                  "devnet",
+                  "testnet",
+                  "mainnet-beta",
+                  "localnet"
+                ],
+                "type": "string"
+              },
+              "failureCode": {
+                "enum": [
+                  "balance_check_failed",
+                  "budget_denied",
+                  "changed_requirement",
+                  "cluster_mismatch",
+                  "discovery_failure",
+                  "invalid_requirement",
+                  "payer_mismatch",
+                  "policy_denied",
+                  "replay_mismatch",
+                  "signing_rejected",
+                  "stale_wallet_version",
+                  "submission_failure",
+                  "transaction_failed",
+                  "wrong_wallet"
+                ],
+                "type": "string"
+              },
+              "message": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "payerPublicKey": {
+                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                "type": "string"
+              },
+              "policyDecisionId": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "postcondition": {
+                "additionalProperties": false,
+                "properties": {
+                  "request_target_digest": {
+                    "pattern": "^sha256:[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "state_digest": {
+                    "pattern": "^sha256:[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "const": "completed",
+                    "type": "string"
+                  },
+                  "target": {
+                    "format": "uri",
+                    "maxLength": 2048,
+                    "type": "string"
+                  },
+                  "verified": {
+                    "const": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "verified",
+                  "target",
+                  "request_target_digest",
+                  "state_digest",
+                  "status"
+                ],
+                "type": "object"
+              },
+              "status": {
+                "enum": [
+                  "approval_required",
+                  "budget_denied",
+                  "vault_policy_denied",
+                  "insufficient_balance",
+                  "wallet_unavailable",
+                  "wallet_pending",
+                  "wallet_rotating",
+                  "wallet_disabled",
+                  "wallet_blocked",
+                  "cluster_mismatch",
+                  "stale_wallet_version",
+                  "transaction_failed",
+                  "ambiguous",
+                  "failed",
+                  "confirmed"
+                ],
+                "type": "string"
+              },
+              "transactionResult": {
+                "additionalProperties": false,
+                "properties": {
+                  "signature": {
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,96}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "finalized"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status",
+                  "signature"
+                ],
+                "type": "object"
+              },
+              "walletPurpose": {
+                "const": "site-assistant",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "message"
+            ],
+            "type": "object"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "rollback": {
+            "type": "null"
+          },
+          "target": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "boundary",
+          "target",
+          "output",
+          "isError",
+          "replayed",
+          "rollback"
+        ],
+        "type": "object"
+      },
+      "signedDataResponseBinding": {
+        "protocol": "cedros.data-assistant.tool-execution/v1",
+        "exactRequestFields": [
+          "request_id",
+          "scope",
+          "tool_name",
+          "idempotency_key"
+        ],
+        "payResultFields": [
+          "boundary",
+          "target",
+          "output",
+          "is_error",
+          "replayed",
+          "rollback"
+        ],
+        "requiredBoundary": "cedros_pay_x402_purchase",
+        "resultDigest": "SHA-256 of canonical response.output",
+        "signature": "Cedros Data response signature over the complete response envelope",
+        "blocks": "empty/redacted only"
+      },
+      "retryContract": {
+        "unresolvedStatuses": [
+          "ambiguous"
+        ],
+        "identityFields": [
+          "assistantId",
+          "runId",
+          "requestId",
+          "idempotencyKey"
+        ],
+        "rule": "Retry only the identical arguments and trusted identity until the durable result resolves; a changed intent is replay_mismatch."
+      },
+      "signingContract": {
+        "schemaVersion": 1,
+        "document": "docs/assistant-x402-signing-contract.json",
+        "providerAccessId": "cedros-pay:blockchain-assistant-x402-sign",
+        "provider": "blockchain",
+        "operation": "blockchain.solana.sign.assistant-x402",
+        "vaultIntentKind": "assistantX402Payment",
+        "paymentRail": "solana-spl-transfer-checked",
+        "instructionPolicy": "Optional bounded Compute Budget instructions, then exactly one SPL Token TransferChecked and exactly one SPL Memo."
+      },
+      "forbiddenModelArguments": [
+        "walletId",
+        "walletVersionId",
+        "vaultWalletId",
+        "activeVersionId",
+        "cluster",
+        "network",
+        "serializedTransactionBase64",
+        "signedTransactionBase64",
+        "transaction bytes",
+        "private key",
+        "seed",
+        "signing provider payload",
+        "provider authorization",
+        "RPC URL or secret"
+      ],
+      "forbiddenResults": [
+        "walletId",
+        "walletVersionId",
+        "vaultWalletId",
+        "activeVersionId",
+        "serializedTransactionBase64",
+        "signedTransactionBase64",
+        "transaction bytes",
+        "private key",
+        "seed",
+        "signing provider payload",
+        "provider authorization",
+        "RPC URL or secret",
+        "Vault policy internals"
+      ]
+    }
+  ]
+}

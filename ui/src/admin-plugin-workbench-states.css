@@ -1,0 +1,206 @@
+/* Workbench data summaries, empty states, and loading states. */
+.cedros-pay-admin .cedros-data-summary-grid,
+.cedros-pay-admin .cedros-admin__stats-bar-grid,
+.cedros-pay-dashboard .cedros-data-summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.25rem), 1fr));
+}
+
+.cedros-pay-admin .cedros-admin__stats-bar {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  padding: 0;
+}
+
+/* Tiles are equal-height grid cells, so their rows must start at the top:
+   otherwise a tile without a hint centres its label/value and breaks the
+   shared baseline the row is read across (Workbench W3). */
+.cedros-pay-admin .cedros-data-metric,
+.cedros-pay-admin .cedros-admin__stats-bar-item,
+.cedros-pay-dashboard .cedros-data-metric {
+  align-content: start;
+  background: var(--pay-admin-card-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius-surface);
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+}
+
+/* Interactive metric: the whole tile is the one link to its destination
+   (Workbench §7 Metrics) — never a tile plus a separate action button. */
+.cedros-pay-admin a.cedros-data-metric--interactive {
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--motion-duration-fast, 160ms) ease,
+    border-color var(--motion-duration-fast, 160ms) ease;
+}
+
+.cedros-pay-admin a.cedros-data-metric--interactive:hover {
+  background: color-mix(in srgb, var(--pay-admin-bg) 84%, var(--pay-admin-accent) 16%);
+  border-color: color-mix(in srgb, var(--pay-admin-border) 60%, var(--pay-admin-muted) 40%);
+}
+
+.cedros-pay-admin a.cedros-data-metric--interactive:focus-visible {
+  outline: 2px solid var(--pay-admin-ring);
+  outline-offset: 2px;
+}
+
+.cedros-pay-admin .cedros-data-metric__label,
+.cedros-pay-admin .cedros-admin__stats-bar-label,
+.cedros-pay-dashboard .cedros-data-metric__label {
+  color: var(--pay-admin-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cedros-pay-admin .cedros-data-metric__value,
+.cedros-pay-admin .cedros-admin__stats-bar-value,
+.cedros-pay-dashboard .cedros-data-metric__value {
+  color: var(--pay-admin-fg);
+  font-family: inherit;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.cedros-pay-admin .cedros-data-metric__hint,
+.cedros-pay-admin .cedros-admin__stats-bar-desc,
+.cedros-pay-dashboard .cedros-data-metric__hint {
+  color: var(--pay-admin-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.cedros-pay-admin .cedros-data-empty-state,
+.cedros-pay-admin .cedros-admin__empty-state {
+  align-content: center;
+  border: 1px dashed color-mix(in srgb, var(--pay-admin-border) 76%, var(--pay-admin-muted) 24%);
+  border-radius: calc(var(--pay-admin-radius) - 0.0625rem);
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  min-height: 9rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.cedros-pay-admin .cedros-data-empty,
+.cedros-pay-dashboard .cedros-data-empty {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+}
+
+.cedros-pay-admin .cedros-data-empty-state__art {
+  animation:
+    cedros-pay-empty-art-in
+    var(--motion-duration-standard, 220ms)
+    var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1))
+    both,
+    cedros-pay-empty-art-float 5s ease-in-out var(--motion-duration-standard, 220ms) infinite;
+  color: var(--pay-admin-muted);
+  height: 4.5rem;
+  margin-bottom: 0.25rem;
+  width: 4.5rem;
+}
+
+.cedros-pay-admin .cedros-data-empty-state__art > svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.cedros-pay-admin .cedros-data-empty-state__art-accent {
+  color: var(--cd-chart-5, var(--pay-admin-info));
+}
+
+@keyframes cedros-pay-empty-art-in {
+  from { opacity: 0; transform: translateY(0.25rem) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cedros-pay-empty-art-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.3125rem); }
+}
+
+.cedros-pay-admin .cedros-admin__empty--filtered,
+.cedros-pay-admin .cedros-admin__empty--micro {
+  align-items: center;
+  color: var(--pay-admin-muted);
+  display: flex;
+  font-size: 0.8125rem;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 4rem;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.cedros-pay-admin .cedros-admin__empty--micro {
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.cedros-pay-admin .cedros-admin__loading-state {
+  border: 1px solid var(--pay-admin-border);
+  border-radius: calc(var(--pay-admin-radius) - 0.0625rem);
+  padding: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton span,
+.cedros-pay-dashboard .cedros-dashboard__skeleton span {
+  animation:
+    cedros-pay-workbench-shimmer
+    var(--motion-duration-loading, 1400ms)
+    var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1))
+    infinite;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--pay-admin-fg) 6%, var(--pay-admin-bg)),
+    color-mix(in srgb, var(--pay-admin-fg) 12%, var(--pay-admin-bg)),
+    color-mix(in srgb, var(--pay-admin-fg) 6%, var(--pay-admin-bg))
+  );
+  background-size: 240% 100%;
+  border-radius: 999px;
+  display: block;
+  height: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton span:nth-child(2) { width: 74%; }
+.cedros-pay-admin .cedros-admin__loading-skeleton span:nth-child(3) { width: 48%; }
+
+.cedros-pay-admin .cedros-admin__visually-hidden,
+.cedros-pay-dashboard .cedros-dashboard__visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.cedros-pay-dashboard .cedros-dashboard__state { text-transform: none; }
+
+@keyframes cedros-pay-workbench-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}

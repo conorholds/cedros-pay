@@ -1,0 +1,193 @@
+/* Workbench table frames, structural states, and keyboard activation. */
+.cedros-pay-admin .cedros-data-table-wrap,
+.cedros-pay-admin .cedros-admin__table-container {
+  border: 1px solid var(--pay-admin-border);
+  border-radius: calc(var(--pay-admin-radius) - 0.0625rem);
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.cedros-pay-admin .cedros-data-table,
+.cedros-pay-admin .cedros-admin__table {
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  min-width: 44rem;
+  width: 100%;
+}
+
+.cedros-pay-admin .cedros-data-table th,
+.cedros-pay-admin .cedros-admin__table th {
+  background: color-mix(in srgb, var(--pay-admin-bg) 90%, var(--pay-admin-accent) 10%);
+  color: var(--pay-admin-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  position: sticky;
+  text-transform: uppercase;
+  top: 0;
+  white-space: nowrap;
+  z-index: var(--z-sticky, 10);
+}
+
+.cedros-pay-admin .cedros-data-table th,
+.cedros-pay-admin .cedros-data-table td,
+.cedros-pay-admin .cedros-admin__table th,
+.cedros-pay-admin .cedros-admin__table td {
+  border-bottom: 1px solid var(--pay-admin-border);
+  padding: 0.55rem 0.75rem;
+  vertical-align: middle;
+}
+
+.cedros-pay-admin .cedros-admin__payment-reference {
+  max-width: 20rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cedros-pay-admin .cedros-data-table tbody tr:hover,
+.cedros-pay-admin .cedros-admin__table tbody tr:hover {
+  background: color-mix(in srgb, var(--pay-admin-accent) 52%, transparent);
+}
+
+/* Pagination row under a table — mirrors the host `.cedros-data-pagination`
+   anatomy so the extension reads identically without depending on host CSS. */
+.cedros-pay-admin .cedros-data-pagination {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  min-height: 2rem;
+}
+
+.cedros-pay-admin .cedros-data-pagination__label {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cedros-pay-admin .cedros-data-pagination__summary {
+  flex: 0 0 auto;
+}
+
+.cedros-pay-admin .cedros-data-pagination__controls,
+.cedros-pay-admin .cedros-data-pagination__pages {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.cedros-pay-admin .cedros-data-pagination__controls {
+  margin-left: auto;
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-data-pagination__pages {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.cedros-pay-admin .cedros-data-pagination__arrow,
+.cedros-pay-admin .cedros-data-pagination__page {
+  min-width: 2rem;
+  padding: 0;
+  width: 2rem;
+}
+
+/* The current page is disabled but is a state, not an unavailable control. */
+.cedros-pay-admin .cedros-data-pagination__page[aria-current='page']:disabled {
+  background: var(--pay-admin-accent);
+  border-color: var(--pay-admin-border);
+  color: var(--pay-admin-fg);
+  cursor: default;
+  opacity: 1;
+}
+
+.cedros-pay-admin .cedros-data-pagination__ellipsis {
+  align-items: center;
+  color: var(--pay-admin-muted);
+  display: inline-flex;
+  font-weight: 500;
+  height: 2rem;
+  justify-content: center;
+  width: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .cedros-pay-admin .cedros-data-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cedros-pay-admin .cedros-data-pagination__controls {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* Quantity columns share one right edge and one digit width (Workbench §4.7). */
+.cedros-pay-admin .cedros-data-table th.cedros-admin__table-cell--numeric,
+.cedros-pay-admin .cedros-data-table td.cedros-admin__table-cell--numeric,
+.cedros-pay-admin .cedros-admin__table th.cedros-admin__table-cell--numeric,
+.cedros-pay-admin .cedros-admin__table td.cedros-admin__table-cell--numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cedros-pay-admin .cedros-admin__table-detail-row[aria-hidden='true'] > td {
+  border-bottom: 0;
+}
+
+.cedros-pay-admin .cedros-data-table__row-activate {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.cedros-pay-admin .cedros-data-table td.cedros-admin__table-state-cell {
+  padding: 0;
+}
+
+.cedros-pay-admin .cedros-data-empty-state--in-table {
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
+}
+
+.cedros-pay-admin .cedros-admin__table-skeleton-row td {
+  height: 2.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__table-skeleton-cell {
+  animation:
+    cedros-pay-workbench-shimmer
+    var(--motion-duration-loading, 1400ms)
+    var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1))
+    infinite;
+  background: color-mix(in srgb, var(--pay-admin-fg) 8%, var(--pay-admin-bg));
+  border-radius: 999px;
+  display: block;
+  height: 0.7rem;
+  width: min(8rem, 78%);
+}
+
+.cedros-pay-admin .cedros-admin__table-state-cell > .cedros-data-status {
+  border: 0;
+  border-radius: 0;
+  justify-content: space-between;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cedros-pay-admin .cedros-admin__table-skeleton-cell {
+    animation: none;
+  }
+}

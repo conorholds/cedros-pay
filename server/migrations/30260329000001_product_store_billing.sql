@@ -1,2 +1,0 @@
-ALTER TABLE products
-ADD COLUMN IF NOT EXISTS store_billing JSONB;

@@ -46,7 +46,7 @@ export const STABLECOIN_METADATA: Record<string, StablecoinMeta> = {
   },
 };
 
-/** Simple symbol map for backwards compatibility */
+/** Simple symbol lookup map derived from token metadata. */
 export const KNOWN_STABLECOINS = Object.fromEntries(
   Object.entries(STABLECOIN_METADATA).map(([mint, meta]) => [mint, meta.symbol])
 ) as Record<string, string>;

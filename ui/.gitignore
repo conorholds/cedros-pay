@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+.next/
 *.tsbuildinfo
 
 # IDE
@@ -34,6 +35,3 @@ coverage/
 # Temporary
 *.tmp
 .cache/
-
-# Storybook static output
-storybook-static/

@@ -3,8 +3,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ProductVariant, ProductVariationConfig } from '../../ecommerce/types';
+import type { ProductVariant, ProductVariationConfig } from '../../types/productVariations';
 import type { IAdminAuthManager } from './AdminAuthManager';
+import { fetchAdminJson, requireAdminAuth } from './authFetch';
 
 export interface ProductVariationsData {
   productId: string;
@@ -35,11 +36,14 @@ export interface SaveVariationsPayload {
   deleteVariantIds?: string[];
 }
 
+export interface SaveVariationsResult {
+  variationConfig: ProductVariationConfig;
+  variants: ProductVariant[];
+  variantsCreated: number;
+}
+
 export interface UseProductVariationsOptions {
-  serverUrl: string;
   productId: string;
-  /** @deprecated Use authManager instead */
-  apiKey?: string;
   authManager?: IAdminAuthManager;
 }
 
@@ -55,16 +59,14 @@ export interface UseProductVariationsResult {
   isLoading: boolean;
   error: string | null;
   fetch: () => Promise<void>;
-  save: (payload: SaveVariationsPayload) => Promise<{ variantsCreated: number } | null>;
+  save: (payload: SaveVariationsPayload) => Promise<SaveVariationsResult | null>;
   /** Bulk update variant inventory without modifying variation config */
   bulkUpdateInventory: (updates: BulkInventoryUpdate[]) => Promise<boolean>;
   isSaving: boolean;
 }
 
 export function useProductVariations({
-  serverUrl,
   productId,
-  apiKey,
   authManager,
 }: UseProductVariationsOptions): UseProductVariationsResult {
   const [data, setData] = useState<ProductVariationsData | null>(null);
@@ -79,26 +81,10 @@ export function useProductVariations({
     setError(null);
 
     try {
-      let result: ProductVariationsData;
-
-      if (authManager?.isAuthenticated()) {
-        result = await authManager.fetchWithAuth<ProductVariationsData>(
-          `/admin/products/${productId}/variations`
-        );
-      } else {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (apiKey) headers['X-API-Key'] = apiKey;
-
-        const res = await fetch(`${serverUrl}/admin/products/${productId}/variations`, {
-          headers,
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch variations: ${res.status}`);
-        }
-
-        result = await res.json();
-      }
+      const result = await fetchAdminJson<ProductVariationsData>(
+        authManager,
+        `/admin/products/${productId}/variations`
+      );
 
       // Ensure variationConfig exists with defaults
       if (!result.variationConfig) {
@@ -121,51 +107,42 @@ export function useProductVariations({
     } finally {
       setIsLoading(false);
     }
-  }, [serverUrl, productId, apiKey, authManager]);
+  }, [productId, authManager]);
 
   const saveVariations = useCallback(
-    async (payload: SaveVariationsPayload): Promise<{ variantsCreated: number } | null> => {
+    async (payload: SaveVariationsPayload): Promise<SaveVariationsResult | null> => {
       if (!productId) return null;
 
       setIsSaving(true);
       setError(null);
 
       try {
-        let result: { variationConfig: ProductVariationConfig; variants: ProductVariant[]; variantsCreated: number };
-
-        if (authManager?.isAuthenticated()) {
-          result = await authManager.fetchWithAuth(
-            `/admin/products/${productId}/variations`,
-            {
-              method: 'PUT',
-              body: JSON.stringify(payload),
-            }
-          );
-        } else {
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (apiKey) headers['X-API-Key'] = apiKey;
-
-          const res = await fetch(`${serverUrl}/admin/products/${productId}/variations`, {
+        const result = await requireAdminAuth(authManager).fetchWithAuth<{
+          variationConfig: ProductVariationConfig;
+          variants: ProductVariant[];
+          variantsCreated: number;
+        }>(
+          `/admin/products/${productId}/variations`,
+          {
             method: 'PUT',
-            headers,
             body: JSON.stringify(payload),
-          });
-
-          if (!res.ok) {
-            throw new Error(`Failed to save variations: ${res.status}`);
           }
+        );
 
-          result = await res.json();
-        }
+        const saved = {
+          variationConfig: result.variationConfig,
+          variants: result.variants,
+          variantsCreated: result.variantsCreated,
+        };
 
         // Update local state with response
         setData({
           productId,
-          variationConfig: result.variationConfig,
-          variants: result.variants,
+          variationConfig: saved.variationConfig,
+          variants: saved.variants,
         });
 
-        return { variantsCreated: result.variantsCreated };
+        return saved;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to save variations';
         setError(message);
@@ -174,7 +151,7 @@ export function useProductVariations({
         setIsSaving(false);
       }
     },
-    [serverUrl, productId, apiKey, authManager]
+    [productId, authManager]
   );
 
   const bulkUpdateInventory = useCallback(
@@ -185,30 +162,14 @@ export function useProductVariations({
       setError(null);
 
       try {
-        if (authManager?.isAuthenticated()) {
-          await authManager.fetchWithAuth(
-            `/admin/products/${productId}/variants/inventory`,
-            {
-              method: 'PUT',
-              body: JSON.stringify({ updates }),
-            }
-          );
-        } else {
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (apiKey) headers['X-API-Key'] = apiKey;
-
-          const res = await fetch(`${serverUrl}/admin/products/${productId}/variants/inventory`, {
+        await requireAdminAuth(authManager).fetchWithAuth(
+          `/admin/products/${productId}/variants/inventory`,
+          {
             method: 'PUT',
-            headers,
             body: JSON.stringify({ updates }),
-          });
-
-          if (!res.ok) {
-            throw new Error(`Failed to update inventory: ${res.status}`);
           }
-        }
+        );
 
-        // Update local state with new inventory values
         if (data) {
           const updatesMap = new Map(updates.map((u) => [u.variantId, u]));
           setData({
@@ -236,7 +197,7 @@ export function useProductVariations({
         setIsSaving(false);
       }
     },
-    [serverUrl, productId, apiKey, authManager, data]
+    [productId, authManager, data]
   );
 
   return {

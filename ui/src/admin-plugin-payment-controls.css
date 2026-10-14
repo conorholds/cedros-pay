@@ -1,0 +1,169 @@
+.cedros-pay-admin .cedros-admin__config-editor .cedros-admin__field-description,
+.cedros-pay-admin .cedros-admin__field-error {
+  margin-top: 0.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__field-error {
+  color: var(--pay-admin-error);
+}
+
+.cedros-pay-admin .cedros-admin__toggle-field {
+  gap: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__input--mono {
+  font-family: var(--pay-admin-font-mono);
+  font-size: 0.8125rem;
+}
+
+.cedros-pay-admin .cedros-admin__input--uppercase {
+  text-transform: uppercase;
+}
+
+.cedros-pay-admin .cedros-admin__input--compact {
+  max-width: 6.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__input-affix {
+  position: relative;
+}
+
+.cedros-pay-admin .cedros-admin__input-affix .cedros-admin__input {
+  padding-right: 2.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__input-affix-icon {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  display: inline-flex;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cedros-pay-admin .cedros-admin__input-affix-icon--success {
+  color: var(--pay-admin-success);
+}
+
+.cedros-pay-admin .cedros-admin__config-editor .cedros-admin__input-group {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-selector,
+.cedros-pay-admin .cedros-admin__token-custom {
+  gap: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-options {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-option {
+  min-height: 2.25rem;
+  /* Space the symbol off the token icon and tighten the text box so the
+     all-caps label sits centred against the round icon instead of riding high. */
+  gap: 0.375rem;
+  line-height: 1;
+  padding: 0 0.75rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: var(--pay-admin-bg);
+  color: var(--pay-admin-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition:
+    background-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    border-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__token-option:hover:not(:disabled) {
+  background: var(--pay-admin-accent);
+}
+
+.cedros-pay-admin .cedros-admin__token-option--active {
+  border-color: var(--pay-admin-primary);
+  box-shadow: 0 0 0 1px var(--pay-admin-primary);
+}
+
+.cedros-pay-admin .cedros-admin__token-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cedros-pay-admin .cedros-admin__token-option-icon,
+.cedros-pay-admin .cedros-admin__token-icon-preview {
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.cedros-pay-admin .cedros-admin__token-option-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-option-plus {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.cedros-pay-admin .cedros-admin__token-custom {
+  padding: 1rem;
+  background: color-mix(in srgb, var(--pay-admin-bg) 93%, var(--pay-admin-muted-bg) 7%);
+  box-shadow: none;
+}
+
+.cedros-pay-admin .cedros-admin__token-icon-row {
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-icon-row .cedros-admin__input {
+  flex: 1;
+}
+
+.cedros-pay-admin .cedros-admin__token-icon-preview {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__token-address {
+  font-family: var(--pay-admin-font-mono);
+  word-break: break-all;
+}
+
+.cedros-pay-admin .cedros-admin__regional-rails {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cedros-pay-admin .cedros-admin__regional-rule-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__regional-rule-header .cedros-admin__field {
+  flex: 1;
+}
+
+.cedros-pay-admin .cedros-admin__regional-warning {
+  color: var(--pay-admin-warning);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .cedros-pay-admin .cedros-admin__regional-rule-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

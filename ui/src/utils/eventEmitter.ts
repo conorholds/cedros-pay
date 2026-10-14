@@ -15,10 +15,14 @@
  * - cedros:payment:error - Payment failed
  */
 
-/**
- * Payment method type
- */
-export type PaymentMethod = 'stripe' | 'crypto' | 'credits';
+import {
+  CEDROS_PAY_EXTENSION_ID,
+  CEDROS_PAY_PAYMENT_STARTED_EVENT_ID,
+  CEDROS_PAY_WALLET_CONNECTED_EVENT_ID,
+} from '../extension/constants';
+import type { PaymentMethod } from '../types/componentOptions';
+
+export type { PaymentMethod } from '../types/componentOptions';
 
 /**
  * Wallet provider type
@@ -119,6 +123,86 @@ function emitEvent<T>(eventName: string, detail: T): void {
 }
 
 /**
+ * Host analytics bridge installed by Cedros Data on public pages. Structural
+ * subset of `window.cedrosAnalytics.trackExtensionEvent`; absent off-host.
+ */
+interface CedrosHostAnalytics {
+  trackExtensionEvent?: (input: {
+    extensionId: string;
+    eventId: string;
+    metadata?: Record<string, unknown>;
+  }) => unknown;
+}
+
+declare global {
+  interface Window {
+    cedrosAnalytics?: CedrosHostAnalytics;
+  }
+}
+
+/**
+ * Best-effort forward of a Cedros Pay analytics event to the host pipeline.
+ * No-ops off-host (SSR, third-party sites, or when the operator disabled
+ * extension events). Only redacted, aggregate-safe metadata is passed — never
+ * a wallet address, amount, resource id, or buyer identifier.
+ */
+function reportHostAnalyticsEvent(
+  eventId: string,
+  metadata: Record<string, unknown>
+): void {
+  if (typeof window === 'undefined') {
+    return; // SSR safety
+  }
+  const track = window.cedrosAnalytics?.trackExtensionEvent;
+  if (typeof track !== 'function') {
+    return; // host bridge not present
+  }
+  try {
+    void track({ extensionId: CEDROS_PAY_EXTENSION_ID, eventId, metadata });
+  } catch {
+    // Analytics is non-critical; never let a reporting error affect checkout.
+  }
+}
+
+/**
+ * Public-page analytics seam for catalog and program surfaces. Callers must
+ * pass only bounded categorical values; invite/referral codes and identities
+ * are deliberately not accepted or derived here.
+ */
+export function reportCedrosPayPublicEvent(
+  eventId: string,
+  metadata: Record<string, string | boolean | number | null>
+): void {
+  reportHostAnalyticsEvent(eventId, metadata);
+}
+
+/** Map the lib's `PaymentMethod` to the declared `paymentRail` enum. */
+function paymentMethodToRail(method: PaymentMethod): string {
+  switch (method) {
+    case 'stripe':
+      return 'stripe';
+    case 'crypto':
+      return 'x402';
+    case 'credits':
+      return 'credits';
+    default:
+      return 'unknown';
+  }
+}
+
+/** Map a wallet adapter name to the declared `walletProviderKind` enum. */
+function walletNameToProviderKind(wallet: WalletProvider): string {
+  const name = String(wallet).toLowerCase();
+  if (name.includes('walletconnect')) {
+    return 'walletconnect';
+  }
+  if (name.includes('phantom') || name.includes('solflare') || name.includes('backpack')) {
+    return 'browser-wallet';
+  }
+  return 'unknown';
+}
+
+/**
  * Emit payment start event
  */
 export function emitPaymentStart(
@@ -131,6 +215,12 @@ export function emitPaymentStart(
     method,
     resource,
     itemCount,
+  });
+  // Redacted: rail bucket only — never the resource id, item count, or amount.
+  reportHostAnalyticsEvent(CEDROS_PAY_PAYMENT_STARTED_EVENT_ID, {
+    sourceSurface: 'checkout-block',
+    paymentRail: paymentMethodToRail(method),
+    amountBucket: 'unknown',
   });
 }
 
@@ -155,6 +245,13 @@ export function emitWalletConnected(
     timestamp: Date.now(),
     wallet,
     publicKey,
+  });
+  // Redacted: provider kind only — the manifest forbids the wallet address, so
+  // `publicKey` is deliberately dropped from the host analytics payload.
+  reportHostAnalyticsEvent(CEDROS_PAY_WALLET_CONNECTED_EVENT_ID, {
+    sourceSurface: 'checkout-block',
+    walletProviderKind: walletNameToProviderKind(wallet),
+    network: 'solana',
   });
 }
 

@@ -1,17 +1,31 @@
 /**
  * Admin Orders Section
  *
- * Order management with gift card fulfillment visibility.
  * Shows orders from /admin/orders with expandable detail including
- * gift card redemption status, fulfillments, and order history.
+ * fulfillment and order history.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Icons } from './icons';
 import { ErrorBanner } from './ErrorBanner';
-import type { SectionProps } from './types';
+import { LedgerTruncationWarning } from './LedgerTruncationWarning';
+import { LoadingState } from './LoadingState';
+import { AnimatedDisclosure } from './AnimatedDisclosure';
+import { StatsBar, type StatItem } from './StatsBar';
+import { FilterDropdown } from './Dropdown';
+import { SortableHeader } from './SortableHeader';
+import { TableEmptyRow, TableErrorRow, TableLoadingRows } from './TableStateRows';
+import { useBackgroundRefresh } from './useBackgroundRefresh';
+import { useTableSort, type SortValue } from './useTableSort';
+import type { AdminPagedResponse, SectionProps, PaymentStats } from './types';
 import { formatDateTime } from '../../utils/dateHelpers';
-import { safeHref } from '../../ecommerce/utils/safeHref';
+import {
+  formatCurrencyAmount,
+  formatMinorCurrencyAmount,
+  formatStripeMinorAmount,
+  selectPlural,
+} from '../../i18n/formatting';
+import { safeHref } from '../../utils/safeHref';
+import { fetchAdminJson } from './authFetch';
 
 interface OrderItem {
   productId: string;
@@ -58,44 +72,42 @@ interface OrderDetail {
   fulfillments: Fulfillment[];
 }
 
-interface GiftCardRedemption {
-  id: string;
-  orderId: string;
-  productId: string;
-  buyerUserId: string;
-  recipientUserId: string;
-  faceValueCents: number;
-  currency: string;
-  creditsIssued: number;
-  tokenMinted: boolean;
-  tokenMintSignature?: string;
-  createdAt: string;
+interface OrdersResponse extends AdminPagedResponse {
+  orders: AdminOrder[];
 }
 
-export function OrdersSection({ serverUrl, apiKey, pageSize = 20, authManager }: SectionProps) {
+/** Stable accessor for the sortable order columns (see useTableSort). */
+function orderSortValue(order: AdminOrder, key: string): SortValue {
+  switch (key) {
+    case 'status': return order.status;
+    case 'amount': return order.amount;
+    case 'source': return order.source;
+    case 'customer': return order.customerEmail || order.customerName || '';
+    case 'date': return order.createdAt;
+    default: return null;
+  }
+}
+
+export function OrdersSection({ pageSize = 20, authManager, locale }: SectionProps) {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<PaymentStats | null>(null);
+  const [ordersTruncated, setOrdersTruncated] = useState(false);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
-  const [redemptions, setRedemptions] = useState<GiftCardRedemption[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const { sorted: sortedOrders, sortKey, sortDirection, toggleSort } = useTableSort(
+    orders,
+    orderSortValue,
+    { key: 'date', direction: 'desc' }
+  );
 
   const adminFetch = useCallback(async <T,>(path: string, opts?: RequestInit): Promise<T> => {
-    if (authManager?.isAuthenticated()) {
-      return authManager.fetchWithAuth<T>(path, opts);
-    }
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['X-API-Key'] = apiKey;
-    const res = await fetch(`${serverUrl}${path}`, { ...opts, headers: { ...headers, ...opts?.headers } });
-    if (!res.ok) {
-      const text = await res.text().catch(() => `HTTP ${res.status}`);
-      throw new Error(text);
-    }
-    return res.json();
-  }, [serverUrl, apiKey, authManager]);
+    return fetchAdminJson<T>(authManager, path, opts);
+  }, [authManager]);
 
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
@@ -103,32 +115,44 @@ export function OrdersSection({ serverUrl, apiKey, pageSize = 20, authManager }:
       setError(null);
       const params = new URLSearchParams({ limit: String(pageSize) });
       if (statusFilter) params.set('status', statusFilter);
-      const data = await adminFetch<{ orders: AdminOrder[]; total: number }>(
+      const data = await adminFetch<OrdersResponse>(
         `/admin/orders?${params}`
       );
-      setOrders(data.orders);
-      setTotal(data.total);
+      setOrders(data.orders || []);
+      setOrdersTruncated(data.truncated === true);
     } catch {
       setError('Failed to load orders');
+      setOrdersTruncated(false);
     } finally {
       setIsLoading(false);
     }
   }, [adminFetch, pageSize, statusFilter]);
 
+  const fetchStats = useCallback(async () => {
+    setIsStatsLoading(true);
+    try {
+      const data = await fetchAdminJson<PaymentStats>(authManager, '/admin/stats');
+      setStats(data);
+    } catch {
+      setStats(null);
+    } finally {
+      setIsStatsLoading(false);
+    }
+  }, [authManager]);
+
+  useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useBackgroundRefresh(async () => {
+    await Promise.all([fetchStats(), fetchOrders()]);
+  });
 
   const fetchDetail = useCallback(async (orderId: string) => {
     setDetailLoading(true);
     try {
-      const [orderDetail, gcRedemptions] = await Promise.all([
-        adminFetch<OrderDetail>(`/admin/orders/${encodeURIComponent(orderId)}`),
-        adminFetch<GiftCardRedemption[]>(`/admin/gift-card-redemptions?limit=50`).catch(() => []),
-      ]);
+      const orderDetail = await adminFetch<OrderDetail>(`/admin/orders/${encodeURIComponent(orderId)}`);
       setDetail(orderDetail);
-      setRedemptions(gcRedemptions.filter(r => r.orderId === orderId));
     } catch {
       setDetail(null);
-      setRedemptions([]);
     } finally {
       setDetailLoading(false);
     }
@@ -138,200 +162,217 @@ export function OrdersSection({ serverUrl, apiKey, pageSize = 20, authManager }:
     if (expandedId === orderId) {
       setExpandedId(null);
       setDetail(null);
-      setRedemptions([]);
     } else {
       setExpandedId(orderId);
       fetchDetail(orderId);
     }
   };
 
-  const formatAmount = (amount: number, asset: string) => {
-    if (asset === 'USD' || asset === 'usd') return `$${(amount / 100).toFixed(2)}`;
-    return `${amount} ${asset}`;
-  };
+  const formatAmount = (amount: number, asset: string, source: string) => source === 'stripe'
+    ? formatStripeMinorAmount(amount, asset, locale)
+    : formatMinorCurrencyAmount(amount, asset, locale);
+
+  const orderStats = stats?.orders;
+  const statItems: StatItem[] = [
+    // "Total" (not "Orders") so it doesn't read as a different number than the
+    // Transactions tab's settled-only "Orders" stat, and to match the Returns/
+    // Disputes headline stat.
+    { label: 'Total', value: orderStats?.total ?? 0 },
+    { label: 'Paid', value: orderStats?.paid ?? 0 },
+    {
+      label: 'Refunded',
+      value: orderStats?.refunded ?? 0,
+      variant: orderStats && orderStats.refunded > 0 ? 'warning' : 'muted',
+    },
+    {
+      label: 'Pending',
+      value: orderStats?.pending ?? 0,
+      variant: orderStats && orderStats.pending > 0 ? 'warning' : 'muted',
+    },
+    {
+      label: 'Revenue',
+      value: stats?.revenueIncludesNonUsd ? 'See transactions' : formatCurrencyAmount(orderStats?.revenue ?? 0, 'USD', locale),
+      variant: 'success',
+    },
+  ];
 
   return (
-    <div className="cedros-admin__section">
-      <div className="cedros-admin__section-header">
-        <h2 className="cedros-admin__section-title">Orders</h2>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <select
-            className="cedros-admin__input"
-            style={{ width: 'auto', minWidth: '120px' }}
+    <div className="cedros-data-stack cedros-admin__page">
+      <ErrorBanner message={orders.length > 0 ? error : null} />
+      {stats?.truncated ? (
+        <LedgerTruncationWarning message="Order stats may be partial because the ledger scan hit the admin row limit." />
+      ) : null}
+      {ordersTruncated ? (
+        <LedgerTruncationWarning message="Order list may be partial because the ledger scan hit the admin row limit." />
+      ) : null}
+      <StatsBar stats={statItems} isLoading={isStatsLoading && !stats} />
+
+      <div className="cedros-data-toolbar cedros-admin__toolbar">
+        <div className="cedros-admin__filter">
+          <span className="cedros-admin__filter-label">Status</span>
+          <FilterDropdown
+            ariaLabel="Status"
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-          >
-            <option value="">All statuses</option>
-            <option value="paid">Paid</option>
-            <option value="processing">Processing</option>
-            <option value="fulfilled">Fulfilled</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="refunded">Refunded</option>
-          </select>
-          <button type="button" className="cedros-admin__button cedros-admin__button--secondary" onClick={fetchOrders}>
-            {Icons.refresh} Refresh
-          </button>
+            onChange={setStatusFilter}
+            options={[
+              { value: '', label: 'All statuses' },
+              { value: 'paid', label: 'Paid' },
+              { value: 'processing', label: 'Processing' },
+              { value: 'fulfilled', label: 'Fulfilled' },
+              { value: 'shipped', label: 'Shipped' },
+              { value: 'delivered', label: 'Delivered' },
+              { value: 'cancelled', label: 'Cancelled' },
+              { value: 'refunded', label: 'Refunded' },
+            ]}
+          />
         </div>
       </div>
 
-      {error ? <ErrorBanner message={error} onRetry={fetchOrders} /> : null}
-
-      {isLoading ? (
-        <div className="cedros-admin__loading-text">Loading orders...</div>
-      ) : orders.length === 0 ? (
-        <div className="cedros-admin__empty">No orders found.</div>
-      ) : (
-        <>
+      <>
+          {orders.length > 0 ? (
           <div className="cedros-admin__table-info">
-            {total} order{total === 1 ? '' : 's'} total
+            Showing {orders.length} of {orderStats?.total ?? orders.length}{' '}
+            {selectPlural(orderStats?.total ?? orders.length, { one: 'order', other: 'orders' }, locale)}
           </div>
-          <table className="cedros-admin__table">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Status</th>
-                <th>Amount</th>
-                <th>Source</th>
-                <th>Customer</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map(order => (
-                <OrderRow
-                  key={order.id}
-                  order={order}
-                  expanded={expandedId === order.id}
-                  detail={expandedId === order.id ? detail : null}
-                  redemptions={expandedId === order.id ? redemptions : []}
-                  detailLoading={expandedId === order.id && detailLoading}
-                  onToggle={() => toggleExpand(order.id)}
-                  formatAmount={formatAmount}
-                />
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+          ) : null}
+          <div className="cedros-data-table-wrap cedros-admin__table-container">
+            <table className="cedros-data-table cedros-admin__table" aria-busy={isLoading}>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <SortableHeader label="Status" sortKey="status" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                  <SortableHeader label="Amount" sortKey="amount" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                  <SortableHeader label="Source" sortKey="source" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                  <SortableHeader label="Customer" sortKey="customer" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                  <SortableHeader label="Date" sortKey="date" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && sortedOrders.length === 0 ? (
+                  <TableLoadingRows columns={6} label="Loading orders…" />
+                ) : error && sortedOrders.length === 0 ? (
+                  <TableErrorRow columns={6} message={error} onRetry={fetchOrders} />
+                ) : sortedOrders.length === 0 ? (
+                  <TableEmptyRow
+                    columns={6}
+                    filtered={Boolean(statusFilter)}
+                    title={statusFilter ? 'No orders match this filter' : 'No orders yet'}
+                    description={statusFilter ? 'Try a different status filter to see more orders.' : 'Orders appear here once customers complete a purchase.'}
+                    action={statusFilter ? (
+                      <button type="button" className="cedros-data-btn cedros-data-btn--ghost cedros-data-btn--sm" onClick={() => setStatusFilter('')}>
+                        Clear filters
+                      </button>
+                    ) : undefined}
+                  />
+                ) : sortedOrders.map(order => (
+                  <OrderRow
+                    key={order.id}
+                    order={order}
+                    expanded={expandedId === order.id}
+                    detail={expandedId === order.id ? detail : null}
+                    detailLoading={expandedId === order.id && detailLoading}
+                    onToggle={() => toggleExpand(order.id)}
+                    formatAmount={formatAmount}
+                    locale={locale}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+      </>
     </div>
   );
 }
+
 
 function OrderRow({
   order,
   expanded,
   detail,
-  redemptions,
   detailLoading,
   onToggle,
   formatAmount,
+  locale,
 }: {
   order: AdminOrder;
   expanded: boolean;
   detail: OrderDetail | null;
-  redemptions: GiftCardRedemption[];
   detailLoading: boolean;
   onToggle: () => void;
-  formatAmount: (amount: number, asset: string) => string;
+  formatAmount: (amount: number, asset: string, source: string) => string;
+  locale?: string;
 }) {
-  const hasGiftCard = order.metadata?.recipient_email || redemptions.length > 0;
-
   return (
     <>
       <tr
-        onClick={onToggle}
-        style={{ cursor: 'pointer' }}
-        className={expanded ? 'cedros-admin__table-row--active' : ''}
+        className={`cedros-data-table__row--clickable ${expanded ? 'cedros-admin__table-row--active' : ''}`}
       >
         <td>
-          <span className="cedros-admin__mono">{order.id.slice(0, 12)}...</span>
-          {hasGiftCard ? <span className="cedros-admin__badge cedros-admin__badge--info" style={{ marginLeft: '0.5rem' }}>Gift Card</span> : null}
+          <button
+            type="button"
+            className="cedros-data-table__row-activate cedros-admin__table-row-activate cedros-admin__mono"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} order ${order.id}`}
+          >
+            {order.id.slice(0, 12)}…
+          </button>
         </td>
         <td>
-          <span className={`cedros-admin__badge cedros-admin__badge--${statusVariant(order.status)}`}>
+          <span className={`cedros-data-pill cedros-admin__badge cedros-admin__badge--${statusVariant(order.status)}`}>
             {order.status}
           </span>
         </td>
-        <td>{formatAmount(order.amount, order.amountAsset)}</td>
+        <td>{formatAmount(order.amount, order.amountAsset, order.source)}</td>
         <td>{order.source}</td>
         <td>{order.customerEmail || order.customerName || '—'}</td>
-        <td>{formatDateTime(order.createdAt)}</td>
+        <td>{formatDateTime(order.createdAt, locale)}</td>
       </tr>
-      {expanded ? (
-        <tr>
-          <td colSpan={6} style={{ padding: 0 }}>
+      <tr aria-hidden={!expanded} className="cedros-admin__table-detail-row">
+        <td colSpan={6} style={{ padding: 0 }}>
+          <AnimatedDisclosure open={expanded}>
             <ExpandedDetail
               detail={detail}
-              redemptions={redemptions}
               loading={detailLoading}
-              formatAmount={formatAmount}
               metadata={order.metadata}
+              locale={locale}
             />
-          </td>
-        </tr>
-      ) : null}
+          </AnimatedDisclosure>
+        </td>
+      </tr>
     </>
   );
 }
 
 function ExpandedDetail({
   detail,
-  redemptions,
   loading,
-  formatAmount,
   metadata,
+  locale,
 }: {
   detail: OrderDetail | null;
-  redemptions: GiftCardRedemption[];
   loading: boolean;
-  formatAmount: (amount: number, asset: string) => string;
   metadata: Record<string, string>;
+  locale?: string;
 }) {
   if (loading) {
-    return <div style={{ padding: '1rem' }} className="cedros-admin__loading-text">Loading details...</div>;
+    return <LoadingState label="Loading order details…" lines={2} />;
   }
 
   return (
-    <div style={{ padding: '1rem', background: 'var(--cedros-admin-bg-muted, #f9fafb)' }}>
+    <div style={{ padding: '1rem', background: 'var(--pay-admin-muted-bg)' }}>
       {/* Metadata */}
       {Object.keys(metadata).length > 0 ? (
         <div style={{ marginBottom: '1rem' }}>
-          <div className="cedros-admin__label">Order Metadata</div>
+          <div className="cedros-admin__label">Order metadata</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.25rem 1rem', fontSize: '0.8125rem' }}>
             {Object.entries(metadata).map(([k, v]) => (
               <div key={k} style={{ display: 'contents' }}>
-                <span style={{ fontWeight: 500, color: 'var(--cedros-admin-text-muted)' }}>{k}</span>
+                <span style={{ fontWeight: 500, color: 'var(--pay-admin-muted)' }}>{k}</span>
                 <span>{v}</span>
               </div>
             ))}
           </div>
-        </div>
-      ) : null}
-
-      {/* Gift Card Redemptions */}
-      {redemptions.length > 0 ? (
-        <div style={{ marginBottom: '1rem' }}>
-          <div className="cedros-admin__label">Gift Card Fulfillment</div>
-          {redemptions.map(r => (
-            <div key={r.id} style={{ fontSize: '0.8125rem', padding: '0.5rem', border: '1px solid var(--cedros-admin-border)', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Face value: {formatAmount(r.faceValueCents, r.currency)}</span>
-                <span className={`cedros-admin__badge cedros-admin__badge--${r.creditsIssued > 0 ? 'success' : 'warning'}`}>
-                  {r.creditsIssued > 0 ? 'Credits issued' : 'Pending'}
-                </span>
-              </div>
-              <div style={{ marginTop: '0.25rem', color: 'var(--cedros-admin-text-muted)' }}>
-                Recipient: {r.recipientUserId || '—'}
-                {r.tokenMinted ? (
-                  <span className="cedros-admin__badge cedros-admin__badge--info" style={{ marginLeft: '0.5rem' }}>
-                    Token minted
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          ))}
         </div>
       ) : null}
 
@@ -341,7 +382,7 @@ function ExpandedDetail({
           <div className="cedros-admin__label">Fulfillments</div>
           {detail.fulfillments.map(f => (
             <div key={f.id} style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}>
-              <span className={`cedros-admin__badge cedros-admin__badge--${statusVariant(f.status)}`}>{f.status}</span>
+              <span className={`cedros-data-pill cedros-admin__badge cedros-admin__badge--${statusVariant(f.status)}`}>{f.status}</span>
               {f.carrier ? <span style={{ marginLeft: '0.5rem' }}>{f.carrier}</span> : null}
               {f.trackingNumber ? (
                 safeHref(f.trackingUrl) ? (
@@ -360,10 +401,10 @@ function ExpandedDetail({
       {/* History */}
       {detail?.history && detail.history.length > 0 ? (
         <div>
-          <div className="cedros-admin__label">Status History</div>
+          <div className="cedros-admin__label">Status history</div>
           {detail.history.map(h => (
             <div key={h.id} style={{ fontSize: '0.8125rem', marginBottom: '0.25rem' }}>
-              <span style={{ color: 'var(--cedros-admin-text-muted)' }}>{formatDateTime(h.createdAt)}</span>
+              <span style={{ color: 'var(--pay-admin-muted)' }}>{formatDateTime(h.createdAt, locale)}</span>
               {' '}{h.fromStatus} → {h.toStatus}
               {h.note ? <span style={{ marginLeft: '0.5rem', fontStyle: 'italic' }}>{h.note}</span> : null}
             </div>

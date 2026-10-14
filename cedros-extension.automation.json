@@ -1,0 +1,431 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "cedros-pay",
+  "version": "5.0.8",
+  "timezone": "America/Los_Angeles",
+  "metadataMaxBytes": 2048,
+  "disableBehavior": "Pause schedules and fail closed until the extension is re-enabled.",
+  "missedRunBehavior": "Do not backfill automatically; host may run a single manual catch-up after owner review.",
+  "manualRunBehavior": "Allowed from Cedros automation/admin only for operators with cedros-pay:admin permission.",
+  "siteBrainEmitterStatus": "published",
+  "schedules": [
+    {
+      "id": "cedros-pay:schedule-sanctions-refresh",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:sanctions-refresh",
+      "enabled": false,
+      "timeoutSeconds": 300,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable source failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {},
+      "idempotencyKey": "site:${siteId}:sanctions-refresh:${sourceRevision}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "15 2 * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-sanctions-sweep",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:sanctions-sweep",
+      "enabled": false,
+      "timeoutSeconds": 600,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable database failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "dryRun": false
+      },
+      "idempotencyKey": "site:${siteId}:sanctions-sweep:${sourceRevision}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "45 2 * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-balance-alert",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:balance-alert",
+      "enabled": false,
+      "timeoutSeconds": 120,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable RPC or provider failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {},
+      "idempotencyKey": "site:${siteId}:wallet:${walletId}:balance-alert:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "0 * * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-health-check",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:health-check",
+      "enabled": false,
+      "timeoutSeconds": 60,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable database failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "includeProviders": false
+      },
+      "idempotencyKey": "site:${siteId}:health:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "*/5 * * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-cleanup",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:cleanup",
+      "enabled": true,
+      "activationGate": "cedros-pay:guarded-write-policy-state/active must validate before the first cleanup mutation",
+      "timeoutSeconds": 600,
+      "maxRetries": 0,
+      "retryBackoff": "none; pre-enrollment activation-gate and database failures return retryable without scanning or mutating, then recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "dryRun": false
+      },
+      "idempotencyKey": "site:${siteId}:cleanup:${retentionWindow}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "*/5 * * * *",
+      "autoCreateOnEnable": true
+    },
+    {
+      "id": "cedros-pay:schedule-email",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:email",
+      "enabled": false,
+      "timeoutSeconds": 120,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable email provider failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "batchSize": 25
+      },
+      "idempotencyKey": "site:${siteId}:email-queue:${emailId}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "* * * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-stats-rollup",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:stats-rollup",
+      "enabled": false,
+      "timeoutSeconds": 120,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable database failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "day": ""
+      },
+      "idempotencyKey": "site:${siteId}:stats-rollup:${day}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "30 0 * * *"
+    },
+    {
+      "id": "cedros-pay:schedule-catalog-sync",
+      "jobId": "cedros-pay:catalog-sync",
+      "label": "Stripe catalog sync",
+      "enabled": true,
+      "cron": "*/5 * * * *",
+      "timeoutSeconds": 300,
+      "maxRetries": 0,
+      "autoCreateOnEnable": true,
+      "extensionId": "cedros-pay",
+      "activationGate": "cedros-pay:guarded-write-policy-state/active exact eighteen-model marker, Stripe enabled and secret configured.",
+      "retryBackoff": "Pre-enrollment and provider failures retry on the next scheduled sweep; cursor rotates past individual failures.",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {},
+      "idempotencyKey": "site:${siteId}:catalog-sync:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ]
+    },
+    {
+      "id": "cedros-pay:schedule-subscription-sync",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:subscription-sync",
+      "enabled": true,
+      "activationGate": "cedros-pay:guarded-write-policy-state/active must validate before provider or subscription access",
+      "timeoutSeconds": 300,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable provider or database failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "limit": 100
+      },
+      "idempotencyKey": "site:${siteId}:subscription-sync:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "*/15 * * * *",
+      "autoCreateOnEnable": true
+    },
+    {
+      "id": "cedros-pay:schedule-webhook-delivery",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:webhook-delivery",
+      "enabled": true,
+      "activationGate": "cedros-pay:guarded-write-policy-state/active must validate before claiming an outbox delivery",
+      "timeoutSeconds": 120,
+      "maxRetries": 0,
+      "retryBackoff": "none; pre-enrollment activation-gate and delivery/effect failures preserve durable pending state, then recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "batchSize": 25
+      },
+      "idempotencyKey": "site:${siteId}:webhook-delivery:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "* * * * *",
+      "autoCreateOnEnable": true
+    },
+    {
+      "id": "cedros-pay:schedule-x402-reconcile",
+      "extensionId": "cedros-pay",
+      "jobId": "cedros-pay:x402-reconcile",
+      "enabled": false,
+      "activationGate": "cedros-pay:guarded-write-policy-state/active must validate before RPC or payment-state access",
+      "timeoutSeconds": 180,
+      "maxRetries": 0,
+      "retryBackoff": "none; retryable RPC or database failures recover on the next scheduled run",
+      "concurrency": {
+        "mode": "single-flight",
+        "scope": "site"
+      },
+      "metadata": {
+        "limit": 100
+      },
+      "idempotencyKey": "site:${siteId}:x402-reconcile:${windowStart}",
+      "notificationChannels": [
+        {
+          "type": "admin",
+          "destinationRef": "site-owner",
+          "redaction": "summary-only"
+        }
+      ],
+      "cron": "*/5 * * * *"
+    }
+  ],
+  "jobPlans": [
+    {
+      "jobId": "cedros-pay:sanctions-refresh",
+      "purpose": "Reserved job ID; unsupported until a published owner binding and implementation exist.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (sanctions-refresh)",
+      "downstreamApiLimits": "No downstream calls.",
+      "ownerVisibleOutcome": "Terminal failed outcome; never reports successful work or a configured-source bypass."
+    },
+    {
+      "jobId": "cedros-pay:sanctions-sweep",
+      "purpose": "Reserved job ID; unsupported until a published owner binding and implementation exist.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (sanctions-sweep)",
+      "downstreamApiLimits": "No downstream calls.",
+      "ownerVisibleOutcome": "Terminal failed outcome; never reports successful work or a configured-source bypass."
+    },
+    {
+      "jobId": "cedros-pay:balance-alert",
+      "purpose": "Reserved job ID; unsupported until a published owner binding and implementation exist.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (balance-alert)",
+      "downstreamApiLimits": "No downstream calls.",
+      "ownerVisibleOutcome": "Terminal failed outcome; never reports successful work or a configured-source bypass."
+    },
+    {
+      "jobId": "cedros-pay:health-check",
+      "purpose": "Check Pay database access through a bounded ledger count.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (health-check)",
+      "downstreamApiLimits": "No provider calls; requesting provider checks fails closed.",
+      "ownerVisibleOutcome": "Checked timestamp and ledger count for database-only checks; explicit failure otherwise."
+    },
+    {
+      "jobId": "cedros-pay:cleanup",
+      "purpose": "Apply retention, archival, and queue cleanup policy.",
+      "activationGate": "Exact eighteen-model guarded-policy marker; each scheduled run exits before any scan or mutation until enrollment completes.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (cleanup)",
+      "downstreamApiLimits": "Database writes must use cedros-pay:store-db and be batch-limited.",
+      "ownerVisibleOutcome": "Deleted, archived, retained, and failed counts with retention window."
+    },
+    {
+      "jobId": "cedros-pay:email",
+      "purpose": "Reserved job ID; unsupported until a published owner binding and implementation exist.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (email)",
+      "downstreamApiLimits": "No downstream calls.",
+      "ownerVisibleOutcome": "Terminal failed outcome; never reports successful work or a configured-source bypass."
+    },
+    {
+      "jobId": "cedros-pay:stats-rollup",
+      "purpose": "Aggregate the prior day's ledger into a daily stats-rollup summary row read by the stats route.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (stats-rollup)",
+      "downstreamApiLimits": "Reads and writes use cedros-pay:store-db; paginated and capped under the invocation deadline.",
+      "ownerVisibleOutcome": "Day, transaction count, and gross total rolled up."
+    },
+    {
+      "jobId": "cedros-pay:subscription-sync",
+      "purpose": "Reconcile provider subscription state into monotonic Pay projections.",
+      "activationGate": "Exact eighteen-model guarded-policy marker; schedule remains default disabled.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (subscription-sync)",
+      "downstreamApiLimits": "Bounded Stripe reads and guarded database updates only.",
+      "ownerVisibleOutcome": "Redacted checked, updated, expired, and retry counts."
+    },
+    {
+      "jobId": "cedros-pay:webhook-delivery",
+      "purpose": "Deliver durable webhook outbox items, canonical checkout settlement effects, and post-commit domain events, CRM source events, and customer-tag effects with fenced leases.",
+      "activationGate": "Exact eighteen-model guarded-policy marker; the enabled schedule returns retryable before any outbox claim until enrollment completes.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (webhook-delivery)",
+      "downstreamApiLimits": "Bounded allowlisted http.fetch webhook batch plus bounded host telemetry, CRM-source-event, and customer-tag effect batches.",
+      "ownerVisibleOutcome": "Redacted delivered, deferred, retried, and failed webhook counts plus nested settlementEffects and domainEffects outcomes."
+    },
+    {
+      "jobId": "cedros-pay:x402-reconcile",
+      "purpose": "Reconcile durable pending x402 payments from on-chain proof.",
+      "activationGate": "Exact eighteen-model guarded-policy marker; schedule remains default disabled.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (x402-reconcile)",
+      "downstreamApiLimits": "Bounded Solana RPC status reads and guarded settlement writes.",
+      "ownerVisibleOutcome": "Redacted pending, settled, failed, and retry counts."
+    },
+    {
+      "jobId": "cedros-pay:catalog-sync",
+      "purpose": "Automatically reconcile active purchasable catalog products and prices to Stripe.",
+      "activationGate": "Exact eighteen-model guarded-policy marker; Stripe enabled and secret configured.",
+      "executor": "cedros-extension.server.wasm jobs::run-job (catalog-sync)",
+      "downstreamApiLimits": "50 catalog rows and at most 5 products per invocation; 90 second product budget; daily provider revalidation.",
+      "ownerVisibleOutcome": "Redacted checked, synced, failed, deferred counts and per-product sync status."
+    }
+  ],
+  "siteBrainRecords": [
+    {
+      "subject": "cedros-pay:cleanup",
+      "category": "maintenance",
+      "title": "Cedros Pay cleanup completed",
+      "details": [
+        "deletedCount",
+        "archivedCount",
+        "retainedCount"
+      ]
+    },
+    {
+      "subject": "cedros-pay:stats-rollup",
+      "category": "automation",
+      "title": "Cedros Pay stats rollup completed",
+      "details": [
+        "day",
+        "txnCount",
+        "grossCents"
+      ]
+    },
+    {
+      "subject": "cedros-pay:subscription-sync",
+      "category": "automation",
+      "title": "Cedros Pay subscription sync completed",
+      "details": [
+        "checkedCount",
+        "updatedCount",
+        "retryableCount"
+      ]
+    },
+    {
+      "subject": "cedros-pay:webhook-delivery",
+      "category": "automation",
+      "title": "Cedros Pay webhook delivery completed",
+      "details": [
+        "delivered",
+        "deferred",
+        "retried",
+        "failed",
+        "settlementEffects",
+        "domainEffects"
+      ]
+    },
+    {
+      "subject": "cedros-pay:x402-reconcile",
+      "category": "automation",
+      "title": "Cedros Pay x402 reconcile completed",
+      "details": [
+        "checkedCount",
+        "settledCount",
+        "retryableCount"
+      ]
+    }
+  ]
+}

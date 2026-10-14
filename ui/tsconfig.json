@@ -25,7 +25,9 @@
     "declarationMap": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
     "types": [
+      "node",
       "vitest/globals",
       "@testing-library/jest-dom"
     ]

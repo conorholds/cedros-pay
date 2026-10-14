@@ -11,11 +11,18 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Icons } from './icons';
 import { ErrorBanner } from './ErrorBanner';
+import { EmptyState } from './EmptyState';
+import { LoadingState } from './LoadingState';
+import { FormDropdown } from './Dropdown';
+import { SortableHeader } from './SortableHeader';
+import { TableEmptyRow, TableErrorRow, TableLoadingRows } from './TableStateRows';
+import { useBackgroundRefresh } from './useBackgroundRefresh';
+import { useTableSort, type SortValue } from './useTableSort';
 import type { SectionProps, Product } from './types';
 import { formatDateTime } from '../../utils/dateHelpers';
 import { getLogger } from '../../utils/logger';
+import { fetchAdminJson } from './authFetch';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,7 +43,18 @@ interface InventoryAdjustment {
 
 const PAGE_SIZE = 50;
 
-export function InventorySection({ serverUrl, apiKey, authManager }: SectionProps) {
+/** Stable accessor for the sortable adjustment columns (see useTableSort). */
+function adjustmentSortValue(adj: InventoryAdjustment, key: string): SortValue {
+  switch (key) {
+    case 'delta': return adj.delta;
+    case 'before': return adj.quantityBefore;
+    case 'after': return adj.quantityAfter;
+    case 'date': return adj.createdAt;
+    default: return null;
+  }
+}
+
+export function InventorySection({ serverUrl, authManager }: SectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -47,46 +65,44 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
   const [adjustmentsError, setAdjustmentsError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
 
+  const { sorted: sortedAdjustments, sortKey, sortDirection, toggleSort } = useTableSort(
+    adjustments,
+    adjustmentSortValue,
+    { key: 'date', direction: 'desc' }
+  );
+
   // ─── Shared fetch helper ──────────────────────────────────────────────────
 
   const adminFetch = useCallback(async <T,>(path: string): Promise<T> => {
-    if (authManager?.isAuthenticated()) {
-      return authManager.fetchWithAuth<T>(path);
-    }
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['X-API-Key'] = apiKey;
-    const res = await fetch(`${serverUrl}${path}`, { headers });
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    return res.json();
-  }, [serverUrl, apiKey, authManager]);
+    return fetchAdminJson<T>(authManager, path);
+  }, [authManager]);
 
   // ─── Fetch product list on mount ──────────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchProducts = useCallback(async (isCancelled: () => boolean = () => false) => {
     setProductsLoading(true);
     setProductsError(null);
-
-    adminFetch<Product[]>('/admin/products?limit=100&offset=0')
-      .then((data) => {
-        if (cancelled) return;
-        // Server may return array directly or wrapped
-        const list = Array.isArray(data) ? data : (data as { products?: Product[] }).products ?? [];
-        setProducts(list);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        getLogger().error('[InventorySection] Failed to load products:', err, {
-          serverUrl: serverUrl.slice(0, 20) + '...',
-        });
-        setProductsError('Failed to load products');
-      })
-      .finally(() => {
-        if (!cancelled) setProductsLoading(false);
+    try {
+      const data = await adminFetch<Product[]>('/admin/products?limit=100&offset=0');
+      if (isCancelled()) return;
+      const list = Array.isArray(data) ? data : (data as { products?: Product[] }).products ?? [];
+      setProducts(list);
+    } catch (err) {
+      if (isCancelled()) return;
+      getLogger().error('[InventorySection] Failed to load products:', err, {
+        serverUrl: serverUrl.slice(0, 20) + '...',
       });
-
-    return () => { cancelled = true; };
+      setProductsError('Failed to load products');
+    } finally {
+      if (!isCancelled()) setProductsLoading(false);
+    }
   }, [adminFetch, serverUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProducts(() => cancelled);
+    return () => { cancelled = true; };
+  }, [fetchProducts]);
 
   // ─── Fetch adjustments when product or page changes ───────────────────────
 
@@ -104,7 +120,6 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
         serverUrl: serverUrl.slice(0, 20) + '...',
       });
       setAdjustmentsError('Failed to load inventory adjustments');
-      setAdjustments([]);
     } finally {
       setAdjustmentsLoading(false);
     }
@@ -113,6 +128,12 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
   useEffect(() => {
     if (selectedProductId) fetchAdjustments(selectedProductId, offset);
   }, [fetchAdjustments, selectedProductId, offset]);
+
+  // Keep adjustments fresh while a product is selected; idle otherwise.
+  useBackgroundRefresh(
+    () => fetchAdjustments(selectedProductId, offset),
+    { enabled: Boolean(selectedProductId) }
+  );
 
   const handleProductChange = (id: string) => {
     setSelectedProductId(id);
@@ -129,47 +150,50 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
   const selectedProduct = products.find((p) => p.id === selectedProductId);
 
   return (
-    <div className="cedros-admin__page">
-      <ErrorBanner message={productsError ?? adjustmentsError} />
+    <div className="cedros-data-stack cedros-admin__page">
+      {products.length > 0 ? <ErrorBanner message={productsError} onRetry={fetchProducts} /> : null}
 
       <div className="cedros-admin__section-header">
-        <h3 className="cedros-admin__section-title">Inventory Adjustments</h3>
+        <h3 className="cedros-admin__section-title">Inventory adjustments</h3>
       </div>
 
       {/* Product selector */}
       <div className="cedros-admin__add-form" style={{ marginBottom: '1rem' }}>
         <div className="cedros-admin__form-row">
-          <div className="cedros-admin__field" style={{ flex: 1 }}>
-            <label htmlFor="inventory-product-select" className="cedros-admin__field-label">
-              Select Product
-            </label>
-            {productsLoading ? (
-              <div className="cedros-admin__loading">{Icons.loading} Loading products...</div>
-            ) : (
-              <select
-                id="inventory-product-select"
-                className="cedros-admin__input"
-                value={selectedProductId}
-                onChange={(e) => handleProductChange(e.target.value)}
-                aria-label="Select product to view inventory adjustments"
-              >
-                <option value="">-- Choose a product --</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title ?? p.description ?? p.id}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+          {productsError && products.length === 0 ? (
+            <div className="cedros-data-field cedros-admin__field" style={{ flex: 1 }}>
+              <label className="cedros-data-label cedros-admin__field-label">Select product</label>
+              <ErrorBanner message={productsError} onRetry={fetchProducts} />
+            </div>
+          ) : productsLoading && products.length === 0 ? (
+            <div className="cedros-data-field cedros-admin__field" style={{ flex: 1 }}>
+              <label className="cedros-data-label cedros-admin__field-label">Select product</label>
+              <LoadingState label="Loading products…" lines={2} />
+            </div>
+          ) : (
+            <FormDropdown
+              label="Select product"
+              value={selectedProductId}
+              onChange={handleProductChange}
+              options={[
+                { value: '', label: 'Choose a product…' },
+                ...products.map((p) => ({
+                  value: p.id,
+                  label: p.title ?? p.description ?? p.id,
+                })),
+              ]}
+              style={{ flex: 1 }}
+            />
+          )}
         </div>
       </div>
 
       {/* Adjustments table */}
       {!selectedProductId ? (
-        <div className="cedros-admin__empty">Select a product to view its inventory adjustments.</div>
-      ) : adjustmentsLoading ? (
-        <div className="cedros-admin__loading">{Icons.loading} Loading adjustments...</div>
+        <EmptyState
+          title="Select a product"
+          description="Choose a product above to view its inventory adjustment history."
+        />
       ) : (
         <>
           {selectedProduct && (
@@ -178,24 +202,37 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
             </p>
           )}
 
-          {adjustments.length === 0 ? (
-            <div className="cedros-admin__empty">No inventory adjustments found.</div>
-          ) : (
-            <>
-              <div className="cedros-admin__table-container">
-                <table className="cedros-admin__table">
+          {adjustments.length > 0 ? (
+            <ErrorBanner message={adjustmentsError} onRetry={() => fetchAdjustments(selectedProductId, offset)} />
+          ) : null}
+              <div className="cedros-data-table-wrap cedros-admin__table-container">
+                <table className="cedros-data-table cedros-admin__table" aria-busy={adjustmentsLoading}>
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Delta</th>
-                      <th>Before</th>
-                      <th>After</th>
+                      <SortableHeader label="Date" sortKey="date" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                      <SortableHeader label="Delta" sortKey="delta" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                      <SortableHeader label="Before" sortKey="before" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
+                      <SortableHeader label="After" sortKey="after" activeKey={sortKey} direction={sortDirection} onSort={toggleSort} />
                       <th>Reason</th>
                       <th>Actor</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {adjustments.map((adj) => (
+                    {adjustmentsError && adjustments.length === 0 ? (
+                      <TableErrorRow
+                        columns={6}
+                        message={adjustmentsError}
+                        onRetry={() => fetchAdjustments(selectedProductId, offset)}
+                      />
+                    ) : adjustmentsLoading && adjustments.length === 0 ? (
+                      <TableLoadingRows columns={6} label="Loading adjustments…" />
+                    ) : adjustments.length === 0 ? (
+                      <TableEmptyRow
+                        columns={6}
+                        title="No inventory adjustments"
+                        description="Adjustments appear here once stock for this product changes."
+                      />
+                    ) : sortedAdjustments.map((adj) => (
                       <tr key={adj.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {formatDateTime(adj.createdAt)}
@@ -205,9 +242,9 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
                             style={{
                               fontWeight: 600,
                               color: adj.delta > 0
-                                ? 'var(--cedros-success, #16a34a)'
+                                ? 'var(--pay-admin-success)'
                                 : adj.delta < 0
-                                  ? 'var(--cedros-danger, #dc2626)'
+                                  ? 'var(--pay-admin-error)'
                                   : undefined,
                             }}
                             aria-label={`Delta: ${adj.delta > 0 ? 'plus' : ''}${adj.delta}`}
@@ -226,10 +263,11 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
               </div>
 
               {/* Pagination */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.85rem' }}>
+              {adjustments.length > 0 ? (
+              <div className="cedros-data-pagination">
                 <button
                   type="button"
-                  className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
+                  className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
                   disabled={offset === 0}
                   onClick={handlePrev}
                 >
@@ -242,15 +280,14 @@ export function InventorySection({ serverUrl, apiKey, authManager }: SectionProp
                 </span>
                 <button
                   type="button"
-                  className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--sm"
+                  className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--sm cedros-admin__button--sm"
                   disabled={adjustments.length < PAGE_SIZE}
                   onClick={handleNext}
                 >
                   Next
                 </button>
               </div>
-            </>
-          )}
+              ) : null}
         </>
       )}
     </div>

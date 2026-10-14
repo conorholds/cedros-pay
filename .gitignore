@@ -1,1 +1,24 @@
-node_modules/
+/node_modules/
+/.opencode/
+/artifacts/
+/cedros-extension.server.wasm
+/dist/
+/ui/*.tgz
+.DS_Store
+**/.DS_Store
+/.next/
+/ui/.next/
+
+# Local agent state and connection settings
+/.context/
+/.mcp.json
+/opencode.json
+
+# Local configuration, logs, and generated caches
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+__pycache__/
+*.pyc

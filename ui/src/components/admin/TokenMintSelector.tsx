@@ -1,5 +1,5 @@
 /**
- * Token Mint Selector
+ * Token mint Selector
  *
  * Provides a selector for known stablecoins (USDC, USDT, etc.)
  * with a custom token option for arbitrary SPL token mints.
@@ -84,38 +84,25 @@ export function TokenMintSelector({
   };
 
   return (
-    <div className="cedros-admin__field">
-      <label className="cedros-admin__field-label">{label}</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+    <div className="cedros-data-field cedros-admin__field">
+      <label className="cedros-data-label cedros-admin__field-label">{label}</label>
+      <div className="cedros-admin__token-selector">
         {/* Token selector buttons */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div className="cedros-admin__token-options">
           {stablecoinEntries.map(([mint, meta]) => (
             <button
               key={mint}
               type="button"
               onClick={() => handleSelectChange(mint)}
               disabled={disabled}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 0.75rem',
-                border: value === mint
-                  ? '2px solid var(--cedros-admin-primary, #171717)'
-                  : '1px solid var(--cedros-admin-border, #d4d4d4)',
-                borderRadius: '0.5rem',
-                background: value === mint
-                  ? 'var(--cedros-admin-primary-bg, #f5f5f5)'
-                  : 'var(--cedros-admin-bg, #fff)',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                opacity: disabled ? 0.5 : 1,
-                fontWeight: value === mint ? 600 : 400,
-              }}
+              className={`cedros-admin__token-option ${
+                value === mint ? 'cedros-admin__token-option--active' : ''
+              }`}
             >
               <img
                 src={meta.icon}
                 alt={meta.symbol}
-                style={{ width: 20, height: 20, borderRadius: '50%' }}
+                className="cedros-admin__token-option-icon"
                 onError={(e) => {
                   // Fallback to text if image fails
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -128,49 +115,22 @@ export function TokenMintSelector({
             type="button"
             onClick={() => handleSelectChange('custom')}
             disabled={disabled}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 0.75rem',
-              border: showCustomFields
-                ? '2px solid var(--cedros-admin-primary, #171717)'
-                : '1px solid var(--cedros-admin-border, #d4d4d4)',
-              borderRadius: '0.5rem',
-              background: showCustomFields
-                ? 'var(--cedros-admin-primary-bg, #f5f5f5)'
-                : 'var(--cedros-admin-bg, #fff)',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              opacity: disabled ? 0.5 : 1,
-              fontWeight: showCustomFields ? 600 : 400,
-            }}
+            className={`cedros-admin__token-option ${
+              showCustomFields ? 'cedros-admin__token-option--active' : ''
+            }`}
           >
-            <span style={{ fontSize: '1rem' }}>+</span>
+            <span className="cedros-admin__token-option-plus">+</span>
             <span>Custom</span>
           </button>
         </div>
 
         {/* Custom token fields */}
         {showCustomFields && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            padding: '1rem',
-            background: 'var(--cedros-admin-bg-muted, #f9fafb)',
-            borderRadius: '0.5rem',
-            border: '1px solid var(--cedros-admin-border, #e5e7eb)',
-          }}>
+          <div className="cedros-admin__token-custom">
             {/* Token mint address */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                marginBottom: '0.25rem',
-                color: 'var(--cedros-admin-text-muted, #64748b)',
-              }}>
-                Token Mint Address
+            <div className="cedros-data-field cedros-admin__field">
+              <label className="cedros-data-label cedros-admin__field-label">
+                Token mint address
               </label>
               {(() => {
                 const mintValidation = validateSolanaAddress(value);
@@ -178,19 +138,16 @@ export function TokenMintSelector({
                   <>
                     <input
                       type="text"
-                      className={`cedros-admin__input ${!mintValidation.valid ? 'cedros-admin__input--error' : ''}`}
+                      className={`cedros-admin__input cedros-admin__input--mono ${
+                        !mintValidation.valid ? 'cedros-admin__input--error' : ''
+                      }`}
                       value={value}
                       onChange={e => onChange(e.target.value)}
                       placeholder="e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
                       disabled={disabled}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.875rem',
-                        borderColor: !mintValidation.valid ? 'var(--cedros-admin-error, #dc2626)' : undefined,
-                      }}
                     />
                     {!mintValidation.valid && (
-                      <span style={{ color: 'var(--cedros-admin-error, #dc2626)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                      <span className="cedros-admin__field-error">
                         {mintValidation.error}
                       </span>
                     )}
@@ -200,100 +157,65 @@ export function TokenMintSelector({
             </div>
 
             {/* Token symbol */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                marginBottom: '0.25rem',
-                color: 'var(--cedros-admin-text-muted, #64748b)',
-              }}>
-                Token Symbol
+            <div className="cedros-data-field cedros-admin__field">
+              <label className="cedros-data-label cedros-admin__field-label">
+                Token symbol
               </label>
               <input
                 type="text"
-                className="cedros-admin__input"
+                className="cedros-data-input cedros-admin__input cedros-admin__input--uppercase"
                 value={customSymbol}
                 onChange={e => onCustomSymbolChange?.(e.target.value)}
                 placeholder="e.g., MYTOKEN"
                 disabled={disabled}
-                style={{ textTransform: 'uppercase' }}
               />
             </div>
 
             {/* Token icon */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                marginBottom: '0.25rem',
-                color: 'var(--cedros-admin-text-muted, #64748b)',
-              }}>
-                Token Icon URL
+            <div className="cedros-data-field cedros-admin__field">
+              <label className="cedros-data-label cedros-admin__field-label">
+                Token icon URL
               </label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div className="cedros-admin__token-icon-row">
                 <input
                   type="text"
-                  className="cedros-admin__input"
+                  className="cedros-data-input cedros-admin__input"
                   value={customIcon}
                   onChange={e => onCustomIconChange?.(e.target.value)}
                   placeholder="https://example.com/token-logo.png"
                   disabled={disabled}
-                  style={{ flex: 1 }}
                 />
                 {customIcon && (
                   <img
                     src={customIcon}
                     alt="Token icon preview"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      border: '1px solid var(--cedros-admin-border, #e5e7eb)',
-                      objectFit: 'cover',
-                    }}
+                    className="cedros-admin__token-icon-preview"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 )}
               </div>
-              <div style={{
-                fontSize: '0.7rem',
-                color: 'var(--cedros-admin-text-muted, #94a3b8)',
-                marginTop: '0.25rem',
-              }}>
+              <div className="cedros-admin__field-description">
                 Shown to customers during checkout
               </div>
             </div>
 
             {/* Token decimals */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                marginBottom: '0.25rem',
-                color: 'var(--cedros-admin-text-muted, #64748b)',
-              }}>
-                Token Decimals
+            <div className="cedros-data-field cedros-admin__field cedros-admin__token-decimals">
+              <label className="cedros-data-label cedros-admin__field-label">
+                Token decimals
               </label>
               <input
                 type="number"
-                className="cedros-admin__input"
+                className="cedros-data-input cedros-admin__input cedros-admin__input--compact"
                 value={decimals ?? 6}
                 onChange={e => onDecimalsChange?.(parseInt(e.target.value, 10) || 0)}
                 min={0}
                 max={18}
                 disabled={disabled}
-                style={{ width: '100px' }}
               />
-              <div style={{
-                fontSize: '0.7rem',
-                color: 'var(--cedros-admin-text-muted, #94a3b8)',
-                marginTop: '0.25rem',
-              }}>
+              <div className="cedros-admin__field-description">
                 Most SPL tokens use 6 decimals (like USDC)
               </div>
             </div>
@@ -302,23 +224,14 @@ export function TokenMintSelector({
 
         {/* Show full address for known mint */}
         {value && isKnownMint && (
-          <div style={{
-            fontSize: '0.75rem',
-            color: 'var(--cedros-admin-text-muted, #64748b)',
-            fontFamily: 'monospace',
-            wordBreak: 'break-all',
-          }}>
+          <div className="cedros-admin__token-address">
             {value}
           </div>
         )}
 
         {/* Description */}
         {description && (
-          <div style={{
-            fontSize: '0.75rem',
-            color: 'var(--cedros-admin-text-muted, #64748b)',
-            marginTop: '0.25rem',
-          }}>
+          <div className="cedros-admin__field-description">
             {description}
           </div>
         )}

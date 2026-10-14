@@ -1,0 +1,650 @@
+.cedros-pay-admin .cedros-admin__payment-settings-body,
+.cedros-pay-admin .cedros-admin__token-selector,
+.cedros-pay-admin .cedros-admin__token-custom {
+  display: flex;
+  flex-direction: column;
+}
+
+.cedros-pay-admin .cedros-admin__payment-settings-body {
+  gap: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-card {
+  padding: 1.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-card .cedros-admin__config-fields {
+  gap: 1.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded {
+  gap: 0.875rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__content-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__payment-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+}
+
+/* Keep stacked content cards distinct from the same-coloured page surface with
+   a stronger edge and a small elevation shadow. */
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__content-settings-card {
+  border-color: color-mix(in srgb, var(--pay-admin-border) 58%, var(--pay-admin-fg) 26%);
+  box-shadow:
+    0 1px 2px 0 color-mix(in srgb, var(--pay-admin-fg) 10%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--pay-admin-fg) 16%, transparent);
+}
+
+.cedros-pay-admin .cedros-admin__payment-card > .cedros-admin__error-banner {
+  margin-bottom: 1rem;
+}
+
+/* Money input: currency affix sits inside the field frame. */
+.cedros-pay-admin .cedros-admin__money-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cedros-pay-admin .cedros-admin__money-input .cedros-admin__input {
+  padding-left: 1.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__money-input-symbol {
+  position: absolute;
+  left: 0.625rem;
+  color: var(--pay-admin-muted);
+  pointer-events: none;
+}
+
+.cedros-pay-admin .cedros-admin__money-input-code {
+  position: absolute;
+  right: 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--pay-admin-muted);
+  pointer-events: none;
+}
+
+/* Inline autosave status shown in the card header (no Save button). */
+.cedros-pay-admin .cedros-admin__autosave-indicator {
+  font-size: 0.8125rem;
+  color: var(--pay-admin-muted);
+}
+
+.cedros-pay-admin .cedros-admin__autosave-indicator--saved {
+  color: var(--pay-admin-success);
+}
+
+.cedros-pay-admin .cedros-admin__autosave-indicator--offline,
+.cedros-pay-admin .cedros-admin__autosave-indicator--conflict {
+  color: var(--pay-admin-warning);
+}
+
+.cedros-pay-admin .cedros-admin__autosave-indicator--error {
+  color: var(--pay-admin-error);
+}
+
+.cedros-pay-admin .cedros-admin__payment-card > .cedros-admin__payment-card-header {
+  align-items: flex-start;
+  border-bottom: 0;
+  margin-bottom: 1rem;
+  padding: 0;
+}
+
+.cedros-pay-admin .cedros-admin__payment-card-heading {
+  display: grid;
+  gap: 0.375rem;
+  max-width: 48rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-card-description {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__payment-card-description {
+  max-width: 32rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__config-fields {
+  gap: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__form-row {
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__textarea {
+  min-height: 4.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__textarea--mono {
+  min-height: 5.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-toggle-row,
+.cedros-pay-admin .cedros-admin__toggle-field,
+.cedros-pay-admin .cedros-admin__payment-card-actions,
+.cedros-pay-admin .cedros-admin__payment-validation-layout,
+.cedros-pay-admin .cedros-admin__token-options,
+.cedros-pay-admin .cedros-admin__token-option,
+.cedros-pay-admin .cedros-admin__token-icon-row,
+.cedros-pay-admin .cedros-admin__input-affix {
+  display: flex;
+  align-items: center;
+}
+
+.cedros-pay-admin .cedros-admin__payment-toggle-row {
+  flex-shrink: 0;
+  gap: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-toggle-label,
+.cedros-pay-admin .cedros-admin__toggle-field-label {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+}
+
+.cedros-pay-admin .cedros-admin__switch {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: 999px;
+  background: var(--pay-admin-muted-bg);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    border-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    opacity var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__switch--checked {
+  border-color: var(--pay-admin-primary);
+  background: var(--pay-admin-primary);
+}
+
+.cedros-pay-admin .cedros-admin__switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cedros-pay-admin .cedros-admin__switch-thumb {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  background: var(--pay-admin-bg);
+  box-shadow: var(--pay-admin-shadow-sm);
+}
+
+.cedros-pay-admin .cedros-admin__payment-editor {
+  margin-top: 0;
+}
+
+/* Quiet note shown in place of the setup fields while a rail is switched off. */
+.cedros-pay-admin .cedros-admin__payment-off-note {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: var(--pay-admin-muted-bg);
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.cedros-pay-admin .cedros-admin__field-group {
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius-lg);
+  background: var(--pay-admin-card-bg);
+}
+
+.cedros-pay-admin .cedros-admin__field-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__field-group-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__field-group-title {
+  margin: 0;
+  color: var(--pay-admin-fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cedros-pay-admin .cedros-admin__field-group-description {
+  margin: 0;
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.cedros-pay-admin .cedros-admin__field-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__advanced {
+  border-top: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__advanced-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 0 0.25rem;
+  color: var(--pay-admin-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  list-style: none;
+  user-select: none;
+}
+
+.cedros-pay-admin .cedros-admin__advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cedros-pay-admin .cedros-admin__advanced-summary:hover {
+  color: var(--pay-admin-fg);
+}
+
+.cedros-pay-admin .cedros-admin__advanced-chevron {
+  display: inline-flex;
+  transition: transform var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__advanced-summary[aria-expanded='true'] .cedros-admin__advanced-chevron {
+  transform: rotate(90deg);
+}
+
+.cedros-pay-admin .cedros-admin__advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-top: 0.875rem;
+}
+
+.cedros-pay-admin .cedros-admin__segmented {
+  display: inline-flex;
+  gap: 0.25rem;
+  width: fit-content;
+  padding: 0.25rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius-lg);
+  /* A clearly tinted track so the white selected pill reads as raised; the old
+     near-white mix left the active option almost invisible against it. */
+  background: var(--pay-admin-muted-bg);
+}
+
+.cedros-pay-admin .cedros-admin__segmented-option {
+  min-height: 1.875rem;
+  padding: 0 0.875rem;
+  border: 1px solid transparent;
+  border-radius: var(--pay-admin-radius);
+  background: transparent;
+  color: var(--pay-admin-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition:
+    background-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__segmented-option:hover:not(:disabled) {
+  color: var(--pay-admin-fg);
+}
+
+.cedros-pay-admin .cedros-admin__segmented-option--active {
+  border-color: color-mix(in srgb, var(--pay-admin-border) 55%, var(--pay-admin-fg) 18%);
+  background: var(--pay-admin-bg);
+  box-shadow:
+    0 1px 2px 0 color-mix(in srgb, var(--pay-admin-fg) 12%, transparent),
+    0 1px 3px -1px color-mix(in srgb, var(--pay-admin-fg) 10%, transparent);
+  color: var(--pay-admin-fg);
+}
+
+.cedros-pay-admin .cedros-admin__segmented-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cedros-pay-admin .cedros-admin__segmented--wrap {
+  flex-wrap: wrap;
+}
+
+/* Keep the themed keyboard focus ring consistent across the custom controls
+   that don't carry the .cedros-admin__button class. */
+.cedros-pay-admin .cedros-admin__segmented-option:focus-visible,
+.cedros-pay-admin .cedros-admin__chip-remove:focus-visible,
+.cedros-pay-admin .cedros-admin__advanced-summary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pay-admin-ring) 15%, transparent);
+}
+
+/* ── Amount chips ────────────────────────────────────────────────────────── */
+.cedros-pay-admin .cedros-admin__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.cedros-pay-admin .cedros-admin__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  padding: 0.125rem 0.25rem 0.125rem 0.625rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: 999px;
+  background: var(--pay-admin-muted-bg);
+  color: var(--pay-admin-fg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cedros-pay-admin .cedros-admin__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pay-admin-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    color var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__chip-remove:hover {
+  background: color-mix(in srgb, var(--pay-admin-fg) 10%, transparent);
+  color: var(--pay-admin-fg);
+}
+
+.cedros-pay-admin .cedros-admin__chip-remove svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__chip-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__chip-add .cedros-admin__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-admin__chip-add .cedros-admin__button {
+  flex-shrink: 0;
+}
+
+.cedros-pay-admin .cedros-admin__endpoint-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__endpoint-url {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: color-mix(in srgb, var(--pay-admin-bg) 93%, var(--pay-admin-muted-bg) 7%);
+  color: var(--pay-admin-fg);
+  font-family: var(--pay-admin-font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.cedros-pay-admin .cedros-admin__endpoint-row .cedros-admin__button {
+  flex-shrink: 0;
+  gap: 0.375rem;
+}
+
+.cedros-pay-admin .cedros-admin__saved-chip {
+  position: absolute;
+  top: 50%;
+  right: 0.625rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--pay-admin-success) 25%, var(--pay-admin-border));
+  border-radius: 999px;
+  background: var(--pay-admin-success-light);
+  color: var(--pay-admin-success);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.cedros-pay-admin .cedros-admin__input-affix:has(.cedros-admin__textarea) .cedros-admin__saved-chip {
+  top: 0.625rem;
+  transform: none;
+}
+
+.cedros-pay-admin .cedros-admin__input-affix:has(.cedros-admin__saved-chip) .cedros-admin__input {
+  padding-right: 4.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__field-hint {
+  color: color-mix(in srgb, var(--pay-admin-warning) 80%, var(--pay-admin-fg));
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.cedros-pay-admin .cedros-admin__field-help {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cedros-pay-admin .cedros-admin__field-help:hover {
+  color: var(--pay-admin-fg);
+}
+
+.cedros-pay-admin .cedros-admin__payment-save-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__save-status {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+}
+
+.cedros-pay-admin .cedros-admin__save-status--error {
+  color: var(--pay-admin-error);
+}
+
+.cedros-pay-admin .cedros-admin__save-status--success {
+  color: var(--pay-admin-success);
+}
+
+.cedros-pay-admin .cedros-admin__payment-history,
+.cedros-pay-admin .cedros-admin__payment-validation,
+.cedros-pay-admin .cedros-admin__payment-card-actions {
+  margin-top: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-history-title {
+  margin: 0 0 0.75rem;
+  color: var(--pay-admin-fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation {
+  padding: 0.875rem 1rem;
+  border-radius: var(--pay-admin-radius);
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation--success {
+  border: 1px solid color-mix(in srgb, var(--pay-admin-success) 30%, var(--pay-admin-border));
+  background: var(--pay-admin-success-light);
+  color: var(--pay-admin-success);
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation--error {
+  border: 1px solid color-mix(in srgb, var(--pay-admin-error) 30%, var(--pay-admin-border));
+  background: var(--pay-admin-error-light);
+  color: var(--pay-admin-error);
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-layout {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-content {
+  flex: 1;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: inherit;
+  font-size: 0.8125rem;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-list--warning {
+  color: var(--pay-admin-warning);
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pay-admin-radius);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cedros-pay-admin .cedros-admin__payment-validation-dismiss:hover {
+  background: color-mix(in srgb, var(--pay-admin-bg) 55%, transparent);
+}
+
+.cedros-pay-admin .cedros-admin__payment-card-actions {
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__content-settings--embedded .cedros-admin__payment-card-actions {
+  justify-content: flex-end;
+  padding-top: 0.875rem;
+}
+
+.cedros-pay-admin .cedros-admin__token-custom {
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: var(--pay-admin-card-bg);
+  box-shadow: var(--pay-admin-shadow-card);
+}
+
+.cedros-pay-admin .cedros-admin__field-description,
+.cedros-pay-admin .cedros-admin__field-error,
+.cedros-pay-admin .cedros-admin__token-address {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.cedros-pay-admin .cedros-admin__field-description,
+.cedros-pay-admin .cedros-admin__token-address {
+  color: var(--pay-admin-muted);
+}
+
+/* Read-only explanation shown in place of a removed/auto-managed control. */
+.cedros-pay-admin .cedros-admin__info-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: color-mix(in srgb, var(--pay-admin-bg) 94%, var(--pay-admin-muted-bg) 6%);
+}
+
+.cedros-pay-admin .cedros-admin__info-line-label {
+  color: var(--pay-admin-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cedros-pay-admin .cedros-admin__info-line-text {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .cedros-pay-admin .cedros-admin__payment-card-header,
+  .cedros-pay-admin .cedros-admin__payment-card-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cedros-pay-admin .cedros-admin__payment-card-actions .cedros-admin__button,
+  .cedros-pay-admin .cedros-admin__token-icon-row {
+    width: 100%;
+  }
+}

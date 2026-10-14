@@ -11,7 +11,7 @@ import type {
   ProductVariant,
   ProductVariationConfig,
   VariationType,
-} from '../../ecommerce/types';
+} from '../../types/productVariations';
 import { Icons } from './icons';
 import { FilterDropdown } from './Dropdown';
 
@@ -94,14 +94,7 @@ function generateCombinations(types: VariationType[]): VariantCombination[] {
  * Get combination key for a variant
  */
 function getVariantKey(variant: ProductVariant): string {
-  if (variant.optionValueIds?.length) {
-    return [...variant.optionValueIds].sort().join('|');
-  }
-  // Fallback for legacy variants without optionValueIds
-  return Object.entries(variant.options)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${v}`)
-    .join('|');
+  return [...variant.optionValueIds].sort().join('|');
 }
 
 export function VariantInventoryGrid({
@@ -168,7 +161,6 @@ export function VariantInventoryGrid({
       const newVariant: ProductVariant = {
         id: generateVariantId(),
         title: combo.title,
-        options: combo.options,
         optionValueIds: combo.optionValueIds,
         price: defaultPrice,
         inventoryQuantity: 0,
@@ -188,7 +180,6 @@ export function VariantInventoryGrid({
     const newVariants: ProductVariant[] = toCreate.map((combo) => ({
       id: generateVariantId(),
       title: combo.title,
-      options: combo.options,
       optionValueIds: combo.optionValueIds,
       price: defaultPrice,
       inventoryQuantity: 0,
@@ -218,7 +209,7 @@ export function VariantInventoryGrid({
   return (
     <div className="cedros-admin__variant-grid">
       <div className="cedros-admin__variant-grid-header">
-        <h4 className="cedros-admin__field-label" style={{ marginBottom: 0 }}>
+        <h4 className="cedros-data-label cedros-admin__field-label" style={{ marginBottom: 0 }}>
           Variants
         </h4>
         <span style={{ fontSize: 12, opacity: 0.7 }}>
@@ -231,11 +222,11 @@ export function VariantInventoryGrid({
         <div className="cedros-admin__variant-grid-actions">
           <button
             type="button"
-            className="cedros-admin__button cedros-admin__button--secondary"
+            className="cedros-data-btn cedros-admin__button cedros-data-btn--secondary cedros-admin__button--secondary"
             onClick={handleGenerateAll}
             disabled={disabled}
           >
-            Generate All ({Math.min(possibleRows.length, maxVariants - variants.length)})
+            Generate all ({Math.min(possibleRows.length, maxVariants - variants.length)})
           </button>
           <span style={{ fontSize: 11, opacity: 0.7 }}>
             Creates variants with default price and 0 inventory
@@ -243,8 +234,8 @@ export function VariantInventoryGrid({
         </div>
       )}
 
-      <div className="cedros-admin__table-container">
-        <table className="cedros-admin__table cedros-admin__variant-table">
+      <div className="cedros-data-table-wrap cedros-admin__table-container">
+        <table className="cedros-data-table cedros-admin__table cedros-admin__variant-table">
           <thead>
             <tr>
               <th>Variant</th>
@@ -273,7 +264,7 @@ export function VariantInventoryGrid({
                     <span>{currencySymbol}</span>
                     <input
                       type="number"
-                      className="cedros-admin__input cedros-admin__input--sm"
+                      className="cedros-data-input cedros-admin__input cedros-admin__input--sm"
                       value={variant.price ?? ''}
                       onChange={(e) =>
                         handleUpdateVariant(variant.id, {
@@ -293,7 +284,7 @@ export function VariantInventoryGrid({
                 <td>
                   <input
                     type="number"
-                    className="cedros-admin__input cedros-admin__input--sm"
+                    className="cedros-data-input cedros-admin__input cedros-admin__input--sm"
                     value={variant.inventoryQuantity ?? ''}
                     onChange={(e) =>
                       handleUpdateVariant(variant.id, {
@@ -311,7 +302,7 @@ export function VariantInventoryGrid({
                 <td>
                   <input
                     type="text"
-                    className="cedros-admin__input cedros-admin__input--sm"
+                    className="cedros-data-input cedros-admin__input cedros-admin__input--sm"
                     value={variant.sku ?? ''}
                     onChange={(e) =>
                       handleUpdateVariant(variant.id, {
@@ -343,10 +334,11 @@ export function VariantInventoryGrid({
                 <td>
                   <button
                     type="button"
-                    className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--icon cedros-admin__button--danger"
+                    className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-admin__button--icon cedros-data-btn--danger cedros-admin__button--danger"
                     onClick={() => handleRemoveVariant(variant.id)}
                     disabled={disabled}
                     title="Remove variant"
+                    aria-label={`Remove variant ${combo.title}`}
                   >
                     {Icons.trash}
                   </button>
@@ -374,10 +366,11 @@ export function VariantInventoryGrid({
                     <td>
                       <button
                         type="button"
-                        className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--icon"
+                        className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-admin__button--icon"
                         onClick={() => handleCreateVariant(combo)}
                         disabled={disabled}
                         title="Create variant"
+                        aria-label={`Create variant ${combo.title}`}
                       >
                         {Icons.plus}
                       </button>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-// Simple unit tests for cart mode logic that was fixed in audit
+// Unit tests for cart mode logic.
 describe('CedrosPay - Cart Mode Logic', () => {
   describe('isCartMode detection', () => {
     it('should detect single item with quantity > 1 as cart mode', () => {

@@ -1,10 +1,3 @@
-/**
- * Admin Config API Client
- *
- * Client for interacting with the server's /admin/config/* endpoints.
- * Uses Ed25519 authentication headers.
- */
-
 /** Config category summary */
 export interface ConfigCategory {
   category: string;
@@ -24,16 +17,38 @@ export interface GetConfigResponse {
   category: string;
   config: Record<string, unknown>;
   updatedAt: string;
+  committedRevision: string | null;
   secretsRedacted: boolean;
+  /** Stripe only: the tokenised webhook path to register and the events to select. */
+  webhookEndpoint?: WebhookEndpoint;
+}
+
+/** Server-generated webhook endpoint description (Stripe category). */
+export interface WebhookEndpoint {
+  /** Path relative to the site origin, including the ingress token query. */
+  path: string;
+  /** Stripe event types the operator selects for the endpoint. */
+  events: string[];
+}
+
+export interface ConfigMutationResponse {
+  category: string;
+  updated: boolean;
+  updatedAt: string;
+  committedRevision: string | null;
+  message: string;
 }
 
 /** Config history entry */
 export interface ConfigHistoryEntry {
   id: string;
-  configKey: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  mutationId: string;
+  previousRevision: string | null;
+  committedRevision: string;
+  changedKeys: string[];
   changedAt: string;
-  changedBy: string;
+  changedBy: string | null;
+  reason: string | null;
 }
 
 /** History response */
@@ -50,39 +65,33 @@ export interface ValidateConfigResponse {
 }
 
 import type { IAdminAuthManager } from './AdminAuthManager';
-
-/** @deprecated Use IAdminAuthManager instead. Legacy auth used client-generated nonces vulnerable to replay. */
-export interface AdminAuth {
-  signerPublicKey: string;
-  sign: (message: string) => Promise<string>;
-}
+import { generateUUID } from '../../utils/uuid';
 
 /** Admin Config API client */
 export class ConfigApiClient {
+  private committedRevision: string | null | undefined;
+  private identityGeneration: number | undefined;
+  private pendingMutations = new Map<
+    string,
+    { mutationId: string; expectedRevision: string | null }
+  >();
+
   constructor(
     private _serverUrl: string,
-    private auth?: AdminAuth,
     private authManager?: IAdminAuthManager
   ) {}
 
-  /** Server URL passed at construction (retained for API compatibility). */
-  get serverUrl(): string { return this._serverUrl; }
+  /** Server URL passed at construction. */
+  get serverUrl(): string {
+    return this._serverUrl;
+  }
 
   private async fetch<T>(
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Prefer authManager (new auth) over legacy auth
     if (this.authManager?.isAuthenticated()) {
       return this.authManager.fetchWithAuth<T>(path, options);
-    }
-
-    // Legacy AdminAuth is no longer supported — it used client-generated nonces
-    // vulnerable to replay attacks. Require IAdminAuthManager.
-    if (this.auth) {
-      throw new Error(
-        'Legacy AdminAuth is no longer supported due to replay vulnerability. Use IAdminAuthManager instead.'
-      );
     }
 
     throw new Error(
@@ -96,8 +105,17 @@ export class ConfigApiClient {
   }
 
   /** Get config for a category */
-  async getConfig(category: string, redactSecrets = true): Promise<GetConfigResponse> {
-    return this.fetch(`/admin/config/${category}?redact_secrets=${redactSecrets}`);
+  async getConfig(category: string): Promise<GetConfigResponse> {
+    const generation = this.syncIdentity();
+    const response = await this.fetch<GetConfigResponse>(
+      `/admin/config/${category}`
+    );
+    this.assertIdentity(generation);
+    this.committedRevision = response.committedRevision;
+    // An authoritative reload resolves any prior unknown/conflicted completion.
+    // A subsequent edit must use the newly observed revision and operation id.
+    this.pendingMutations.clear();
+    return response;
   }
 
   /** Full update - replace entire category config */
@@ -105,11 +123,8 @@ export class ConfigApiClient {
     category: string,
     config: Record<string, unknown>,
     description?: string
-  ): Promise<void> {
-    await this.fetch(`/admin/config/${category}`, {
-      method: 'PUT',
-      body: JSON.stringify({ config, description }),
-    });
+  ): Promise<ConfigMutationResponse> {
+    return this.mutateConfig('PUT', category, 'config', config, description);
   }
 
   /** Partial update - update specific keys */
@@ -117,26 +132,61 @@ export class ConfigApiClient {
     category: string,
     updates: Record<string, unknown>,
     description?: string
-  ): Promise<void> {
-    await this.fetch(`/admin/config/${category}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ updates, description }),
-    });
+  ): Promise<ConfigMutationResponse> {
+    return this.mutateConfig('PATCH', category, 'updates', updates, description);
   }
 
-  /** Batch update multiple categories */
-  async batchUpdate(
-    updates: Array<{
-      category: string;
-      configKey: string;
-      value: unknown;
-      description?: string;
-    }>
-  ): Promise<void> {
-    await this.fetch('/admin/config/batch', {
-      method: 'POST',
-      body: JSON.stringify({ updates }),
+  private async mutateConfig(
+    method: 'PUT' | 'PATCH',
+    category: string,
+    field: 'config' | 'updates',
+    values: Record<string, unknown>,
+    description?: string
+  ): Promise<ConfigMutationResponse> {
+    const generation = this.syncIdentity();
+    const fingerprint = JSON.stringify([
+      method,
+      category,
+      field,
+      values,
+      description,
+    ]);
+    const pending = this.pendingMutations.get(fingerprint) ?? {
+      mutationId: `config-${generateUUID()}`,
+      expectedRevision: this.committedRevision ?? null,
+    };
+    this.pendingMutations.set(fingerprint, pending);
+    const response = await this.fetch<ConfigMutationResponse>(`/admin/config/${category}`, {
+      method,
+      headers: { 'Idempotency-Key': `extension-config:${pending.mutationId}` },
+      body: JSON.stringify({
+        [field]: values,
+        description,
+        mutationId: pending.mutationId,
+        expectedRevision: pending.expectedRevision,
+      }),
     });
+    this.assertIdentity(generation);
+    this.committedRevision = response.committedRevision;
+    this.pendingMutations.delete(fingerprint);
+    return response;
+  }
+
+  private syncIdentity(): number | undefined {
+    const generation = this.authManager?.getIdentityGeneration?.();
+    if (this.identityGeneration !== generation) {
+      this.identityGeneration = generation;
+      this.committedRevision = undefined;
+      this.pendingMutations.clear();
+    }
+    return generation;
+  }
+
+  private assertIdentity(expected: number | undefined): void {
+    if (this.authManager?.getIdentityGeneration?.() !== expected) {
+      this.syncIdentity();
+      throw new Error('Admin identity changed while the configuration request was in flight.');
+    }
   }
 
   /** Validate config before saving */
@@ -158,541 +208,13 @@ export class ConfigApiClient {
   }
 }
 
-/** Field metadata for special input types */
-export interface FieldMeta {
-  type?:
-    | 'dropdown'
-    | 'number'
-    | 'boolean'
-    | 'array'
-    | 'token_mint'
-    | 'toggle'
-    | 'secret_array'
-    | 'solana_address';
-  options?: string[];
-  unit?: string;
-  /** Description text shown below the field label */
-  description?: string;
-  /** Hide this field from the UI */
-  hidden?: boolean;
-  /** Only show this field when another field has a truthy value */
-  showWhen?: string;
-}
-
-/** Category metadata */
-export interface CategoryMeta {
-  label: string;
-  description?: string;
-  secrets: string[];
-  icon: string;
-  fields?: Record<string, FieldMeta>;
-}
-
-/** Known config categories and their metadata */
-export const CONFIG_CATEGORIES: Record<string, CategoryMeta> = {
-  server: {
-    label: 'Server',
-    secrets: [],
-    icon: '🖥️',
-    fields: {
-      admin_metrics_api_key: { hidden: true }, // Moved to metrics tab
-      cors_allowed_origins: { hidden: true }, // Moved to security tab
-    },
-  },
-  security: {
-    label: 'Security',
-    description: 'Configure CORS, rate limiting, and other security settings',
-    secrets: [],
-    icon: '🔒',
-    fields: {
-      cors_allowed_origins: {
-        description: 'List of allowed origins for CORS requests. Use ["*"] to allow all origins (not recommended for production).',
-      },
-    },
-  },
-  metrics: {
-    label: 'Metrics',
-    description: 'Configure metrics collection and API access',
-    secrets: ['admin_metrics_api_key'],
-    icon: '📊',
-    fields: {
-      admin_metrics_api_key: {
-        description: 'API key for accessing the admin metrics endpoint. Keep this secret.',
-      },
-    },
-  },
-  logging: {
-    label: 'Logging',
-    secrets: [],
-    icon: '📝',
-    fields: {
-      level: { type: 'dropdown', options: ['trace', 'debug', 'info', 'warn', 'error'] },
-      format: { hidden: true }, // Developer setting
-      environment: { hidden: true }, // Developer setting
-    },
-  },
-  stripe: {
-    label: 'Stripe',
-    secrets: ['secret_key', 'webhook_secret'],
-    icon: '💳',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      secret_key: {
-        description: 'Stripe Dashboard → Developers → API keys → Secret key. Use the test key (sk_test_...) for testing, or the live key (sk_live_...) for production.',
-      },
-      publishable_key: {
-        description: 'Stripe Dashboard → Developers → API keys → Publishable key. Starts with pk_test_... or pk_live_...',
-      },
-      mode: {
-        type: 'dropdown',
-        options: ['test', 'live'],
-        description: 'Use "test" mode with test API keys during development, then switch to "live" with live keys for real payments.',
-      },
-      webhook_url: {
-        description: 'The full URL Stripe sends webhook events to. Default is your server URL + /webhook/stripe (e.g. https://example.com/webhook/stripe). Only change this if you\'ve customized the route in your cedros-pay server.',
-      },
-      webhook_secret: {
-        description: 'Stripe Dashboard → Developers → Webhooks → "Create an event destination" → select events: checkout.session.completed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed → Continue → choose "Webhook endpoint" → enter your server\'s webhook endpoint, e.g. https://example.com/webhook/stripe (your server URL + /webhook/stripe) → after creating, click the endpoint and "Click to reveal" the signing secret. Starts with whsec_...',
-      },
-      allowed_redirect_schemes: {
-        type: 'array',
-        description: 'Optional mobile deep-link URI schemes Cedros should allow for Stripe success/cancel/portal redirects, for example ["covenant"]. Only add your app\'s custom schemes here. HTTPS links do not need to be listed.',
-      },
-      tax_rate_id: {
-        description: 'Stripe Dashboard → More → Product catalog → Tax rates → "+ New" → set the percentage, region, and whether tax is inclusive or exclusive → Save → copy the tax rate ID from the detail page (starts with txr_...). Leave empty if you don\'t collect tax.',
-      },
-      success_url: { hidden: true }, // Library provides default pages
-      cancel_url: { hidden: true }, // Library provides default pages
-    },
-  },
-  native_store: {
-    label: 'App Stores',
-    description: 'Configure Apple App Store and Google Play billing credentials, notification endpoints, and server-side verification.',
-    secrets: ['apple_private_key', 'google_private_key'],
-    icon: '📱',
-    fields: {
-      enabled: {
-        hidden: true,
-      },
-      apple_enabled: {
-        type: 'toggle',
-        description: 'Enable Apple App Store verification and lifecycle handling for this tenant.',
-      },
-      apple_issuer_id: {
-        description: 'App Store Connect → Users and Access → Integrations → App Store Server API → Issuer ID.',
-      },
-      apple_key_id: {
-        description: 'App Store Connect → Users and Access → Integrations → App Store Server API → Key ID.',
-      },
-      apple_private_key: {
-        description: 'The contents of your App Store Server API private key (.p8). Keep this secret.',
-      },
-      apple_bundle_id: {
-        description: 'The bundle identifier of the app that ships with Apple In-App Purchase enabled.',
-      },
-      apple_allow_sandbox_fallback: {
-        type: 'toggle',
-        description: 'When enabled, Cedros will fall back to Apple sandbox verification where appropriate.',
-      },
-      google_enabled: {
-        type: 'toggle',
-        description: 'Enable Google Play purchase verification, acknowledgment, and RTDN processing.',
-      },
-      google_service_account_email: {
-        description: 'Google Cloud service-account email with Android Publisher API access.',
-      },
-      google_private_key: {
-        description: 'The private key for the Google service account used to call the Play Developer API.',
-      },
-      google_package_name: {
-        description: 'Default Android package name for this tenant’s Google Play app.',
-      },
-      google_push_service_account_email: {
-        description: 'Expected Google-signed Pub/Sub push identity for RTDN requests.',
-      },
-      google_push_audience: {
-        description: 'Expected RTDN push audience. This should match the audience configured on your Pub/Sub push subscription.',
-      },
-    },
-  },
-  x402: {
-    label: 'X402 (Crypto)',
-    secrets: ['server_wallets'],
-    icon: '⚡',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      payment_address: {
-        type: 'solana_address',
-        description: 'The Solana wallet address where payments are received. This is where customer funds are sent.',
-      },
-      token_mint: {
-        type: 'token_mint',
-        description: 'The SPL token used for payments. Most commonly USDC.',
-      },
-      token_decimals: {
-        type: 'number',
-        description: 'Number of decimal places for the token (e.g., USDC has 6 decimals).',
-        hidden: true, // Managed by token_mint selector
-      },
-      custom_token_symbol: {
-        description: 'Display symbol for your custom token (e.g., "MYTOKEN").',
-        hidden: true, // Managed by token_mint selector
-      },
-      custom_token_icon: {
-        description: 'URL to your token\'s icon image.',
-        hidden: true, // Managed by token_mint selector
-      },
-      rpc_url: {
-        description: 'Solana RPC endpoint URL. Required for crypto payment verification (e.g., from Helius, QuickNode, or Alchemy).',
-      },
-      gasless_enabled: {
-        type: 'toggle',
-        description: 'When enabled, your server pays transaction fees so customers don\'t need SOL.',
-      },
-      server_wallets: {
-        type: 'secret_array',
-        description: 'Server keypair(s) used to sign and pay for transactions. Required for gasless payments.',
-        showWhen: 'gasless_enabled',
-      },
-      rounding_mode: {
-        type: 'dropdown',
-        options: ['nearest', 'up', 'down'],
-        description: 'How to round fractional token amounts: nearest (default), up (always round up), or down (always round down).',
-      },
-      network: { hidden: true },
-      ws_url: { hidden: true }, // Derived from rpc_url
-      skip_preflight: { hidden: true }, // Always false; not a user decision
-      commitment: { hidden: true }, // Internal Solana parameter
-      compute_unit_limit: { hidden: true }, // Internal Solana parameter
-      compute_unit_price: { hidden: true }, // Internal Solana parameter
-    },
-  },
-  paywall: {
-    label: 'Paywall',
-    secrets: [],
-    icon: '🚪',
-    fields: {
-      product_cache_ttl: { type: 'number', unit: 'seconds' },
-    },
-  },
-  coupons: {
-    label: 'Coupons',
-    secrets: [],
-    icon: '🎟️',
-    fields: {
-      cache_ttl: { type: 'number', unit: 'seconds' },
-    },
-  },
-  subscriptions: {
-    label: 'Subscriptions',
-    secrets: [],
-    icon: '🔄',
-    fields: {
-      grace_period_hours: { type: 'number', unit: 'hours' },
-    },
-  },
-  callbacks: {
-    label: 'Callbacks',
-    secrets: ['hmac_secret'],
-    icon: '🔔',
-  },
-  email: {
-    label: 'Email',
-    description: 'Email receipts for customers after purchase',
-    secrets: ['smtp_password'],
-    icon: '📧',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      provider: {
-        type: 'dropdown',
-        options: ['sendgrid', 'mailgun', 'postmark', 'ses', 'resend', 'custom'],
-        description: 'Email service provider.',
-      },
-      smtp_host: {
-        description: 'SMTP server hostname.',
-        showWhen: 'provider',
-      },
-      smtp_port: {
-        type: 'number',
-        description: 'SMTP server port (typically 587 for TLS).',
-        showWhen: 'provider',
-      },
-      smtp_user: {
-        description: 'SMTP authentication username or API key name.',
-        showWhen: 'provider',
-      },
-      smtp_password: {
-        description: 'SMTP password or API key.',
-        showWhen: 'provider',
-      },
-      from_address: {
-        description: 'Sender email address (e.g., orders@yourstore.com).',
-      },
-      from_name: {
-        description: 'Sender display name (e.g., "Your Store").',
-      },
-    },
-  },
-  webhook: {
-    label: 'Webhook',
-    description: 'HTTP notifications when purchases occur',
-    secrets: ['secret'],
-    icon: '🔔',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      url: {
-        description: 'URL to receive POST notifications (e.g., https://api.yoursite.com/webhooks/orders).',
-      },
-      secret: {
-        description: 'Shared secret for HMAC-SHA256 signature verification.',
-      },
-      retry_attempts: {
-        type: 'number',
-        description: 'Number of retry attempts on failure (default: 3).',
-      },
-    },
-  },
-  messaging: {
-    label: 'Messaging',
-    description: 'Email and webhook notifications for purchases',
-    secrets: ['smtp_password', 'webhook_secret'],
-    icon: '📬',
-    fields: {
-      // Email settings
-      email_enabled: {
-        type: 'boolean',
-        description: 'Send order confirmation emails to customers.',
-      },
-      email_provider: {
-        description: 'Email service provider (mailgun, sendgrid, postmark, ses, resend, custom).',
-        showWhen: 'email_enabled',
-      },
-      smtp_host: {
-        description: 'SMTP server hostname.',
-        showWhen: 'email_enabled',
-      },
-      smtp_port: {
-        type: 'number',
-        description: 'SMTP server port (typically 587 for TLS).',
-        showWhen: 'email_enabled',
-      },
-      smtp_username: {
-        description: 'SMTP authentication username or API key.',
-        showWhen: 'email_enabled',
-      },
-      smtp_password: {
-        description: 'SMTP password or API key.',
-        showWhen: 'email_enabled',
-      },
-      from_email: {
-        description: 'Sender email address (e.g., orders@yourstore.com).',
-        showWhen: 'email_enabled',
-      },
-      from_name: {
-        description: 'Sender display name (e.g., "Your Store").',
-        showWhen: 'email_enabled',
-      },
-      // Webhook settings
-      webhook_enabled: {
-        type: 'boolean',
-        description: 'Send webhook notifications when purchases complete.',
-      },
-      webhook_url: {
-        description: 'URL to receive POST notifications.',
-        showWhen: 'webhook_enabled',
-      },
-      webhook_secret: {
-        description: 'Shared secret for HMAC-SHA256 signature verification.',
-        showWhen: 'webhook_enabled',
-      },
-      webhook_timeout: {
-        type: 'number',
-        description: 'Request timeout in seconds (default: 30).',
-        showWhen: 'webhook_enabled',
-      },
-    },
-  },
-  monitoring: {
-    label: 'Monitoring',
-    secrets: [],
-    icon: '📊',
-    fields: {
-      check_interval: { type: 'number', unit: 'seconds' },
-      low_balance_threshold: { type: 'number', unit: 'SOL' },
-    },
-  },
-  rate_limit: {
-    label: 'Rate Limiting',
-    secrets: [],
-    icon: '⏱️',
-  },
-  circuit_breaker: {
-    label: 'Circuit Breaker',
-    secrets: [],
-    icon: '🔌',
-  },
-  admin: {
-    label: 'Admin Keys',
-    secrets: [],
-    icon: '👤',
-  },
-  api_keys: {
-    label: 'API Keys',
-    secrets: [],
-    icon: '🔐',
-  },
-  cedros_login: {
-    label: 'Cedros Login',
-    secrets: ['api_key'],
-    icon: '🔑',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      credits_enabled: { hidden: true }, // Shown in header toggle when relevant
-      base_url: { hidden: true }, // Deployment setting
-      timeout: { hidden: true }, // Developer setting
-      jwt_issuer: { hidden: true }, // Internal auth config
-      jwt_audience: { hidden: true }, // Internal auth config
-    },
-  },
-  gift_cards: {
-    label: 'Gift Cards',
-    description: 'Gift card issuance, expiry, and Token-22 secondary market settings',
-    secrets: [],
-    icon: '🎁',
-    fields: {
-      enabled: { hidden: true }, // Shown in header toggle
-      secondary_market_enabled: {
-        type: 'toggle',
-        description: 'Enable Token-22 secondary market for gift card store credit tokens.',
-      },
-      transfer_fee_bps: {
-        type: 'number',
-        description: 'Transfer fee in basis points charged on secondary market trades (e.g. 250 = 2.5%).',
-      },
-      max_transfer_fee: {
-        type: 'number',
-        description: 'Maximum transfer fee in token atomic units (e.g. 500 = $5.00 with 2 decimals).',
-      },
-      treasury_address: {
-        type: 'solana_address',
-        description: 'Solana wallet address where collected transfer fees are sent.',
-      },
-      token_name: {
-        description: 'Display name for the store credit token (e.g. "Store Credits USD").',
-      },
-      token_symbol: {
-        description: 'Token symbol for the store credit token (e.g. "storeUSD").',
-      },
-      token_decimals: {
-        type: 'number',
-        description: 'Number of decimal places for the token (default: 2 for cent precision).',
-      },
-      mint_address: {
-        type: 'solana_address',
-        description: 'Solana Token-22 mint address (auto-populated after initialization).',
-      },
-      business_state: {
-        type: 'dropdown',
-        options: [
-          'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
-          'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
-          'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
-          'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
-          'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
-          'DC','PR',
-        ],
-        description: 'US state where your business is registered. Determines applicable gift card regulations.',
-      },
-      min_gift_card_value_cents: {
-        type: 'number',
-        description: 'Minimum gift card face value in cents. Auto-suggested based on state cash-out threshold.',
-      },
-      max_gift_card_value_cents: {
-        type: 'number',
-        description: 'Maximum gift card face value in cents. Default $10,000 (AML compliance).',
-      },
-      liquidity_pool_address: {
-        type: 'solana_address',
-        description: 'Meteora DLMM pool address for gift card secondary market buyback.',
-      },
-      buyback_rate_bps: {
-        type: 'number',
-        description: 'Buyback rate in basis points (8000 = 80 cents on the dollar).',
-      },
-      liquidity_usdc_amount: {
-        type: 'number',
-        description: 'USDC amount deposited into the liquidity pool (in atomic units).',
-        hidden: true,
-      },
-      liquidity_deployed_at: {
-        description: 'ISO timestamp when the liquidity pool was deployed.',
-        hidden: true,
-      },
-    },
-  },
-  tokenization: {
-    label: 'Asset Tokenization',
-    description: 'Settings for tokenized asset classes and on-chain minting',
-    secrets: [],
-    icon: '🪙',
-    fields: {
-      enabled: { type: 'toggle', description: 'Enable asset tokenization features.' },
-      default_transfer_fee_bps: { type: 'number', description: 'Default transfer fee in basis points for tokenized asset transfers (e.g. 250 = 2.5%).' },
-      require_custody_proof: { type: 'toggle', description: 'Require a custody proof URL before an asset class can be activated.' },
-    },
-  },
-  storage: {
-    label: 'Image Storage',
-    description: 'S3-compatible storage for product images',
-    secrets: ['access_key_id', 'secret_access_key'],
-    icon: '🗄️',
-    fields: {
-      provider: {
-        type: 'dropdown',
-        options: ['digitalocean', 'aws', 'other'],
-        description: 'Storage provider (DigitalOcean Spaces, AWS S3, or other S3-compatible).',
-      },
-      endpoint_url: {
-        description: 'S3-compatible endpoint URL (e.g., https://nyc3.digitaloceanspaces.com for DO Spaces).',
-      },
-      bucket_name: {
-        description: 'Storage bucket name.',
-      },
-      region: {
-        description: 'Bucket region (e.g., us-east-1, nyc3). Defaults to us-east-1.',
-      },
-      access_key_id: {
-        description: 'Access key ID for S3-compatible API authentication.',
-      },
-      secret_access_key: {
-        description: 'Secret access key for S3-compatible API authentication.',
-      },
-      cdn_url: {
-        description: 'CDN URL prefix for serving images (e.g., https://cdn.example.com). If empty, images are served from the S3 endpoint directly.',
-      },
-    },
-  },
-  shop: {
-    label: 'Storefront',
-    description: 'Product pages & display settings',
-    secrets: [],
-    icon: '🏪',
-    fields: {
-      enabled: { hidden: true }, // Shown in StorefrontSection header toggle
-      'relatedProducts.mode': {
-        type: 'dropdown',
-        options: ['most_recent', 'by_category', 'manual', 'ai'],
-      },
-      'relatedProducts.maxItems': { type: 'number' },
-    },
-  },
-};
-
-/** Check if a field is a secret for a given category */
-export function isSecretField(category: string, field: string): boolean {
-  const cat = CONFIG_CATEGORIES[category];
-  return cat?.secrets.includes(field) ?? false;
-}
-
-/** Placeholder for redacted secrets */
-export const REDACTED_VALUE = '[REDACTED]';
+export {
+  CONFIG_CATEGORIES,
+  isSecretField,
+  REDACTED_VALUE,
+  getClientFieldWarnings,
+  type FieldMeta,
+  type FieldGroupMeta,
+  type EndpointMeta,
+  type CategoryMeta,
+} from './configMetadata';

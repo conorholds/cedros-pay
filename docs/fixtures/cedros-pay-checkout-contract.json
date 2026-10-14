@@ -1,0 +1,109 @@
+{
+  "quoteRequest": {
+    "schemaVersion": 1,
+    "idempotencyKey": "quote-01HQEXAMPLE",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "clientMaterialSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "source": {
+      "kind": "items",
+      "items": [
+        {
+          "resource": "product-1",
+          "qty": 2
+        }
+      ]
+    },
+    "customerContext": {
+      "fulfillment": {
+        "kind": "digital"
+      },
+      "contact": {
+        "email": "buyer@example.test"
+      },
+      "returnUrls": {
+        "success": "https://shop.example.test/checkout/success",
+        "cancel": "https://shop.example.test/cart"
+      }
+    },
+    "tip": {
+      "kind": "fixed",
+      "amountCents": 50
+    },
+    "requestedPaymentMethods": [
+      "stripe"
+    ]
+  },
+  "quoteResponse": {
+    "schemaVersion": 1,
+    "operationId": "payop_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "quote": {
+      "schemaVersion": 1,
+      "source": {
+        "kind": "items",
+        "intentSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "lines": [
+        {
+          "resource": "product-1",
+          "qty": 2,
+          "unitAmountCents": 725,
+          "lineTotalCents": 1450,
+          "currency": "USD",
+          "title": "Authoritative product",
+          "paymentResource": "product-1"
+        }
+      ],
+      "currency": "USD",
+      "subtotalCents": 1450,
+      "discountCents": 0,
+      "shippingCents": 0,
+      "taxCents": 0,
+      "tipCents": 50,
+      "totalCents": 1500,
+      "appliedTip": {
+        "kind": "fixed",
+        "amountCents": 50
+      },
+      "requestedPaymentMethods": [
+        "stripe"
+      ],
+      "expiresAt": "2026-05-31T12:15:00Z"
+    },
+    "replayed": false
+  },
+  "checkoutRequest": {
+    "schemaVersion": 1,
+    "idempotencyKey": "checkout-01HQEXAMPLE",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "clientMaterialSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "quoteOperationId": "payop_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "paymentMethod": "stripe",
+    "customerContext": {
+      "fulfillment": {
+        "kind": "digital"
+      },
+      "contact": {
+        "email": "buyer@example.test"
+      },
+      "returnUrls": {
+        "success": "https://shop.example.test/checkout/success",
+        "cancel": "https://shop.example.test/cart"
+      }
+    },
+    "railProof": {
+      "kind": "stripe"
+    }
+  },
+  "resolveRequest": {
+    "schemaVersion": 1,
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "expectedAttemptId": "attempt-01HQEXAMPLE",
+    "returnArtifact": "cs_test_example"
+  },
+  "verifyReturnRequest": {
+    "schemaVersion": 1,
+    "expectedAttemptId": "attempt-01HQEXAMPLE",
+    "returnArtifact": "cs_test_example"
+  }
+}

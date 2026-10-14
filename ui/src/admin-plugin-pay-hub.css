@@ -1,0 +1,286 @@
+/* Pay hub overview: launch progress, activity, workflow switch rows, and the
+   subscription plan-page copy card. */
+
+.cedros-pay-admin .cedros-admin__readiness {
+  display: grid;
+  gap: 1rem;
+}
+
+/* Launch progress reads as a step list: one row per step, state in the marker
+   and in words, no per-step card. */
+.cedros-pay-admin .cedros-admin__steps {
+  display: grid;
+  gap: 0.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0 0.25rem;
+}
+
+.cedros-pay-admin .cedros-admin__step {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+}
+
+.cedros-pay-admin .cedros-admin__step-marker {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--pay-admin-border) 70%, var(--pay-admin-muted) 30%);
+  border-radius: 999px;
+  display: inline-flex;
+  flex: none;
+  height: 1.125rem;
+  justify-content: center;
+  margin-top: 0.1rem;
+  width: 1.125rem;
+}
+
+.cedros-pay-admin .cedros-admin__step--done .cedros-admin__step-marker {
+  background: color-mix(in srgb, var(--pay-admin-success) 16%, var(--pay-admin-bg));
+  border-color: color-mix(in srgb, var(--pay-admin-success) 45%, transparent);
+  color: var(--pay-admin-success);
+}
+
+.cedros-pay-admin .cedros-admin__step-marker > svg {
+  height: 0.75rem;
+  width: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__step-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-admin__step-label {
+  color: var(--pay-admin-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cedros-pay-admin .cedros-admin__step-detail {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* Resting report once every step is done. */
+.cedros-pay-admin .cedros-admin__launch,
+.cedros-pay-admin .cedros-admin__activity {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__launch-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.cedros-pay-admin .cedros-admin__launch-summary {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.cedros-pay-admin .cedros-admin__launch .cedros-admin__advanced {
+  margin-top: 0.1rem;
+}
+
+.cedros-pay-admin .cedros-admin__attention-text {
+  margin: 0;
+}
+
+/* Failed workflow saves stay beside the card whether or not the editor is
+   open, so closing the editor cannot bury an unsaved change. */
+.cedros-pay-admin .cedros-admin__feature-failure {
+  padding: 0 1.25rem 1rem;
+}
+
+/* First-paint skeleton mirrors the settled layout block for block. The shared
+   skeleton class is chained into every selector so these widths outrank the
+   generic nth-child defaults regardless of sheet order. */
+.cedros-pay-admin .cedros-admin__loading-skeleton.cedros-admin__skeleton--launch span:first-child {
+  height: 1rem;
+  width: 42%;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton.cedros-admin__skeleton--launch span:last-child {
+  width: 62%;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton.cedros-admin__skeleton--features span:first-child {
+  height: 1rem;
+  width: 11rem;
+}
+
+.cedros-pay-admin .cedros-admin__loading-skeleton.cedros-admin__skeleton--features span:last-child {
+  max-width: 100%;
+  width: 22rem;
+}
+
+.cedros-pay-admin .cedros-admin__activity > .cedros-admin__loading-skeleton span {
+  width: 6rem;
+}
+
+.cedros-pay-admin .cedros-data-metric.cedros-admin__skeleton-metric {
+  min-height: 4.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__skeleton-metric .cedros-admin__loading-skeleton span:first-child {
+  width: 7rem;
+}
+
+.cedros-pay-admin .cedros-admin__skeleton-metric .cedros-admin__loading-skeleton span:last-child {
+  height: 1.4rem;
+  width: 5rem;
+}
+
+.cedros-pay-admin .cedros-admin__overview-features {
+  display: grid;
+}
+
+.cedros-pay-admin .cedros-admin__overview-features > .cedros-admin__animated-disclosure--open {
+  border-top: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__overview-features .cedros-admin__field-group-body {
+  border-top: 0;
+  gap: 0;
+  padding-top: 0.25rem;
+}
+
+/* Labelled switch row: label + one-line hint left, switch right, hairline
+   dividers between rows (Workbench §7 toggles). */
+.cedros-pay-admin .cedros-admin__switch-rows {
+  display: grid;
+}
+
+.cedros-pay-admin .cedros-admin__switch-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.55rem 0;
+}
+
+.cedros-pay-admin .cedros-admin__switch-row + .cedros-admin__switch-row {
+  border-top: 1px solid var(--pay-admin-border);
+}
+
+.cedros-pay-admin .cedros-admin__switch-row-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-admin__switch-row-label {
+  color: var(--pay-admin-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cedros-pay-admin .cedros-admin__switch-row-hint {
+  color: var(--pay-admin-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.cedros-pay-admin .cedros-admin__switch-row--unavailable .cedros-admin__switch-row-label {
+  color: var(--pay-admin-muted);
+}
+
+/* Narrow screens keep the row: the hint wraps instead, so the switches stay on
+   one right edge (W3) and the toggle stays where the eye already looks. */
+@media (max-width: 767px) {
+  .cedros-pay-admin .cedros-admin__switch-row {
+    gap: 0.75rem;
+  }
+
+  .cedros-pay-admin .cedros-admin__switch-row .cedros-admin__payment-toggle-row {
+    flex: none;
+  }
+}
+
+.cedros-pay-admin .cedros-admin__plan-page {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.cedros-pay-admin .cedros-admin__plan-page .cedros-admin__section-header {
+  margin-bottom: 0;
+}
+
+/* Copy preview: the fields below it edit this rendering, not a stored blob. */
+.cedros-pay-admin .cedros-admin__preview {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.cedros-pay-admin .cedros-admin__preview-label {
+  color: var(--pay-admin-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cedros-pay-admin .cedros-admin__preview-surface {
+  background: var(--pay-admin-muted-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  display: grid;
+  gap: 0.4rem;
+  justify-items: center;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.cedros-pay-admin .cedros-admin__preview-title {
+  color: var(--pay-admin-fg);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.cedros-pay-admin .cedros-admin__preview-subtitle {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 40ch;
+}
+
+.cedros-pay-admin .cedros-admin__preview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+/* Preview badges keep the buyer's casing — an admin status pill would uppercase
+   the words the operator is actually choosing. */
+.cedros-pay-admin .cedros-admin__preview-badge {
+  background: var(--pay-admin-card-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: 999px;
+  color: var(--pay-admin-fg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.15rem 0.55rem;
+}
+
+.cedros-pay-admin .cedros-admin__preview-footer {
+  color: var(--pay-admin-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin: 0.2rem 0 0;
+  max-width: 48ch;
+}

@@ -1,0 +1,857 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "cedros-pay",
+  "displayName": "Cedros Pay",
+  "version": "5.0.8",
+  "releaseCommit": "63094149c2e1b2df71645714e892fda93cb5453d",
+  "archive": {
+    "fileName": "cedros-pay-5.0.8.cedros-extension.zip",
+    "relativePath": "../../../../../../Workspace/cedros/cedros-extension-zips/cedros-pay-5.0.8.cedros-extension.zip",
+    "sha256": "d91555bf3146603e447539e01d89e612926a40863dffd44021fe6b14809b578b",
+    "entryCount": 53,
+    "zipBytes": 2348505,
+    "uncompressedBytes": 8801457,
+    "nonWasmBytes": 2807348,
+    "hostInstalledStateBytes": 742445,
+    "serverWasm": {
+      "sha256": "43cf3e6b65bc92a1f68e9496c8e8f7a74cde112ac28324dc31deeea78cb66ecf",
+      "bytes": 5994109
+    },
+    "evidenceStatus": "historical-superseded",
+    "usableForInstall": false
+  },
+  "packageFamilySourceStatus": "Extension-only delivery: the Wasm guest, private admin/web runtime, and private native registration ship together in the Cedros extension archive. Standalone server and public SDK delivery are retired.",
+  "npmPublication": {
+    "status": "not applicable",
+    "reason": "Standalone React and React Native SDK publication is retired. Both UI components are private and ship only inside the Cedros extension archive."
+  },
+  "supplyChainVerification": {
+    "status": "not-provided",
+    "summary": "The author-built Pay 5.0.8 archive includes checksum-covered source identity, packaged-input digest, in-toto provenance, and a CycloneDX SBOM; no marketplace or operator verifier has attested it.",
+    "sourceRepositoryUrl": "https://github.com/conorholds/cedros-pay-dev",
+    "sourceRevision": "63094149c2e1b2df71645714e892fda93cb5453d",
+    "sourceDirectory": ".",
+    "archiveSha256": "d91555bf3146603e447539e01d89e612926a40863dffd44021fe6b14809b578b",
+    "checks": []
+  },
+  "requiredServices": [],
+  "requiredCapabilities": [
+    {
+      "capabilityId": "cedros-data:extension-storage-cas-v1",
+      "minCedrosDataVersion": "0.1.81",
+      "required": true,
+      "reason": "Required for version-fenced, atomic Pay commerce mutations through database.compare-and-set."
+    },
+    {
+      "capabilityId": "cedros-data:extension-config-cas-v1",
+      "minCedrosDataVersion": "0.1.81",
+      "required": true,
+      "reason": "Required for atomic Pay settings, encrypted-secret, audit, mirror, revision, and idempotency commits."
+    },
+    {
+      "capabilityId": "cedros-data:extension-shared-cache-v1",
+      "minCedrosDataVersion": "0.1.81",
+      "required": true,
+      "reason": "Required for cross-worker, site-scoped read caching and fenced fill single-flight."
+    },
+    {
+      "capabilityId": "cedros-data:extension-invalidations-v1",
+      "minCedrosDataVersion": "0.1.81",
+      "required": true,
+      "reason": "Required for authorized durable admin invalidations and reconnect reconciliation."
+    }
+  ],
+  "officialAndComposableContracts": [
+    {
+      "extensionId": "cedros-login",
+      "contractIds": [
+        "cedros-login:admin-auth",
+        "cedros-login:user-context",
+        "cedros-login:invite-discount"
+      ],
+      "required": false,
+      "publishedStatus": "published",
+      "releaseStatus": "ready",
+      "owner": "Cedros Login team",
+      "fallback": "Protected user-context and admin workflows fail closed until the Login contracts are available; Cedros Pay remains installed and enabled for configuration and ungated surfaces."
+    },
+    {
+      "extensionId": "cedros-balance",
+      "contractIds": [
+        "cedros-balance:balance-read"
+      ],
+      "required": false,
+      "publishedStatus": "published",
+      "releaseStatus": "ready",
+      "owner": "Cedros Balance team and Cedros backend",
+      "fallback": "Balance 0.5.0 read discovery remains optional; missing or older Balance keeps dependent controls disabled. Cedros Pay money paths remain Pay-owned and no Balance mutation is claimed."
+    },
+    {
+      "extensionId": "cedros-pay",
+      "contractIds": [
+        "cedros-pay:access-pass",
+        "cedros-pay:checkout",
+        "cedros-pay:balance-read",
+        "cedros-pay:chargeback-opened",
+        "cedros-pay:checkout-settled",
+        "cedros-pay:entitlement-changed",
+        "cedros-pay:entitlement-read",
+        "cedros-pay:entitlements",
+        "cedros-pay:payment-failed",
+        "cedros-pay:payment-reversed",
+        "cedros-pay:payment-succeeded",
+        "cedros-pay:product-create",
+        "cedros-pay:product-rag-records",
+        "cedros-pay:product-read",
+        "cedros-pay:refund-settled",
+        "cedros-pay:stats",
+        "cedros-pay:subscription-read",
+        "cedros-pay:versioned-cart-write-v1"
+      ],
+      "required": false,
+      "publishedStatus": "source-registered",
+      "releaseStatus": "blocked",
+      "owner": "Cedros Pay team",
+      "fallback": "Do not send checkout, cart, or access-pass mutation traffic until Cedros Data 0.1.81 staging proves the exact eighteen-model guarded marker and the joint Shop conformance run publishes immutable redacted evidence. No Pay 2 compatibility API exists."
+    },
+    {
+      "extensionId": "cedros-notifications",
+      "contractIds": [
+        "cedros-notifications:route-write"
+      ],
+      "required": false,
+      "publishedStatus": "published",
+      "releaseStatus": "ready",
+      "owner": "Cedros Notifications team",
+      "fallback": "Notification setup seeds remain owner-visible metadata; route/preference provisioning is skipped or shown unavailable if the published Notifications binding is absent."
+    }
+  ],
+  "privacyReview": {
+    "dashboardRevenueContracts": {
+      "status": "approved",
+      "gateSignal": "privacyReview.dashboardRevenueContracts.status == \"approved\"",
+      "reviewer": {
+        "name": "Cedros QA/privacy reviewer",
+        "approvedAt": "2026-05-13",
+        "escalationOwner": "Cedros backend privacy owner"
+      },
+      "scope": [
+        "cedros-pay:stats RevenueSummary response",
+        "cedros-pay:payment-succeeded amount_cents/currency/flow/occurred_at payload",
+        "cedros-pay:payment-failed amount_cents/currency/flow/occurred_at payload",
+        "cedros-pay:refund-settled amount_cents/currency/flow/occurred_at payload"
+      ],
+      "posture": "Approved for admin/operator dashboard consumers only. Exact amount_cents and currency are allowed for the operator viewing their own revenue; payloads and stats remain aggregate/read-only and exclude buyer identifiers, payment provider ids, wallet addresses, email, tokens, secrets, and ledger rows."
+    }
+  },
+  "installGate": {
+    "status": "blocked",
+    "meaning": "The retained 5.0.8 archive predates the domain checkout authority repair and requires a fresh build. The verified maintenance release is Pay 4.0.58 from its immutable reviewed maintenance source.",
+    "owner": "Cedros Pay release owner",
+    "requiredChecks": [
+      "fresh-pay4-archive",
+      "manifest-bootstrap-equal",
+      "extension-validation-passed",
+      "package-version-aligned",
+      "extension-runtime-closures-passed"
+    ]
+  },
+  "launchGate": {
+    "status": "blocked",
+    "meaning": "Production launch requires recorded Cedros Data 0.1.81+ deployment and acceptance, a live exact eighteen-model guarded-policy matrix, and joint Pay/Shop staging evidence with a credential-free immutable HTTPS run URL. Usage/Upgrade capacity sales also require verified commercial configuration, Data-owned native enforcement, and joint activation testing.",
+    "owner": "Cedros Data, Cedros Pay, and Cedros Shop release owners",
+    "deadline": "After Cedros Data 0.1.81 staging deployment"
+  },
+  "readinessTable": [
+    {
+      "surface": "Archive metadata",
+      "manifestIds": [
+        "cedros-extension.manifest.json",
+        "cedros-extension.bootstrap.json"
+      ],
+      "runtimePackagePresent": false,
+      "hostHookBound": false,
+      "status": "ready",
+      "smokeTest": "Verify ZIP SHA-256 d91555bf3146603e447539e01d89e612926a40863dffd44021fe6b14809b578b, 2348505 bytes, 53 entries, manifest/bootstrap equality, compiled admin dist, and embedded Wasm SHA-256 43cf3e6b65bc92a1f68e9496c8e8f7a74cde112ac28324dc31deeea78cb66ecf.",
+      "owner": "Cedros operator"
+    },
+    {
+      "surface": "Admin module",
+      "manifestIds": [
+        "cedros-pay:admin"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Import @cedros/pay-react/admin/register and render Cedros Pay Admin sections.",
+      "owner": "Extension author"
+    },
+    {
+      "surface": "Dashboard card",
+      "manifestIds": [
+        "cedros-pay:status-card"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Render status card loading, disabled, error, empty, and ready states.",
+      "owner": "Extension author"
+    },
+    {
+      "surface": "Form starters",
+      "manifestIds": [
+        "cedros-pay:checkout-form",
+        "cedros-pay:refund-form"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Confirm checkout and refund starters appear in owner creation workflows when the extension is active.",
+      "owner": "Cedros operator"
+    },
+    {
+      "surface": "Onboarding",
+      "manifestIds": [
+        "cedros-pay:payment-setup"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Finish setup links resolve to cedros-pay:admin section ids.",
+      "owner": "Cedros operator"
+    },
+    {
+      "surface": "AI skills and capabilities",
+      "manifestIds": [
+        "cedros-pay:assistant-x402-purchase",
+        "cedros-pay:guarded-policy-enroll",
+        "cedros-pay:catalog-records-query",
+        "cedros-pay:capacity-activation-status",
+        "cedros-pay:capacity-tax-readiness",
+        "cedros-pay:catalog-product-upsert",
+        "cedros-pay:catalog-product-active-set",
+        "cedros-pay:catalog-product-delete",
+        "cedros-pay:catalog-price-upsert",
+        "cedros-pay:catalog-stripe-tax-code-set",
+        "cedros-pay:catalog-stripe-sync",
+        "cedros-pay:subscription-settings-update",
+        "cedros-pay:program-entitlement-upsert",
+        "cedros-pay:program-invite-upsert",
+        "cedros-pay:program-membership-upsert",
+        "cedros-pay:storefront-products-query",
+        "cedros-pay:physical-product-create",
+        "cedros-pay:physical-product-update",
+        "cedros-pay:physical-product-delete",
+        "cedros-pay:orders-query",
+        "cedros-pay:order-get",
+        "cedros-pay:physical-order-fulfillment",
+        "cedros-pay:shipping-setup-query",
+        "cedros-pay:shipping-profile-save",
+        "cedros-pay:shipping-rate-save"
+      ],
+      "runtimePackagePresent": false,
+      "hostHookBound": false,
+      "status": "blocked",
+      "smokeTest": "Source tests pass for 25 named capability contracts. Build the fresh 5.0.8 archive, verify installed authority, then exercise catalog, shipping and order journeys with exact scoped bearer claims.",
+      "owner": "Extension author"
+    },
+    {
+      "surface": "Analytics events",
+      "manifestIds": [
+        "cedros-pay:payment-started",
+        "cedros-pay:payment-succeeded",
+        "cedros-pay:checkout-settled",
+        "cedros-pay:payment-failed",
+        "cedros-pay:wallet-connected",
+        "cedros-pay:refund-settled",
+        "cedros-pay:chargeback-opened",
+        "cedros-pay:payment-reversed"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Verify admin subscribers receive payment/refund/reversal amounts, duplicate Balance credit calls are idempotent after checkout-settled, and authenticated subscribers see redacted shape.",
+      "owner": "Cedros analytics"
+    },
+    {
+      "surface": "Capabilities",
+      "manifestIds": [
+        "cedros-pay:admin",
+        "cedros-pay:balance-read",
+        "cedros-pay:subscription-read",
+        "cedros-pay:product-rag-records",
+        "cedros-pay:product-read",
+        "cedros-pay:product-create",
+        "cedros-pay:entitlement-read",
+        "cedros-pay:checkout",
+        "cedros-pay:versioned-cart-write-v1",
+        "cedros-pay:site-brain-records"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "blocked",
+      "smokeTest": "Verify canonical checkout quote/checkout scopes and authoritative versioned-cart read/write scopes; keep traffic blocked until the exact guarded marker and staging evidence exist.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Site-brain and structured logs",
+      "manifestIds": [
+        "cedros-pay:site-brain-records"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "telemetry.emit-record writes categories declared by cedros-pay:site-brain-records; structured logs redact forbidden keys.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Server routes",
+      "manifestIds": [
+        "cedros-pay:subscription-selection-status",
+        "cedros-pay:subscription-plans",
+        "cedros-pay:subscription-plan-solana-subscription",
+        "cedros-pay:buyer-subscription-cancel",
+        "cedros-pay:buyer-subscription-portal",
+        "cedros-pay:compliance-check",
+        "cedros-pay:refunds-get",
+        "cedros-pay:purchases",
+        "cedros-pay:program-activate",
+        "cedros-pay:program-status",
+        "cedros-pay:admin",
+        "cedros-pay:admin-stats",
+        "cedros-pay:admin-commerce-analytics",
+        "cedros-pay:admin-commerce-analytics-recover",
+        "cedros-pay:admin-transactions-list",
+        "cedros-pay:admin-orders-list",
+        "cedros-pay:admin-orders-get",
+        "cedros-pay:admin-returns-list",
+        "cedros-pay:admin-returns-create",
+        "cedros-pay:admin-returns-get",
+        "cedros-pay:admin-returns-status-update",
+        "cedros-pay:admin-disputes-list",
+        "cedros-pay:admin-disputes-get",
+        "cedros-pay:admin-disputes-status-update",
+        "cedros-pay:admin-catalog-readiness",
+        "cedros-pay:admin-catalog-export",
+        "cedros-pay:admin-catalog-export-validate",
+        "cedros-pay:admin-catalog-records-query",
+        "cedros-pay:admin-catalog-product-upsert",
+        "cedros-pay:admin-catalog-product-active-set",
+        "cedros-pay:admin-catalog-product-delete",
+        "cedros-pay:admin-catalog-price-upsert",
+        "cedros-pay:admin-program-entitlement-upsert",
+        "cedros-pay:admin-program-invite-upsert",
+        "cedros-pay:admin-program-membership-upsert",
+        "cedros-pay:admin-products-list",
+        "cedros-pay:admin-products-create",
+        "cedros-pay:admin-products-get",
+        "cedros-pay:admin-products-update",
+        "cedros-pay:admin-products-delete",
+        "cedros-pay:admin-products-stripe-import-preview",
+        "cedros-pay:admin-products-stripe-import",
+        "cedros-pay:admin-products-stripe-sync",
+        "cedros-pay:admin-product-inventory-set",
+        "cedros-pay:admin-product-inventory-adjust",
+        "cedros-pay:admin-product-inventory-adjustments",
+        "cedros-pay:admin-product-variations-get",
+        "cedros-pay:admin-product-variations-update",
+        "cedros-pay:admin-product-variant-inventory-update",
+        "cedros-pay:admin-coupons-list",
+        "cedros-pay:admin-coupons-create",
+        "cedros-pay:admin-coupons-update",
+        "cedros-pay:admin-coupons-delete",
+        "cedros-pay:admin-subscriptions-settings-get",
+        "cedros-pay:admin-subscriptions-settings-update",
+        "cedros-pay:admin-refunds-list",
+        "cedros-pay:admin-credit-refund-requests-list",
+        "cedros-pay:admin-stripe-refunds-list",
+        "cedros-pay:admin-affiliate-payouts-settle",
+        "cedros-pay:subscriptions-status",
+        "cedros-pay:stats",
+        "cedros-pay:credits-balance",
+        "cedros-pay:payments",
+        "cedros-pay:product-rag-records",
+        "cedros-pay:product-read",
+        "cedros-pay:product-create",
+        "cedros-pay:entitlements",
+        "cedros-pay:subscription-entitlements",
+        "cedros-pay:admin-config-list",
+        "cedros-pay:admin-config-history",
+        "cedros-pay:admin-config-validate",
+        "cedros-pay:admin-config-stripe-get",
+        "cedros-pay:admin-config-stripe-update",
+        "cedros-pay:admin-config-x402-get",
+        "cedros-pay:admin-config-x402-update",
+        "cedros-pay:admin-config-cedros-login-get",
+        "cedros-pay:admin-config-cedros-login-update",
+        "cedros-pay:admin-config-native-store-get",
+        "cedros-pay:admin-config-native-store-update",
+        "cedros-pay:admin-config-shop-get",
+        "cedros-pay:admin-config-shop-update",
+        "cedros-pay:admin-config-subscriptions-get",
+        "cedros-pay:admin-config-subscriptions-update",
+        "cedros-pay:admin-shipping-profiles-list",
+        "cedros-pay:admin-shipping-profiles-create",
+        "cedros-pay:admin-shipping-profiles-get",
+        "cedros-pay:admin-shipping-profiles-update",
+        "cedros-pay:admin-shipping-profiles-delete",
+        "cedros-pay:admin-shipping-rates-list",
+        "cedros-pay:admin-shipping-rates-create",
+        "cedros-pay:admin-shipping-rates-update",
+        "cedros-pay:admin-shipping-rates-delete",
+        "cedros-pay:admin-tax-rates-list",
+        "cedros-pay:admin-tax-rates-create",
+        "cedros-pay:admin-tax-rates-get",
+        "cedros-pay:admin-tax-rates-update",
+        "cedros-pay:admin-tax-rates-delete",
+        "cedros-pay:admin-site-settings-tipping-get",
+        "cedros-pay:admin-site-settings-tipping-update",
+        "cedros-pay:admin-site-settings-monetization-get",
+        "cedros-pay:admin-site-settings-monetization-update",
+        "cedros-pay:admin-refunds-deny",
+        "cedros-pay:admin-stripe-refunds-process",
+        "cedros-pay:guarded-policy-enroll",
+        "cedros-pay:native-store-apple-notification",
+        "cedros-pay:native-store-google-notification",
+        "cedros-pay:native-store-verify",
+        "cedros-pay:refunds-request",
+        "cedros-pay:subscription-free-selection",
+        "cedros-pay:subscription-plan-stripe-session",
+        "cedros-pay:subscription-solana-subscription-activate",
+        "cedros-pay:subscription-solana-subscription-collect-initial",
+        "cedros-pay:subscription-stripe-session",
+        "cedros-pay:subscriptions-cancel",
+        "cedros-pay:subscriptions-create",
+        "cedros-pay:subscriptions-portal",
+        "cedros-pay:webhooks",
+        "cedros-pay:checkout-descriptor",
+        "cedros-pay:checkout-quote",
+        "cedros-pay:checkout-create",
+        "cedros-pay:checkout-status",
+        "cedros-pay:checkout-resolve",
+        "cedros-pay:checkout-return-verify",
+        "cedros-pay:versioned-cart-open",
+        "cedros-pay:versioned-cart-read",
+        "cedros-pay:versioned-cart-rotate",
+        "cedros-pay:versioned-cart-apply"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "blocked",
+      "smokeTest": "On Cedros Data 0.1.81 staging, enumerate the exact compiled routes; prove pending x402 refunds and Solana initial collection fail closed without private-key reads, verify recovery of already-submitted refunds, then run checkout/cart/access-pass response-loss, restart, replay, mismatch, scope-isolation, and stale-generation matrices.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Server jobs",
+      "manifestIds": [
+        "cedros-pay:sanctions-refresh",
+        "cedros-pay:sanctions-sweep",
+        "cedros-pay:balance-alert",
+        "cedros-pay:health-check",
+        "cedros-pay:cleanup",
+        "cedros-pay:email",
+        "cedros-pay:stats-rollup",
+        "cedros-pay:subscription-sync",
+        "cedros-pay:webhook-delivery",
+        "cedros-pay:x402-reconcile"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "blocked",
+      "smokeTest": "Verify enabled cleanup and webhook delivery schedules fail before non-marker host access until enrollment validates; subscription sync and x402 reconcile remain default disabled.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Migrations",
+      "manifestIds": [
+        "cedros-pay:core-schema-v1",
+        "cedros-pay:catalog-v1",
+        "cedros-pay:catalog-fence-v1",
+        "cedros-pay:orders-fulfillment-v1",
+        "cedros-pay:subscription-billing-v1",
+        "cedros-pay:webhook-outbox-v1",
+        "cedros-pay:support-ai-v1",
+        "cedros-pay:compliance-assets-v1",
+        "cedros-pay:performance-indexes-v1",
+        "cedros-pay:credits-v1",
+        "cedros-pay:stats-rollup-v1",
+        "cedros-pay:cart-v1",
+        "cedros-pay:program-access-v1"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Host provisions declared content-model collections and reviews SQL migration compatibility before production writes.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Settings schemas",
+      "manifestIds": [
+        "cedros-pay:payment-settings",
+        "cedros-pay:store-settings",
+        "cedros-pay:automation-settings"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Host settings and secret storage APIs must persist Pay-owned payment/admin setup safely.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Content models",
+      "manifestIds": [
+        "cedros-pay:cart",
+        "cedros-pay:catalog",
+        "cedros-pay:catalog-fence",
+        "cedros-pay:checkout-inventory-holds",
+        "cedros-pay:checkout-operations",
+        "cedros-pay:checkout-return-index",
+        "cedros-pay:checkout-stock",
+        "cedros-pay:commerce-ledger",
+        "cedros-pay:compliance-assets",
+        "cedros-pay:credits",
+        "cedros-pay:customer-cart-generations",
+        "cedros-pay:customer-cart-lanes",
+        "cedros-pay:customer-cart-operations",
+        "cedros-pay:customer-cart-tombstones",
+        "cedros-pay:customer-carts",
+        "cedros-pay:guarded-write-policy-state",
+        "cedros-pay:program-access",
+        "cedros-pay:cache-coordination",
+        "cedros-pay:settings-audit-records",
+        "cedros-pay:stats-rollup",
+        "cedros-pay:subscriptions",
+        "cedros-pay:support-ai",
+        "cedros-pay:webhook-outbox"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "blocked",
+      "smokeTest": "Enroll and enforce the exact eighteen guarded-only models while the control model remains open; verify all additional declared models are accessible only through declared scopes.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Database runtime access",
+      "manifestIds": [
+        "cedros-pay:store-db"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "blocked",
+      "smokeTest": "Prove schemaVersion 1 conditions/ops, 32/128 limits, opaque versions, atomic conflict rollback, guarded-only enforcement, and SEO publication on Cedros Data 0.1.81 staging through the published database seam.",
+      "owner": "Cedros backend"
+    },
+    {
+      "surface": "Host provider access",
+      "manifestIds": [
+        "cedros-pay:storage",
+        "cedros-pay:email",
+        "cedros-pay:intelligence",
+        "cedros-pay:blockchain-config",
+        "cedros-pay:blockchain-x402-sign",
+        "cedros-pay:blockchain-x402-refund",
+        "cedros-pay:blockchain-assistant-x402-sign"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Verify each providers.execute call is scoped to its declared access id; x402 merchant, refund, and Site Assistant operations use only their policy-bound host scopes, and Pay never reads wallet private keys.",
+      "owner": "Cedros operator"
+    },
+    {
+      "surface": "Native package metadata",
+      "manifestIds": [
+        "cedros-extension.manifest.json"
+      ],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Import @cedros/pay-react-native/register and confirm package-family plus native surface metadata remain required while no native screen, stack, or provider ids are declared.",
+      "owner": "Cedros mobile"
+    },
+    {
+      "surface": "Native screens/stacks/providers",
+      "manifestIds": [],
+      "runtimePackagePresent": true,
+      "hostHookBound": true,
+      "status": "ready",
+      "smokeTest": "Native surface metadata is required for local package intake; no native screen, stack, or provider ids are declared in this release.",
+      "owner": "Cedros mobile"
+    }
+  ],
+  "installEnableSmokeChecklist": [
+    {
+      "step": "Build fresh Cedros Pay artifact",
+      "expected": "Reviewed source 63094149 generates the recorded current-verified 5.0.8 archive; no prior archive or checksum is reused.",
+      "status": "blocked"
+    },
+    {
+      "step": "Verify package consumers",
+      "expected": "Built admin, web, and native registration entrypoints return cedros-pay@5.0.8. Registry publication remains a separate manual gate.",
+      "status": "ready"
+    },
+    {
+      "step": "Enroll guarded policy",
+      "expected": "Release A atomically enrolls the exact eighteen-model set and persists digest eb25861790db9cb6da3145426b0afb4dce17b29a39b70651c523f1ed720972b2 while the control model remains open.",
+      "status": "deferred"
+    },
+    {
+      "step": "Activate canonical traffic",
+      "expected": "Release B semantics on the same Cedros Pay 5.0.8 code line begin only after the exact marker validates; no compatibility route exists.",
+      "status": "deferred"
+    },
+    {
+      "step": "Run joint Shop conformance",
+      "expected": "Integrated staging evidence is tied to Shop source 6f08586, report ab06fa7, archive 87af93c16d02f7dfafbea2b3585c72b88be02c7d195ec5c5b4c07f2202bd5f52, and Wasm 9e9532653274bb038844d6ce12b3d87493fa660b445dd414d743457415cedb99.",
+      "status": "deferred"
+    }
+  ],
+  "doNotLaunch": [
+    {
+      "hook": "Cedros Data 0.1.81 deployment",
+      "status": "blocked",
+      "owner": "Cedros Data host team",
+      "launchImpact": "Earlier hosts do not expose the exact current WIT and extension-services contract required by Pay 5.0.8.",
+      "nextAction": "Publish and deploy Cedros Data 0.1.81+ with WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9."
+    },
+    {
+      "hook": "Seventeen-model and joint Shop staging evidence",
+      "status": "blocked",
+      "owner": "Cedros Data, Pay, and Shop teams",
+      "launchImpact": "Production correctness is unproven until the exact model digest and checkout/cart distributed matrices pass against the exact Shop artifact.",
+      "nextAction": "Run the integrated matrix and publish a credential-free immutable HTTPS result URL with redacted assertion counts and environment id."
+    },
+    {
+      "hook": "Buyer billing return surface",
+      "status": "host-coordinated",
+      "owner": "Cedros host and Cedros Shop teams",
+      "launchImpact": "The seeded Stripe flow returns to /account/billing, but Pay does not own a documented account-page surface; without the host view, buyers cannot reliably recognize pending, success, cancellation, or manage-next states.",
+      "nextAction": "Bind /account/billing to the published Pay selection-status, portal, and buyer-cancel routes and run the participant journey in staging."
+    },
+    {
+      "hook": "Program application review and invitation issuance",
+      "status": "host-coordinated",
+      "owner": "Cedros host, Cedros Forms, and Cedros Login teams",
+      "launchImpact": "Public application forms can collect interest, but no documented extension seam binds a reviewed submission to a verified Login subject and Pay invitation. Without that handoff, applicants cannot progress to identity-bound program access.",
+      "nextAction": "Route submissions to an authorized reviewer, bind approval to the verified Cedros Login subject, invoke Pay\u2019s published program invitation capability, and test the applicant-to-active-member journey in staging."
+    },
+    {
+      "hook": "Current public authoring-kit WIT alignment",
+      "status": "host-coordinated",
+      "owner": "Cedros backend and Cedros Pay teams",
+      "launchImpact": "Source and the recorded 5.0.8 archive are pinned to authoring kit 0.1.82 WIT checksum 2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9; the matching Cedros Data 0.1.81+ deployment is not yet verified.",
+      "nextAction": "Verify the recorded archive against Cedros Data 0.1.81+ in staging."
+    },
+    {
+      "hook": "Durable notification publication contract",
+      "status": "blocked",
+      "owner": "Cedros documentation and platform owners",
+      "launchImpact": "The public 0.1.82 guide has a same-precedence conflict: guide 16 says the durable publish/status family is unavailable, while guide 18 and notification-event-publication-v1.md say Cedros Data 0.1.75+ publishes it. Pay preserves its existing telemetry and notification-setup behavior and does not claim either undocumented resolution.",
+      "nextAction": "Publish a corrected version-matched contract and verify the exact host registry before Pay adopts durable notification publication."
+    },
+    {
+      "hook": "Usage/Upgrade capacity sales activation",
+      "status": "blocked",
+      "owner": "Product owner, Providers Manager, Cedros Pay, and Cedros Data",
+      "launchImpact": "Data 02e4b247d7 adds native capacity.binding.read; existing financial wire shapes remain unchanged. Local native Data authority/reconciliation checks do not establish installed Data/Pay/Stripe activation or approved commercial configuration.",
+      "nextAction": "Keep sales disabled. Configure approved organization/customer/base-plan/canonical-site mappings and provide the Stripe test target; verify product, price and allowance terms, then complete native enforcement and installed delegation/redemption/reconciliation replay and joint activation testing."
+    },
+    {
+      "hook": "Wallet-owned x402 refund signing",
+      "status": "host-coordinated",
+      "owner": "Cedros Wallet and Cedros Data",
+      "launchImpact": "Pay declares policy-bound x402 refund provider access and fails closed with refund_signer_unavailable when the host grant is unavailable; no live host execution is recorded for this candidate.",
+      "nextAction": "Grant cedros-pay:blockchain-x402-refund in Cedros Data 0.1.81+ staging, then run exact success, retry, and response-loss conformance coverage."
+    },
+    {
+      "hook": "Wallet-owned Solana subscription collection signing",
+      "status": "blocked",
+      "owner": "Cedros Wallet and Cedros Data",
+      "launchImpact": "Initial Solana subscription collection intentionally returns collector_signer_unavailable; Pay cannot collect without taking ownership of a collector private key.",
+      "nextAction": "Publish and grant a policy-bound collector signing contract, then add exact collection, retry, and response-loss conformance coverage."
+    }
+  ],
+  "validationEvidence": [
+    {
+      "command": "cargo test -p cedros-pay-extension-domain --manifest-path server-wasm/Cargo.toml --offline --no-fail-fast",
+      "environment": "Local Linux Rust1.94.0; all domain bytes unchanged from 1251-test source8f8415f; final follow-up changes only host dependency declarations, generated manifests and declaration regression",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed: 1251 domain tests, zero failures; source tree f7e40abf44f0bfae0010383ce2363daf6ced34d7"
+    },
+    {
+      "command": "cd ui && CEDROS_BUNDLE_EXTENSION_RUNTIME=1 npm run build",
+      "environment": "Local Linux Node24; canonically regenerated Pay5 manifests with mandatory required host policy dependency; both builds rerun after correction",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed: React/Vite production runtime with canonical Pay5 manifest"
+    },
+    {
+      "command": "cd ui/react-native && npm run build",
+      "environment": "Local Linux Node24; canonically regenerated Pay5 manifests with mandatory required host policy dependency; both builds rerun after correction",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed: native registration bundle and declaration build"
+    },
+    {
+      "command": "cargo clippy -p cedros-pay-extension-domain --manifest-path server-wasm/Cargo.toml --offline",
+      "environment": "Local Linux Rust1.94.0 single job, exact reconciled Pay5 source",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed with two inherited warnings: admin_dashboard_products needless_borrow and x402/refund too_many_arguments"
+    },
+    {
+      "command": "node --test scripts/tests/*.test.mjs",
+      "environment": "Local Linux Node24; exact Pay5 source/provenance candidate",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed: 122 tests, zero failures, including exact mandatory host policy dependency declaration"
+    },
+    {
+      "command": "node scripts/validate-extension.mjs --source-only",
+      "environment": "Local Linux; canonical source/package-family validation; archive checks explicitly skipped",
+      "commit": "dda51cc17820789dab1671d8a6f9eb44d54678f7",
+      "result": "passed: AI, conditional mutation, manifest, observability, release readiness, route honesty and package-family alignment; canonical Docker archive remains not-built"
+    }
+  ],
+  "operatorHandoff": {
+    "uploadLocation": "Do not upload the historical 5.0.8 archive; run make cedros-package to build updated main inputs.",
+    "archivePath": "../../../../../../Workspace/cedros/cedros-extension-zips/cedros-pay-5.0.8.cedros-extension.zip",
+    "requiresFreshBuild": true,
+    "freshBuildInstructions": [
+      "Build fresh main inputs with make cedros-package.",
+      "Verify the exact archive and installed host before promotion."
+    ],
+    "installSteps": [
+      "Verify the archive SHA-256 and run node scripts/validate-extension.mjs and node scripts/validate-release-readiness.mjs.",
+      "Install only the recorded freshly built and validated extension-only archive.",
+      "Install only in Cedros Data 0.1.81+ staging with the matching WIT and extension-services contracts advertised."
+    ],
+    "enableSteps": [
+      "Run explicit guarded-policy enrollment (Release A).",
+      "Verify the exact marker and all eighteen guarded-only policies.",
+      "Enable canonical route/job traffic (Release B semantics) only after joint conformance evidence."
+    ],
+    "firstScreenToVerify": "Admin module cedros-pay:admin, section cedros-pay:settings-hub",
+    "expectedDashboardCards": [
+      "cedros-pay:status-card"
+    ],
+    "expectedAdminPages": [
+      "cedros-pay:catalog",
+      "cedros-pay:transactions",
+      "cedros-pay:settings-hub"
+    ],
+    "expectedPublicPages": [
+      "/pricing",
+      "/programs",
+      "/programs/developers",
+      "/programs/ambassadors",
+      "/programs/affiliates",
+      "/programs/sales-partners"
+    ],
+    "expectedProviderAttribution": [
+      "cedros-pay:storage",
+      "cedros-pay:email",
+      "cedros-pay:intelligence",
+      "cedros-pay:blockchain-config",
+      "cedros-pay:blockchain-x402-sign",
+      "cedros-pay:blockchain-x402-refund",
+      "cedros-pay:blockchain-assistant-x402-sign"
+    ],
+    "expectedSiteBrainAndLogs": "Enabled cleanup and webhook delivery plus disabled guarded jobs check the exact activation marker before provider, queue, RPC, or mutation access. Outcomes remain aggregate and redacted.",
+    "escalationPath": "Cedros Data owns 0.1.81 deployment and current host evidence; Cedros Wallet/Data own the remaining subscription-collector signing contract; Cedros Pay and Cedros Shop jointly own artifact-tied staging conformance."
+  },
+  "rollbackAndDisable": {
+    "owner": "Cedros Pay operator with Cedros Data host owner",
+    "deadline": "Before canonical Cedros Pay 5.0.8 mutation traffic is enabled.",
+    "disable": "Stop checkout/cart mutation traffic and pause all schedules. Leave every enrolled model guarded-only.",
+    "rollback": "Never silently reopen guarded-only policies. Reinstall 3.0.34 only when the host confirms the unchanged WIT and guarded data model remain compatible; otherwise forward-fix on the 4.x line, then revalidate the exact marker before resuming traffic.",
+    "remove": "Remove extension metadata only after traffic is stopped; preserve guarded policies and durable payment/cart state unless a separately reviewed data-deletion procedure is approved."
+  },
+  "knownRisksAndAcceptedGaps": [
+    "Stripe sandbox acceptance exposed a first-configuration default hazard. The source safeguard and its new subscription_portal_discount_tests require post-merge Rust execution and a fresh versioned archive; the historical 4.0.40 archive lacks this fix.",
+    "Current source inputs differ from the recorded archive. A fresh build and archive validation are required before installation.",
+    "No live Cedros Data 0.1.81+ acceptance evidence is recorded for this candidate; production launch remains blocked.",
+    "Source declares policy-bound x402 refund access but no live host grant is verified; a policy-bound Solana subscription collector contract is still absent. Both paths fail closed without private-key reads.",
+    "The public authoring kit 0.1.82 conflicts on durable notification publication availability; Pay keeps the existing telemetry path and does not claim the disputed host capability until Cedros publishes a corrected contract.",
+    "No credential-free immutable HTTPS staging-run URL exists yet; this packet does not fabricate one.",
+    "The 5.0.8 canonical Wasm/package build requires Docker, which is unavailable in the current execution environment. No fresh ZIP exists and installation remains blocked.",
+    "The bounded physical catalog, shipping and order routes still require authenticated installed-host staging verification, including immutable grants, changed-payload replay, stale versions and safe response projections.",
+    "Pay5 requires native-storefront-policy-read-v1 and corresponding Data-first policy activation. Canonical Docker Wasm/archive remains not-built. No historical archive is usable for this candidate; installed-host staging and operator review remain mandatory."
+  ],
+  "signOff": {
+    "extensionAuthor": {
+      "name": "Cedros Pay extension author",
+      "status": "reviewed"
+    },
+    "cedrosHostOwner": {
+      "name": "Cedros backend",
+      "status": "blocked-on-0.1.81-staging"
+    },
+    "operator": {
+      "name": "Target site operator",
+      "status": "awaiting-fresh-build"
+    },
+    "privacyReviewer": {
+      "name": "Cedros QA/privacy reviewer",
+      "status": "approved",
+      "approvedAt": "2026-05-13"
+    },
+    "qaReviewer": {
+      "name": "Cedros QA/reviewer",
+      "status": "approved-for-dashboard-revenue-contracts"
+    },
+    "installGateStatus": "blocked",
+    "launchGateStatus": "blocked"
+  },
+  "wasmRuntimeGate": {
+    "status": "blocked",
+    "owner": "Cedros Data host team",
+    "meaning": "Cedros Pay 5.0.8 cannot receive production mutation traffic until a Cedros Data 0.1.81+ host provides the matching WIT/extension-services contract and persists the exact eighteen-model activation marker.",
+    "requiredChecks": [
+      "cedros-data-0.1.81-deployed",
+      "extension-services-contract-available",
+      "eighteen-model-marker-proven",
+      "joint-shop-staging-evidence"
+    ]
+  },
+  "launchPreflight": {
+    "status": "blocked",
+    "meaning": "All required Cedros Pay 5.0.8 production gates are fail-closed and await the shared Cedros Data 0.1.81 staging environment.",
+    "checks": [
+      {
+        "checkId": "cedros-data-0.1.81-staging",
+        "owner": "Cedros Data host team",
+        "required": true,
+        "status": "blocked",
+        "failClosed": true,
+        "description": "Cedros Data 0.1.81+ is published and deployed with the matching WIT and current extension-services contract before Pay install/activation.",
+        "verification": "Record the immutable host artifact/version and staging environment identifier."
+      },
+      {
+        "checkId": "eighteen-model-guarded-policy",
+        "owner": "Cedros Data and Cedros Pay teams",
+        "required": true,
+        "status": "blocked",
+        "failClosed": true,
+        "description": "The exact eighteen-model set and digest are enrolled atomically and enforced across independent workers/restart while the control model stays open.",
+        "verification": "Run the refreshed host matrix and Pay marker/enrollment/restart tests."
+      },
+      {
+        "checkId": "joint-shop-conformance",
+        "owner": "Cedros Pay and Cedros Shop teams",
+        "required": true,
+        "status": "blocked",
+        "failClosed": true,
+        "description": "Canonical checkout and versioned-cart distributed scenarios pass against the exact Shop 3 artifact without sensitive evidence.",
+        "verification": "Publish an immutable credential-free HTTPS CI/run URL, redacted assertion counts, environment id, and exact Shop source/archive/Wasm digests."
+      }
+    ]
+  },
+  "shopConformance": {
+    "sourceCommit": "6f08586",
+    "reportCommit": "ab06fa7",
+    "version": "3.0.0",
+    "archiveSha256": "87af93c16d02f7dfafbea2b3585c72b88be02c7d195ec5c5b4c07f2202bd5f52",
+    "wasmSha256": "9e9532653274bb038844d6ce12b3d87493fa660b445dd414d743457415cedb99",
+    "integratedRunUrl": null,
+    "environmentId": null,
+    "assertionSummary": null,
+    "evidencePrivacyConfirmed": false
+  }
+}

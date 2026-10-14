@@ -1,155 +1,182 @@
-.cedros-admin__stats-bar,
-.cedros-admin__stats-bar-item,
-.cedros-admin__stat-card,
-.cedros-admin__method-card,
-.cedros-admin__settings-timeline-item,
-.cedros-admin__faq-item,
-.cedros-admin__dropdown-menu,
-.cedros-admin__modal,
-.cedros-admin__drop-zone,
-.cedros-admin__variation-type-item,
-.cedros-admin__variation-value-item,
-.cedros-admin__variant-grid,
-.cedros-admin__settings-editor,
-.cedros-admin__settings-history {
-  box-shadow: var(--admin-shadow-card);
+.cedros-pay-admin .cedros-admin__settings-timeline-item,
+.cedros-pay-admin .cedros-admin__faq-item,
+.cedros-pay-admin .cedros-admin__dropdown-menu,
+.cedros-pay-admin .cedros-admin__modal,
+.cedros-pay-admin .cedros-admin__drop-zone,
+.cedros-pay-admin .cedros-admin__variation-type-item,
+.cedros-pay-admin .cedros-admin__variation-value-item,
+.cedros-pay-admin .cedros-admin__variant-grid,
+.cedros-pay-admin .cedros-admin__settings-editor,
+.cedros-pay-admin .cedros-admin__settings-history {
+  box-shadow: var(--pay-admin-shadow-card);
 }
 
-.cedros-admin__stats-bar-label,
-.cedros-admin__stat-label,
-.cedros-admin__method-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--admin-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+/* The stats bar is the Workbench metric grid (admin-plugin-workbench-states.css):
+   separate bordered tiles, not one divided strip. Only the value tones live
+   here; anatomy, borders, and typography belong to the metric primitive. */
+.cedros-pay-admin .cedros-admin__stats-bar-value--success {
+  color: var(--pay-admin-success);
 }
 
-.cedros-admin__stats-bar-value,
-.cedros-admin__stat-value,
-.cedros-admin__method-value {
-  color: var(--admin-fg);
-  font-weight: 700;
+.cedros-pay-admin .cedros-admin__stats-bar-value--warning {
+  color: var(--pay-admin-warning);
 }
 
-.cedros-admin__stats-bar-value--success,
-.cedros-admin__stat-value--success {
-  color: var(--admin-success);
+.cedros-pay-admin .cedros-admin__stats-bar-value--muted {
+  color: var(--pay-admin-muted);
 }
 
-.cedros-admin__stats-bar-value--warning,
-.cedros-admin__stat-value--warning {
-  color: var(--admin-warning);
-}
-
-.cedros-admin__stats-bar-value--muted {
-  color: var(--admin-muted);
-}
-
-.cedros-admin__modal-overlay,
-.cedros-admin__confirm-overlay {
+.cedros-pay-admin .cedros-admin__modal-overlay,
+.cedros-pay-admin .cedros-admin__confirm-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgb(0 0 0 / 0.5);
-  z-index: 1000;
+  background: color-mix(in srgb, var(--pay-admin-fg) 42%, transparent);
+  z-index: var(--z-modal, 1000);
 }
 
-.cedros-admin__modal {
+.cedros-pay-admin .cedros-admin__modal {
+  overflow-wrap: anywhere;
   width: 100%;
   max-width: 28rem;
   max-height: 90vh;
+  overscroll-behavior-y: contain;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
-.cedros-admin__modal--lg {
+.cedros-pay-admin .cedros-admin__modal--lg {
   max-width: 48rem;
 }
 
-.cedros-admin__modal-body,
-.cedros-admin__modal-header,
-.cedros-admin__modal-footer {
+.cedros-pay-admin .cedros-admin__modal-body,
+.cedros-pay-admin .cedros-admin__modal-header,
+.cedros-pay-admin .cedros-admin__modal-footer {
   padding: 1rem 1.25rem;
 }
 
-.cedros-admin__modal-header,
-.cedros-admin__modal-footer {
-  border-bottom: 1px solid var(--admin-border);
+.cedros-pay-admin .cedros-admin__modal-header,
+.cedros-pay-admin .cedros-admin__modal-footer {
+  border-bottom: 1px solid var(--pay-admin-border);
 }
 
-.cedros-admin__modal-footer {
+.cedros-pay-admin .cedros-admin__modal-footer {
   justify-content: flex-end;
-  border-top: 1px solid var(--admin-border);
+  border-top: 1px solid var(--pay-admin-border);
   border-bottom: none;
 }
 
-.cedros-admin__modal-close {
+.cedros-pay-admin .cedros-admin__modal-close {
   width: 2rem;
   height: 2rem;
   padding: 0;
   border: none;
-  border-radius: var(--admin-radius);
+  border-radius: var(--pay-admin-radius);
   background: transparent;
-  color: var(--admin-muted);
+  color: var(--pay-admin-muted);
   cursor: pointer;
 }
 
-.cedros-admin__dropdown {
+.cedros-pay-admin .cedros-admin__dropdown {
   position: relative;
 }
 
-.cedros-admin__dropdown-menu {
+.cedros-pay-admin .cedros-admin__dropdown-menu {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   min-width: 100%;
   padding: 0.25rem;
-  background: var(--admin-bg);
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  z-index: 40;
+  background: var(--pay-admin-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  z-index: var(--z-dropdown, 50);
 }
 
-.cedros-admin__dropdown-item {
+.cedros-pay-admin .cedros-admin__dropdown-item {
   width: 100%;
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   border: none;
-  border-radius: calc(var(--admin-radius) - 2px);
+  border-radius: var(--pay-admin-radius-sm);
   background: transparent;
-  color: var(--admin-fg);
+  color: var(--pay-admin-fg);
   cursor: pointer;
 }
 
-.cedros-admin__dropdown-item:hover {
-  background: var(--admin-muted-bg);
+.cedros-pay-admin .cedros-admin__dropdown-item:hover {
+  background: var(--pay-admin-muted-bg);
 }
 
-.cedros-admin__faq-item,
-.cedros-admin__settings-timeline-item,
-.cedros-admin__variation-type-item,
-.cedros-admin__variation-value-item {
+.cedros-pay-admin .cedros-admin__media-tile {
+  padding: 0.5rem;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  background: var(--pay-admin-card-bg);
+  color: var(--pay-admin-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cedros-pay-admin .cedros-admin__media-tile:hover {
+  background: var(--pay-admin-accent);
+}
+
+.cedros-pay-admin .cedros-admin__media-tile:focus-visible {
+  outline: none;
+  border-color: var(--pay-admin-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pay-admin-ring) 15%, transparent);
+}
+
+.cedros-pay-admin .cedros-admin__media-tile-frame {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  border-radius: calc(var(--pay-admin-radius) - 0.125rem);
+  background: var(--pay-admin-muted-bg);
+}
+
+.cedros-pay-admin .cedros-admin__media-tile-label {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.45rem;
+  color: var(--pay-admin-fg);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cedros-pay-admin .cedros-admin__faq-item,
+.cedros-pay-admin .cedros-admin__settings-timeline-item,
+.cedros-pay-admin .cedros-admin__variation-type-item,
+.cedros-pay-admin .cedros-admin__variation-value-item {
   padding: 0.875rem;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
 }
 
-.cedros-admin__drop-zone {
+.cedros-pay-admin .cedros-admin__drop-zone {
   padding: 1rem;
   border-style: dashed;
   text-align: center;
 }
 
-.cedros-admin__drop-zone--active {
-  border-color: var(--admin-primary);
-  background: color-mix(in srgb, var(--admin-accent) 60%, white 40%);
+.cedros-pay-admin .cedros-admin__drop-zone--active {
+  border-color: var(--pay-admin-primary);
+  background: color-mix(in srgb, var(--pay-admin-accent) 72%, var(--pay-admin-bg) 28%);
 }
 
-.cedros-admin__spinner {
-  animation: cedros-admin-spin 1s linear infinite;
+.cedros-pay-admin .cedros-admin__spinner {
+  animation: cedros-admin-spin var(--motion-duration-spinner, 1s) var(--motion-ease-linear, linear) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cedros-pay-admin .cedros-admin__spinner {
+    animation: none;
+  }
 }
 
 @keyframes cedros-admin-spin {
@@ -159,19 +186,16 @@
 }
 
 @media (max-width: 768px) {
-  .cedros-admin__section-header,
-  .cedros-admin__page-header,
-  .cedros-admin__form-header,
-  .cedros-admin__settings-history-header,
-  .cedros-admin__settings-editor-header {
+  .cedros-pay-admin .cedros-admin__section-header,
+  .cedros-pay-admin .cedros-admin__page-header,
+  .cedros-pay-admin .cedros-admin__form-header,
+  .cedros-pay-admin .cedros-admin__settings-history-header,
+  .cedros-pay-admin .cedros-admin__settings-editor-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .cedros-admin__stats-bar-grid,
-  .cedros-admin__form-row,
-  .cedros-admin__stats-grid,
-  .cedros-admin__method-grid {
+  .cedros-pay-admin .cedros-admin__form-row {
     grid-template-columns: 1fr;
   }
 }

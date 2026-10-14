@@ -1,0 +1,29 @@
+# Host-side verification harness. Loads the compiled `cedros-extension.server.wasm`
+# component through a security-patched Wasmtime component-model runtime + the
+# cedros-data host WIT, links in-memory host seams, and exercises the exported
+# routes/jobs. This proves the component
+# loads (capability/type check) and serves end to end — not just that it
+# structurally validates. Build the component first:
+#   cargo build -p cedros-pay-extension-guest --target wasm32-wasip2 --release
+#   cargo test -p cedros-pay-extension-hostsim
+[package]
+name = "cedros-pay-extension-hostsim"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+description = "Wasmtime load+serve harness for the Cedros Pay extension component (verification only)."
+
+[dependencies]
+# Shared id constants + the ISO time formatter (keeps the harness in sync with
+# the guest's manifest ids).
+cedros-pay-extension-domain = { path = "../domain" }
+# Pinned to the oldest current runtime line containing the component type-index
+# and WASI filesystem security fixes required by the harness.
+wasmtime = { version = "46.0.3", features = ["component-model", "async"] }
+wasmtime-wasi = "46.0.3"
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+serde_json = { workspace = true }
+serde = { workspace = true }
+sha2 = "0.10"
+anyhow = "1"

@@ -1,20 +1,17 @@
 # Admin Embedding Contract
 
-`cedros-pay` participates in the shared Cedros Admin shell through
-`cedrosPayPlugin`.
+`cedros-pay` participates in an extension host through `cedrosPayPlugin`. The
+plugin and its host-facing interfaces are owned by `@cedros/pay-react`.
 
-Admin usage requires the shared shell from `@cedros/admin-react`. The canonical
-host also includes `cedros-login` as the admin auth provider.
+Packaged hosts should load the declared registration entrypoint:
 
-```tsx
-import { AdminShell } from '@cedros/admin-react';
-import { cedrosPayPlugin } from '@cedros/pay-react/admin';
+```ts
+import registerCedrosPayAdminSurface from '@cedros/pay-react/admin/register';
 
-<AdminShell plugins={[cedrosPayPlugin]} hostContext={hostContext} />
+const bootstrap = registerCedrosPayAdminSurface();
 ```
 
-`cedros-pay` does not require an installed-extension manifest bundle to render
-under the shared shell.
-
-`@cedros/pay-react` no longer exports a standalone admin dashboard component or
-`./standalone-admin` entrypoint.
+The returned bootstrap contains the manifest and the `cedrosPayPlugin` module.
+The package does not expose a separate `@cedros/pay-react/admin` integration
+entrypoint; hosts consume the registration bootstrap and provide the services,
+route hints, and permissions described by the bundled module contract.

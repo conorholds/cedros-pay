@@ -1,1 +1,0 @@
-{"version":3,"file":"adapterContract.d.ts","sourceRoot":"","sources":["../../../src/ecommerce/testing/adapterContract.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,6BAA6B,CAAC;AAUnE,MAAM,MAAM,sBAAsB,GAAG;IACnC,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB,CAAC;AAEF;;;;GAIG;AACH,wBAAsB,+BAA+B,CACnD,OAAO,EAAE,eAAe,EACxB,OAAO,GAAE,sBAA2B,iBA0CrC"}

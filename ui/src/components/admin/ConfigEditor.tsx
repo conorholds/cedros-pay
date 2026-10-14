@@ -1,473 +1,188 @@
 /**
- * Config Editor Component
+ * Config Editor
  *
- * Renders a form for editing a config category.
- * Autosaves on change with debouncing.
+ * Presentational form for one config category. Field order, grouping,
+ * advanced sectioning, and copy come from configMetadata. State lives in
+ * the parent (SingleCategorySettings): values in, onChange out.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  isSecretField,
-  REDACTED_VALUE,
   CONFIG_CATEGORIES,
-  type ValidateConfigResponse,
-} from './configApi';
-import { useAutosave } from './useAutosave';
-import { AutosaveIndicator } from './AutosaveIndicator';
+  getClientFieldWarnings,
+  resolveFieldMeta,
+  type EndpointMeta,
+  type FieldGroupMeta,
+} from './configMetadata';
+import { ConfigField } from './ConfigField';
+import { Switch } from './Switch';
 import { Icons } from './icons';
-import { FormDropdown } from './Dropdown';
 import { STABLECOIN_METADATA } from '../../utils/tokenMintValidator';
-import { TokenMintSelector, validateSolanaAddress } from './TokenMintSelector';
-import { SecretArrayEditor } from './SecretArrayEditor';
+import { AdvancedDetails } from './contentSettingsLayout';
+import { AnimatedDisclosure } from './AnimatedDisclosure';
 
 export interface ConfigEditorProps {
   category: string;
-  config: Record<string, unknown>;
+  values: Record<string, unknown>;
+  /** Values as loaded from the server (secrets redacted). */
   originalConfig: Record<string, unknown>;
-  isLoading?: boolean;
-  onSave: (config: Record<string, unknown>) => Promise<void>;
-  onValidate?: (config: Record<string, unknown>) => Promise<ValidateConfigResponse>;
+  /** Base URL used to display endpoint URLs (webhooks, notifications). */
+  serverUrl?: string;
+  disabled?: boolean;
+  onChange: (key: string, value: unknown) => void;
 }
 
-interface InferredFieldMeta {
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'dropdown' | 'token_mint' | 'toggle' | 'secret_array' | 'solana_address';
-  isSecret: boolean;
-  label: string;
-  options?: string[];
-  unit?: string;
-  description?: string;
-  hidden?: boolean;
-  showWhen?: string;
-}
+function EndpointRow({ endpoint, serverUrl }: { endpoint: EndpointMeta; serverUrl: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${serverUrl.replace(/\/$/, '')}${endpoint.path}`;
 
-function inferFieldMeta(category: string, key: string, value: unknown): InferredFieldMeta {
-  const isSecret = isSecretField(category, key);
-  const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const catMeta = CONFIG_CATEGORIES[category];
-  const fieldMeta = catMeta?.fields?.[key];
-
-  const baseMeta = {
-    isSecret,
-    label,
-    description: fieldMeta?.description,
-    hidden: fieldMeta?.hidden,
-    showWhen: fieldMeta?.showWhen,
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context); leave the URL selectable.
+    }
   };
 
-  // Check for explicit dropdown
-  if (fieldMeta?.type === 'dropdown' && fieldMeta.options) {
-    return { ...baseMeta, type: 'dropdown', options: fieldMeta.options };
-  }
-
-  // Check for token_mint selector
-  if (fieldMeta?.type === 'token_mint') {
-    return { ...baseMeta, type: 'token_mint' };
-  }
-
-  // Check for toggle type
-  if (fieldMeta?.type === 'toggle') {
-    return { ...baseMeta, type: 'toggle' };
-  }
-
-  // Check for secret_array type
-  if (fieldMeta?.type === 'secret_array') {
-    return { ...baseMeta, type: 'secret_array', isSecret: true };
-  }
-
-  // Check for solana_address type
-  if (fieldMeta?.type === 'solana_address') {
-    return { ...baseMeta, type: 'solana_address' };
-  }
-
-  // Check for explicit number with unit
-  if (fieldMeta?.type === 'number') {
-    return { ...baseMeta, type: 'number', unit: fieldMeta.unit };
-  }
-
-  // Infer from value type
-  if (typeof value === 'boolean') {
-    return { ...baseMeta, type: 'boolean' };
-  }
-  if (typeof value === 'number') {
-    return { ...baseMeta, type: 'number', unit: fieldMeta?.unit };
-  }
-  if (Array.isArray(value)) {
-    return { ...baseMeta, type: 'array' };
-  }
-  if (typeof value === 'object' && value !== null) {
-    return { ...baseMeta, type: 'object' };
-  }
-  return { ...baseMeta, type: 'string' };
+  return (
+    <div className="cedros-data-field cedros-admin__field cedros-admin__endpoint">
+      <span className="cedros-data-label cedros-admin__field-label">{endpoint.label}</span>
+      <div className="cedros-admin__endpoint-row">
+        <code className="cedros-admin__endpoint-url">{url}</code>
+        <button
+          type="button"
+          className="cedros-data-btn cedros-admin__button cedros-data-btn--secondary cedros-admin__button--outline cedros-data-btn--sm cedros-admin__button--sm"
+          onClick={copy}
+        >
+          {copied ? Icons.check : Icons.copy}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      {endpoint.description && (
+        <div className="cedros-admin__field-description">{endpoint.description}</div>
+      )}
+    </div>
+  );
 }
 
 export function ConfigEditor({
   category,
-  config,
+  values,
   originalConfig,
-  isLoading = false,
-  onSave,
+  serverUrl,
+  disabled = false,
+  onChange,
 }: ConfigEditorProps) {
-  const [formData, setFormData] = useState<Record<string, unknown>>(config);
-  const [revealedSecrets, setRevealedSecrets] = useState<Set<string>>(new Set());
+  const catMeta = CONFIG_CATEGORIES[category];
+  const warnings = useMemo(() => getClientFieldWarnings(category, values), [category, values]);
 
-  useEffect(() => {
-    setFormData(config);
-  }, [config]);
+  // Display order: metadata declaration order first, then any unlisted keys.
+  const orderedKeys = useMemo(() => {
+    const metaKeys = Object.keys(catMeta?.fields ?? {});
+    const valueKeys = Object.keys(values);
+    return [
+      ...metaKeys.filter((key) => valueKeys.includes(key)),
+      ...valueKeys.filter((key) => !metaKeys.includes(key)),
+    ];
+  }, [catMeta, values]);
 
-  // Prepare data for saving (handle secrets)
-  const dataToSave = useMemo(() => {
-    const data = { ...formData };
-    for (const key of Object.keys(data)) {
-      if (isSecretField(category, key)) {
-        const originalValue = originalConfig[key];
-        const newValue = data[key];
-        // If value hasn't changed from redacted, keep it redacted
-        if (newValue === REDACTED_VALUE || newValue === originalValue) {
-          data[key] = REDACTED_VALUE;
-        }
-      }
+  const isVisible = (key: string): boolean => {
+    const meta = resolveFieldMeta(category, key, originalConfig[key] ?? values[key]);
+    if (meta.hidden) return false;
+    if (meta.showWhen && !values[meta.showWhen]) return false;
+    // Hide token_decimals when a known stablecoin manages it
+    if (key === 'token_decimals') {
+      const tokenMint = values['token_mint'] as string | undefined;
+      if (tokenMint && STABLECOIN_METADATA[tokenMint]) return false;
     }
-    return data;
-  }, [formData, originalConfig, category]);
-
-  // Block autosave when a custom token mint address is present but invalid
-  const hasTokenMintError = useMemo(() => {
-    const tokenMint = formData['token_mint'];
-    if (typeof tokenMint !== 'string' || !tokenMint) return false;
-    return !validateSolanaAddress(tokenMint).valid;
-  }, [formData]);
-
-  // Autosave with debouncing
-  const { status: autosaveStatus, error: autosaveError } = useAutosave({
-    data: dataToSave,
-    onSave,
-    debounceMs: 1500,
-    enabled: !hasTokenMintError,
-  });
-
-  const updateField = useCallback((key: string, value: unknown) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const toggleSecretReveal = useCallback((key: string) => {
-    setRevealedSecrets(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
-  // Helper to render field description
-  const renderDescription = (description?: string) => {
-    if (!description) return null;
-    return (
-      <div style={{
-        fontSize: '0.75rem',
-        color: 'var(--cedros-admin-text-muted, #64748b)',
-        marginTop: '0.25rem',
-      }}>
-        {description}
-      </div>
-    );
+    return true;
   };
 
-  const renderField = (key: string, value: unknown) => {
-    const meta = inferFieldMeta(category, key, originalConfig[key] ?? value);
+  const visibleKeys = orderedKeys.filter(isVisible);
+  const metaFor = (key: string) =>
+    resolveFieldMeta(category, key, originalConfig[key] ?? values[key]);
 
-    if (meta.type === 'dropdown' && meta.options) {
-      return (
-        <FormDropdown
-          value={value as string}
-          onChange={(val) => updateField(key, val)}
-          options={meta.options.map(opt => ({ value: opt, label: opt }))}
-          label={meta.label}
-          description={meta.description}
-          disabled={isLoading}
-        />
-      );
-    }
+  const mainKeys = visibleKeys.filter((key) => {
+    const meta = metaFor(key);
+    return !meta.group && !meta.advanced;
+  });
+  const advancedKeys = visibleKeys.filter((key) => {
+    const meta = metaFor(key);
+    return !meta.group && meta.advanced;
+  });
+  const groupKeys = (groupId: string) =>
+    visibleKeys.filter((key) => metaFor(key).group === groupId);
 
-    if (meta.type === 'token_mint') {
-      return (
-        <TokenMintSelector
-          label={meta.label}
-          value={value as string}
-          onChange={v => updateField(key, v)}
-          decimals={(formData['token_decimals'] as number) ?? 6}
-          onDecimalsChange={d => updateField('token_decimals', d)}
-          disabled={isLoading}
-          description={meta.description}
-          customSymbol={(formData['custom_token_symbol'] as string) || ''}
-          customIcon={(formData['custom_token_icon'] as string) || ''}
-          onCustomSymbolChange={v => updateField('custom_token_symbol', v)}
-          onCustomIconChange={v => updateField('custom_token_icon', v)}
-        />
-      );
-    }
+  const endpoints = catMeta?.endpoints ?? [];
+  const ungroupedEndpoints = endpoints.filter((endpoint) => !endpoint.group);
 
-    if (meta.type === 'toggle') {
-      return (
-        <div className="cedros-admin__field">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={value as boolean}
-              onClick={() => updateField(key, !value)}
-              disabled={isLoading}
-              style={{
-                width: 44,
-                height: 24,
-                borderRadius: 12,
-                border: 'none',
-                backgroundColor: value
-                  ? 'var(--cedros-admin-primary, #171717)'
-                  : 'var(--cedros-admin-border, #d4d4d4)',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                position: 'relative',
-                transition: 'background-color 0.2s',
-                opacity: isLoading ? 0.5 : 1,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 2,
-                  left: value ? 22 : 2,
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  backgroundColor: '#fff',
-                  transition: 'left 0.2s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                }}
-              />
-            </button>
-            <span className="cedros-admin__field-label" style={{ marginBottom: 0 }}>
-              {meta.label}
-            </span>
-          </div>
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
+  const renderField = (key: string) => (
+    <ConfigField
+      key={key}
+      fieldKey={key}
+      value={values[key]}
+      meta={metaFor(key)}
+      values={values}
+      originalValue={originalConfig[key]}
+      disabled={disabled}
+      warning={warnings[key]}
+      onChange={onChange}
+    />
+  );
 
-    if (meta.type === 'solana_address') {
-      const addressValue = (value as string) || '';
-      const validation = validateSolanaAddress(addressValue);
-      return (
-        <div className="cedros-admin__field">
-          <label className="cedros-admin__field-label">{meta.label}</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              className={`cedros-admin__input ${!validation.valid ? 'cedros-admin__input--error' : ''}`}
-              value={addressValue}
-              onChange={(e) => updateField(key, e.target.value)}
-              disabled={isLoading}
-              placeholder="e.g. 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU"
-              style={{
-                width: '100%',
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                borderColor: !validation.valid ? 'var(--cedros-admin-error, #dc2626)' : undefined,
-                paddingRight: addressValue && validation.valid ? '2rem' : undefined,
-              }}
-            />
-            {addressValue && validation.valid && (
-              <span
-                style={{
-                  position: 'absolute',
-                  right: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--cedros-admin-success, #16a34a)',
-                  fontSize: '1rem',
-                }}
-                title="Valid Solana address"
-              >
-                ✓
-              </span>
+  const renderGroup = (group: FieldGroupMeta) => {
+    const keys = groupKeys(group.id);
+    const groupEndpoints = endpoints.filter((endpoint) => endpoint.group === group.id);
+    if (keys.length === 0 && groupEndpoints.length === 0 && !group.toggleField) return null;
+    const isOn = group.toggleField ? Boolean(values[group.toggleField]) : true;
+
+    return (
+      <section key={group.id} className="cedros-data-card cedros-admin__field-group">
+        <div className="cedros-data-card__header cedros-admin__field-group-header">
+          <div className="cedros-admin__field-group-heading">
+            <h4 className="cedros-data-card__title cedros-admin__field-group-title">{group.title}</h4>
+            {group.description && (
+              <p className="cedros-admin__field-group-description">{group.description}</p>
             )}
           </div>
-          {!validation.valid && (
-            <span style={{ color: 'var(--cedros-admin-error, #dc2626)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
-              {validation.error}
-            </span>
-          )}
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
-
-    if (meta.type === 'boolean') {
-      return (
-        <div className="cedros-admin__field">
-          <label className="cedros-admin__checkbox">
-            <input
-              type="checkbox"
-              checked={value as boolean}
-              onChange={e => updateField(key, e.target.checked)}
-              disabled={isLoading}
+          {group.toggleField && (
+            <Switch
+              checked={isOn}
+              onCheckedChange={(checked) => onChange(group.toggleField!, checked)}
+              disabled={disabled}
+              aria-label={`Enable ${group.title}`}
             />
-            {meta.label}
-          </label>
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
-
-    if (meta.type === 'number') {
-      return (
-        <div className="cedros-admin__field">
-          <label className="cedros-admin__field-label">
-            {meta.label}
-            {meta.unit && <span className="cedros-admin__field-unit"> ({meta.unit})</span>}
-          </label>
-          <input
-            type="number"
-            className="cedros-admin__input"
-            value={value as number}
-            onChange={e => updateField(key, parseFloat(e.target.value) || 0)}
-            disabled={isLoading}
-          />
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
-
-    if (meta.type === 'secret_array') {
-      return (
-        <SecretArrayEditor
-          label={meta.label}
-          value={value as string[]}
-          onChange={v => updateField(key, v)}
-          disabled={isLoading}
-          description={meta.description}
-        />
-      );
-    }
-
-    if (meta.type === 'array') {
-      const arr = value as unknown[];
-      return (
-        <div className="cedros-admin__field">
-          <label className="cedros-admin__field-label">{meta.label}</label>
-          <textarea
-            className="cedros-admin__textarea"
-            value={arr.join('\n')}
-            onChange={e => updateField(key, e.target.value.split('\n').filter(Boolean))}
-            placeholder="One item per line"
-            rows={3}
-            disabled={isLoading}
-          />
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
-
-    if (meta.type === 'object') {
-      return (
-        <div className="cedros-admin__field">
-          <label className="cedros-admin__field-label">{meta.label}</label>
-          <textarea
-            className="cedros-admin__textarea cedros-admin__textarea--mono"
-            value={JSON.stringify(value, null, 2)}
-            onChange={e => {
-              try {
-                updateField(key, JSON.parse(e.target.value));
-              } catch {
-                // Invalid JSON, keep as-is
-              }
-            }}
-            rows={5}
-            disabled={isLoading}
-          />
-          {renderDescription(meta.description)}
-        </div>
-      );
-    }
-
-    // String field (possibly secret)
-    const isRevealed = revealedSecrets.has(key);
-    const displayValue = meta.isSecret && !isRevealed && value === REDACTED_VALUE
-      ? REDACTED_VALUE
-      : (value as string);
-
-    return (
-      <div className="cedros-admin__field">
-        <label className="cedros-admin__field-label">
-          {meta.label}
-          {meta.isSecret && <span className="cedros-admin__field-secret"> (secret)</span>}
-        </label>
-        <div className="cedros-admin__input-group">
-          <input
-            type={meta.isSecret && !isRevealed ? 'password' : 'text'}
-            className="cedros-admin__input"
-            value={displayValue}
-            onChange={e => updateField(key, e.target.value)}
-            disabled={isLoading}
-            placeholder={meta.isSecret ? '••••••••' : ''}
-          />
-          {meta.isSecret && (
-            <button
-              type="button"
-              className="cedros-admin__button cedros-admin__button--ghost"
-              onClick={() => toggleSecretReveal(key)}
-              style={{ padding: '0.5rem', minWidth: 'auto' }}
-              title={isRevealed ? 'Hide' : 'Show'}
-            >
-              {isRevealed ? Icons.eyeOff : Icons.eye}
-            </button>
           )}
         </div>
-        {renderDescription(meta.description)}
-      </div>
+        {(keys.length > 0 || groupEndpoints.length > 0) && (
+          <AnimatedDisclosure open={isOn}>
+            <div className="cedros-admin__field-group-body">
+              {serverUrl &&
+                groupEndpoints.map((endpoint) => (
+                  <EndpointRow key={endpoint.path} endpoint={endpoint} serverUrl={serverUrl} />
+                ))}
+              {keys.map(renderField)}
+            </div>
+          </AnimatedDisclosure>
+        )}
+      </section>
     );
-  };
-
-  const keys = Object.keys(formData);
-
-  // Determine which fields should be visible
-  const shouldShowField = (key: string): boolean => {
-    const meta = inferFieldMeta(category, key, originalConfig[key] ?? formData[key]);
-
-    // Check explicit hidden flag
-    if (meta.hidden) return false;
-
-    // Check showWhen condition
-    if (meta.showWhen) {
-      const dependentValue = formData[meta.showWhen];
-      if (!dependentValue) return false;
-    }
-
-    // Special case: hide token_decimals when using a known stablecoin
-    if (key === 'token_decimals') {
-      const tokenMint = formData['token_mint'] as string | undefined;
-      if (tokenMint && STABLECOIN_METADATA[tokenMint]) {
-        return false;
-      }
-    }
-
-    return true;
   };
 
   return (
     <div className="cedros-admin__config-editor">
       <div className="cedros-admin__config-fields">
-        {keys.filter(shouldShowField).map(key => (
-          <div key={key} className="cedros-admin__config-field">
-            {renderField(key, formData[key])}
-          </div>
-        ))}
-      </div>
-
-      <div className="cedros-admin__config-actions">
-        <div className="cedros-admin__autosave-status">
-          <AutosaveIndicator status={autosaveStatus} error={autosaveError} />
-        </div>
+        {mainKeys.map(renderField)}
+        {serverUrl &&
+          ungroupedEndpoints.map((endpoint) => (
+            <EndpointRow key={endpoint.path} endpoint={endpoint} serverUrl={serverUrl} />
+          ))}
+        {(catMeta?.groups ?? []).map(renderGroup)}
+        {advancedKeys.length > 0 && (
+          <AdvancedDetails>{advancedKeys.map(renderField)}</AdvancedDetails>
+        )}
       </div>
     </div>
   );

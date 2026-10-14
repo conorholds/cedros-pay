@@ -3,34 +3,77 @@
  */
 
 import type { IAdminAuthManager } from './AdminAuthManager';
+import type { ProductImage, ProductVariant } from '../../types/productVariations';
 
 /** Props for section components */
 export interface SectionProps {
   serverUrl: string;
-  /** @deprecated Use authManager instead */
-  apiKey?: string;
+  locale?: string;
   refreshInterval?: number;
   pageSize?: number;
   /** Admin auth manager for authenticated requests */
   authManager?: IAdminAuthManager;
+  /** Opaque host-derived site/org/user scope for browser-local recovery data. */
+  persistenceScope?: string;
+  /**
+   * Optional tab hint supplied by the host when this section is a tabbed
+   * umbrella. Hosts can derive it from URL routing or setup context and pass it
+   * through `pluginContext.pluginData.defaultTabId`.
+   */
+  defaultTabId?: string;
+  /** Internal hub callback used to suppress collection chrome for nested detail views. */
+  onDetailViewChange?: (isDetailView: boolean) => void;
+  dependencies?: {
+    cedrosBalanceInstalled?: boolean;
+  };
+}
+
+/** Settled payment methods tracked by web admin analytics and transactions. */
+export type SettledPaymentMethod = 'stripe' | 'x402' | 'credits';
+
+/** Per-method numeric breakdown (e.g. revenue totals or transaction counts). */
+export interface PaymentMethodAmounts {
+  stripe: number;
+  x402: number;
+  credits: number;
+}
+
+/** Order lifecycle breakdown derived from the payment ledger (see `/admin/stats`). */
+export interface OrderStats {
+  total: number;
+  paid: number;
+  refunded: number;
+  pending: number;
+  failed: number;
+  /** Settled (paid) gross revenue in dollars. */
+  revenue: number;
 }
 
 /** Stats response from backend */
 export interface PaymentStats {
+  /** Legacy revenue aggregates cannot be displayed as USD when true. */
+  revenueIncludesNonUsd?: boolean;
   totalRevenue: number;
   totalTransactions: number;
   activeProducts: number;
+  /** Active products with a positive price that checkout can quote. */
+  sellableProducts?: number;
   pendingRefunds: number;
-  revenueByMethod: {
-    stripe: number;
-    x402: number;
-    credits: number;
-  };
-  transactionsByMethod: {
-    stripe: number;
-    x402: number;
-    credits: number;
-  };
+  revenueByMethod: PaymentMethodAmounts;
+  transactionsByMethod: PaymentMethodAmounts;
+  /** True when the backend stopped scanning before all ledger rows were included. */
+  truncated?: boolean;
+  /** Order lifecycle breakdown, powering the Orders tab stats bar. Optional so an
+   * older backend (without this field) degrades to zeroed order stats. */
+  orders?: OrderStats;
+}
+
+/** Common pagination/scan metadata returned by admin list endpoints. */
+export interface AdminPagedResponse {
+  count?: number;
+  total?: number;
+  hasMore?: boolean;
+  truncated?: boolean;
 }
 
 /** Product resource from backend */
@@ -63,6 +106,39 @@ export interface StoreBillingConfig {
   google?: GoogleStoreBillingConfig;
 }
 
+export interface SolanaSubscriptionPlanConfig {
+  enabled?: boolean;
+  planId: number;
+  monthlyPlanId?: number;
+  annualPlanId?: number;
+  merchantAddress: string;
+  tokenMint: string;
+  tokenProgramAddress?: string;
+  receiverTokenAccount?: string;
+  collectorAddress?: string;
+  planAddress?: string;
+  monthlyPlanAddress?: string;
+  annualPlanAddress?: string;
+  programAddress?: string;
+  monthlyAmountAtomic?: number;
+  annualAmountAtomic?: number;
+  monthlyPeriodHours?: number;
+  annualPeriodHours?: number;
+  expectedCreatedAt?: number;
+  monthlyExpectedCreatedAt?: number;
+  annualExpectedCreatedAt?: number;
+  expectedSubscriptionAuthorityInitId?: number;
+  metadataUri?: string;
+  endTs?: number;
+  monthlyEndTs?: number;
+  annualEndTs?: number;
+  destinations?: string[];
+  pullers?: string[];
+  status?: 'active' | 'sunset';
+  monthlyStatus?: 'active' | 'sunset';
+  annualStatus?: 'active' | 'sunset';
+}
+
 export interface CheckoutRequirements {
   email?: 'none' | 'optional' | 'required';
   name?: 'none' | 'optional' | 'required';
@@ -76,22 +152,26 @@ export interface FulfillmentInfo {
   notes?: string;
 }
 
+export type ProductVariantSummary = Pick<ProductVariant, 'id' | 'sku'>;
+
 export interface Product {
   id: string;
   title?: string;
   shortDescription?: string;
   slug?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   imageUrl?: string;
-  images?: Array<{ url: string; alt?: string }>;
+  images?: ProductImage[];
   description: string;
-  fiatAmountCents: number;
-  fiatCurrency: string;
+  fiatAmountCents?: number | null;
+  fiatCurrency?: string | null;
   compareAtFiatAmountCents?: number | null;
   compareAtFiatCurrency?: string | null;
   stripePriceId?: string;
   stripeProductId?: string;
-  cryptoAtomicAmount: number;
-  cryptoToken: string;
+  cryptoAtomicAmount?: number | null;
+  cryptoToken?: string | null;
   tags?: string[];
   categoryIds?: string[];
   shippingProfile?: 'physical' | 'digital' | null;
@@ -104,34 +184,55 @@ export interface Product {
   metadata?: Record<string, string>;
   active?: boolean;
   /** Product variations (SKUs) - each variation is a separate SKU */
-  variations?: Array<{ id: string; sku?: string }>;
+  variations?: ProductVariantSummary[];
 }
 
 /** Transaction from backend */
 export interface Transaction {
   id: string;
   resourceId: string;
-  method: 'stripe' | 'x402' | 'credits';
+  method: SettledPaymentMethod;
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
+  amountMinor?: number;
+  refundedAmountMinor?: number;
+  providerReference?: string | null;
+  refundProgress?: {
+    status: 'unresolved' | 'completed' | 'reversed';
+    refundId?: string | null;
+    requestedAmountMinor: number;
+  } | null;
   paidAt: string;
   metadata?: Record<string, string>;
+}
+
+export interface TransactionsResponse extends AdminPagedResponse {
+  transactions: Transaction[];
+  /**
+   * The search term the backend actually applied, echoed verbatim. A runtime
+   * that predates server-side search omits it, which is how the client tells
+   * "filtered for you" from "ignored your parameter".
+   */
+  search?: string | null;
 }
 
 /** Coupon scope - which products the coupon applies to */
 export type CouponScope = 'all_products' | 'specific_products' | 'specific_categories';
 
 /** Payment method restriction for coupons */
-export type CouponPaymentMethod = 'any' | 'stripe' | 'x402' | 'credits';
+export type CouponPaymentMethod = 'any' | SettledPaymentMethod;
 
 /** When the coupon discount is applied */
 export type CouponAppliesAt = 'cart' | 'checkout' | 'both';
 
+/** How a coupon discount is calculated */
+export type DiscountType = 'percentage' | 'fixed';
+
 /** Coupon from backend */
 export interface Coupon {
   code: string;
-  discountType: 'percentage' | 'fixed';
+  discountType: DiscountType;
   discountValue: number;
   currency?: string;
   active: boolean;
@@ -163,11 +264,28 @@ export interface Coupon {
 /** x402 Refund from backend */
 export interface Refund {
   id: string;
-  transactionId: string;
+  /** On-chain refund signature, null until the payout is broadcast. */
+  transactionId: string | null;
   amount: number;
   currency: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   reason?: string;
+  /** Buyer wallet that receives the refunded tokens (x402 only). */
+  recipientWallet?: string | null;
+  /** The original x402 purchase signature this refunds (x402 only). */
+  originalPurchaseId?: string | null;
+  /** Core signing was started; this request may be retried but cannot be denied. */
+  signingStarted?: boolean;
+  /** Exact token settlement returned by the x402 refund. */
+  paymentMint?: string | null;
+  refundAmountMicrounits?: number | null;
+  tokenDecimals?: number | null;
+  providerStatus?: 'submitted' | 'indeterminate' | 'failed' | null;
+  providerErrorCode?: string | null;
+  providerRetryable?: boolean | null;
+  operationId?: string | null;
+  /** Original credits payment reference (credits refunds only). */
+  originalTransactionId?: string | null;
   createdAt: string;
 }
 
@@ -223,6 +341,8 @@ export interface SubscriptionPlan {
   isPopular?: boolean;
   /** Plan is available for purchase */
   isActive: boolean;
+  /** Plan is visible in public plan-selection flows (defaults to true). */
+  public?: boolean;
   /** Sort order (lower = first) */
   sortOrder?: number;
   /** Stripe price ID for monthly billing (auto-populated by backend) */
@@ -237,6 +357,8 @@ export interface SubscriptionPlan {
   inventorySold?: number;
   /** Number of active subscribers on this plan (read-only, populated by backend) */
   activeSubscribers?: number;
+  /** Optional Solana program-managed subscription mapping */
+  solanaSubscription?: SolanaSubscriptionPlanConfig | null;
 }
 
 /** Subscription settings for the page */
@@ -255,135 +377,10 @@ export interface SubscriptionSettings {
   popularBadgeText?: string;
   /** Footer notice text */
   footerNotice?: string;
-}
-
-/** Related products display mode */
-export type RelatedProductsMode = 'most_recent' | 'by_category' | 'manual' | 'ai';
-
-/** Catalog filter visibility settings */
-export interface CatalogFilterSettings {
-  /** Show tags filter */
-  tags: boolean;
-  /** Show price range filter */
-  priceRange: boolean;
-  /** Show in-stock filter */
-  inStock: boolean;
-}
-
-/** Catalog sort option visibility settings */
-export interface CatalogSortSettings {
-  /** Show "Featured" sort option */
-  featured: boolean;
-  /** Show "Price: Low to High" sort option */
-  priceAsc: boolean;
-  /** Show "Price: High to Low" sort option */
-  priceDesc: boolean;
-}
-
-/** Checkout settings */
-export interface CheckoutDisplaySettings {
-  /** Show promo/coupon code input on cart and checkout pages */
-  promoCodes: boolean;
-}
-
-/** Product card layout style */
-export type ProductCardLayout = 'large' | 'square' | 'compact';
-
-/** Image crop position for product cards */
-export type ImageCropPosition = 'center' | 'top' | 'bottom' | 'left' | 'right';
-
-/** Layout settings for a page */
-export interface LayoutSettings {
-  /** Card layout style */
-  layout: ProductCardLayout;
-  /** Image crop/focus position */
-  imageCrop: ImageCropPosition;
-}
-
-/** Product detail page section visibility settings */
-export interface ProductPageSectionSettings {
-  /** Show description accordion */
-  showDescription: boolean;
-  /** Show specs/attributes accordion */
-  showSpecs: boolean;
-  /** Show shipping & returns accordion */
-  showShipping: boolean;
-  /** Show related products section */
-  showRelatedProducts: boolean;
-}
-
-/** Product page and catalog settings */
-export interface ProductPageSettings {
-  relatedProducts: {
-    /** How to select related products */
-    mode: RelatedProductsMode;
-    /** Maximum number of related products to show (default: 4) */
-    maxItems: number;
-    /** Layout settings for related products grid */
-    layout: LayoutSettings;
-  };
-  catalog: {
-    /** Which filters to show in shop/category sidebars */
-    filters: CatalogFilterSettings;
-    /** Which sort options to show */
-    sort: CatalogSortSettings;
-  };
-  checkout: CheckoutDisplaySettings;
-  /** Layout settings for the shop page */
-  shopLayout: LayoutSettings;
-  /** Layout settings for category pages */
-  categoryLayout: LayoutSettings;
-  /** Product detail page section visibility */
-  sections: ProductPageSectionSettings;
-}
-
-/** AI provider types */
-export type AIProvider = 'gemini' | 'openai';
-
-/** Available AI models */
-export type AIModel =
-  | 'not_set'
-  | 'gemini-2.5-flash'
-  | 'gemini-2.5-pro'
-  | 'openai-4o'
-  | 'openai-5.1'
-  | 'openai-5.2';
-
-/** AI model display info */
-export interface AIModelInfo {
-  id: AIModel;
-  label: string;
-  provider: AIProvider | null;
-}
-
-/** AI task types that can be assigned models */
-export type AITask = 'related_product_finder' | 'product_detail_assistant' | 'site_chat' | 'product_searcher';
-
-/** AI task configuration */
-export interface AITaskConfig {
-  task: AITask;
-  label: string;
-  description: string;
-  assignedModel: AIModel;
-  /** System/default prompt for this task */
-  systemPrompt?: string;
-}
-
-/** API key configuration (stored securely, only shows masked version) */
-export interface APIKeyConfig {
-  provider: AIProvider;
-  /** Whether a key is configured (don't expose actual key) */
-  isConfigured: boolean;
-  /** Masked version for display (e.g., "sk-...abc123") */
-  maskedKey?: string;
-  /** Last updated timestamp */
-  updatedAt?: string;
-}
-
-/** AI settings for the admin dashboard */
-export interface AISettings {
-  apiKeys: APIKeyConfig[];
-  taskAssignments: AITaskConfig[];
+  /** Server revision for optimistic concurrency */
+  revision?: number;
+  /** Strong ETag for autosave If-Match */
+  etag?: string;
 }
 
 /** Inventory management settings */
@@ -394,14 +391,6 @@ export interface InventorySettings {
   holdsEnabled: boolean;
   /** Hold duration in minutes (5-60) */
   holdDurationMinutes: number;
-}
-
-/** Shop page content settings */
-export interface ShopPageSettings {
-  /** Shop page title (default: "Shop") */
-  title: string;
-  /** Shop page description/subtitle */
-  description: string;
 }
 
 /** FAQ item for knowledge base */

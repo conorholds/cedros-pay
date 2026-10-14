@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "sourceRoot": "server-wasm/domain/src",
+  "controlModelId": "cedros-pay:guarded-write-policy-state",
+  "modelSetSha256": "eb25861790db9cb6da3145426b0afb4dce17b29a39b70651c523f1ed720972b2",
+  "runtimeContract": {
+    "path": "server-wasm/domain/src/guarded_policy/contract.rs",
+    "modelsConstant": "GUARDED_MODELS",
+    "digestConstant": "MODEL_SET_SHA256",
+    "checkoutAuthorityCommit": "a889960a004f94e0c484fe28a12ee06b5d971e1b",
+    "reviewedSourceCommit": "21da874bd3ebe902f0a961cc3e65f003107033b5"
+  },
+  "candidateModels": [
+    {
+      "constant": "MODEL_ACCESS_PASSES",
+      "contentModelId": "cedros-pay:access-passes",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_CART",
+      "contentModelId": "cedros-pay:cart",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_CATALOG_FENCE",
+      "contentModelId": "cedros-pay:catalog-fence",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "INVENTORY_HOLD_MODEL",
+      "constantSource": "server-wasm/domain/src/checkout_contract/mod.rs",
+      "contentModelId": "cedros-pay:checkout-inventory-holds",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "OPERATION_MODEL",
+      "constantSource": "server-wasm/domain/src/checkout_contract/mod.rs",
+      "contentModelId": "cedros-pay:checkout-operations",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "RETURN_INDEX_MODEL",
+      "constantSource": "server-wasm/domain/src/checkout_contract/mod.rs",
+      "contentModelId": "cedros-pay:checkout-return-index",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "STOCK_MODEL",
+      "constantSource": "server-wasm/domain/src/checkout_contract/mod.rs",
+      "contentModelId": "cedros-pay:checkout-stock",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_LEDGER",
+      "contentModelId": "cedros-pay:commerce-ledger",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_CREDITS",
+      "contentModelId": "cedros-pay:credits",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "GENERATION_MODEL_ID",
+      "constantSource": "server-wasm/domain/src/versioned_cart/mod.rs",
+      "contentModelId": "cedros-pay:customer-cart-generations",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "LANE_MODEL_ID",
+      "constantSource": "server-wasm/domain/src/versioned_cart/mod.rs",
+      "contentModelId": "cedros-pay:customer-cart-lanes",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "OPERATION_MODEL_ID",
+      "constantSource": "server-wasm/domain/src/versioned_cart/mod.rs",
+      "contentModelId": "cedros-pay:customer-cart-operations",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "TOMBSTONE_MODEL_ID",
+      "constantSource": "server-wasm/domain/src/versioned_cart/mod.rs",
+      "contentModelId": "cedros-pay:customer-cart-tombstones",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "CART_MODEL_ID",
+      "constantSource": "server-wasm/domain/src/versioned_cart/mod.rs",
+      "contentModelId": "cedros-pay:customer-carts",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_PROGRAM_ACCESS",
+      "contentModelId": "cedros-pay:program-access",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_SUBSCRIPTIONS",
+      "contentModelId": "cedros-pay:subscriptions",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "SESSION_MODEL",
+      "constantSource": "server-wasm/domain/src/ucp/mod.rs",
+      "contentModelId": "cedros-pay:ucp-sessions",
+      "remainingUnconditionalWriters": []
+    },
+    {
+      "constant": "MODEL_WEBHOOK_OUTBOX",
+      "contentModelId": "cedros-pay:webhook-outbox",
+      "remainingUnconditionalWriters": []
+    }
+  ],
+  "nonCandidateUnconditionalWriters": [
+    {
+      "file": "server-wasm/domain/src/jobs/rollup.rs",
+      "modelConstant": "MODEL_ROLLUP",
+      "writeCalls": 1,
+      "deleteCalls": 0
+    },
+    {
+      "file": "server-wasm/domain/src/routes/admin_shipping_tax/support.rs",
+      "modelConstant": "MODEL_CATALOG",
+      "writeCalls": 1,
+      "deleteCalls": 1
+    }
+  ],
+  "plainBatchCallsites": [
+    {
+      "file": "server-wasm/domain/src/db.rs",
+      "count": 1,
+      "requiredToken": "let applied = self.batch(&[op])?;",
+      "classification": "write-policy-control-only",
+      "candidateDataMutation": false
+    }
+  ],
+  "policyActivation": {
+    "ready": true,
+    "enrollmentRouteId": "cedros-pay:guarded-policy-enroll",
+    "enrollmentSource": "server-wasm/domain/src/routes/guarded_policy_enrollment.rs",
+    "markerModelId": "cedros-pay:guarded-write-policy-state",
+    "markerEntryKey": "active",
+    "releaseSequence": "Release A enrolls the exact guarded-only model set; canonical Release B traffic starts only after the marker validates. Both phases ship on the single Cedros Pay 4 code line.",
+    "productionEvidence": "pending Cedros Data 0.1.81 staging deployment with storage CAS and refreshed eighteen-model host matrix"
+  }
+}

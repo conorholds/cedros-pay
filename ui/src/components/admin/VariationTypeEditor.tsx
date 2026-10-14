@@ -2,13 +2,17 @@
  * VariationTypeEditor - Admin component for managing product variation types
  *
  * Allows admins to create variation types (e.g., Size, Color) and their values
- * (e.g., S, M, L for Size). Supports reordering and will support hierarchical
- * dependencies in a future phase.
+ * (e.g., S, M, L for Size), including value reordering.
  */
 
 import { useState, useCallback } from 'react';
-import type { VariationType, VariationValue, ProductVariationConfig } from '../../ecommerce/types';
+import type {
+  ProductVariationConfig,
+  VariationType,
+  VariationValue,
+} from '../../types/productVariations';
 import { Icons } from './icons';
+import { AnimatedDisclosure } from './AnimatedDisclosure';
 
 export interface VariationTypeEditorProps {
   /** Current variation config */
@@ -155,8 +159,8 @@ export function VariationTypeEditor({
   return (
     <div className="cedros-admin__variation-editor">
       <div className="cedros-admin__variation-editor-header">
-        <h4 className="cedros-admin__field-label" style={{ marginBottom: 0 }}>
-          Variation Types
+        <h4 className="cedros-data-label cedros-admin__field-label" style={{ marginBottom: 0 }}>
+          Variation types
         </h4>
         <span style={{ fontSize: 12, opacity: 0.7 }}>
           {types.length}/{maxTypes} types
@@ -176,19 +180,21 @@ export function VariationTypeEditor({
                 <div className="cedros-admin__variation-type-controls">
                   <button
                     type="button"
-                    className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--icon"
+                    className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-admin__button--icon"
                     onClick={() => handleMoveType(varType.id, 'up')}
                     disabled={disabled || idx === 0}
                     title="Move up"
+                    aria-label={`Move ${varType.name || 'variation type'} up`}
                   >
                     {Icons.arrowUp}
                   </button>
                   <button
                     type="button"
-                    className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--icon"
+                    className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-admin__button--icon"
                     onClick={() => handleMoveType(varType.id, 'down')}
                     disabled={disabled || idx === types.length - 1}
                     title="Move down"
+                    aria-label={`Move ${varType.name || 'variation type'} down`}
                   >
                     {Icons.arrowDown}
                   </button>
@@ -196,7 +202,7 @@ export function VariationTypeEditor({
 
                 <input
                   type="text"
-                  className="cedros-admin__input cedros-admin__variation-type-name"
+                  className="cedros-data-input cedros-admin__input cedros-admin__variation-type-name"
                   value={varType.name}
                   onChange={(e) => handleRenameType(varType.id, e.target.value)}
                   disabled={disabled}
@@ -209,7 +215,7 @@ export function VariationTypeEditor({
 
                 <button
                   type="button"
-                  className="cedros-admin__button cedros-admin__button--ghost"
+                  className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost"
                   onClick={() =>
                     setExpandedTypeId(
                       expandedTypeId === varType.id ? null : varType.id
@@ -221,16 +227,17 @@ export function VariationTypeEditor({
 
                 <button
                   type="button"
-                  className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--danger"
+                  className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-data-btn--danger cedros-admin__button--danger"
                   onClick={() => handleRemoveType(varType.id)}
                   disabled={disabled}
                   title="Remove type"
+                  aria-label={`Remove ${varType.name || 'variation type'}`}
                 >
                   {Icons.delete}
                 </button>
               </div>
 
-              {expandedTypeId === varType.id && (
+              <AnimatedDisclosure open={expandedTypeId === varType.id}>
                 <div className="cedros-admin__variation-values">
                   <div className="cedros-admin__variation-values-header">
                     <span style={{ fontSize: 12, fontWeight: 600 }}>
@@ -251,7 +258,7 @@ export function VariationTypeEditor({
                         <div key={val.id} className="cedros-admin__variation-value-item">
                           <input
                             type="text"
-                            className="cedros-admin__input cedros-admin__input--sm"
+                            className="cedros-data-input cedros-admin__input cedros-admin__input--sm"
                             value={val.label}
                             onChange={(e) =>
                               handleRenameValue(varType.id, val.id, e.target.value)
@@ -260,10 +267,11 @@ export function VariationTypeEditor({
                           />
                           <button
                             type="button"
-                            className="cedros-admin__button cedros-admin__button--ghost cedros-admin__button--icon cedros-admin__button--danger"
+                            className="cedros-data-btn cedros-admin__button cedros-data-btn--ghost cedros-admin__button--ghost cedros-admin__button--icon cedros-data-btn--danger cedros-admin__button--danger"
                             onClick={() => handleRemoveValue(varType.id, val.id)}
                             disabled={disabled}
                             title="Remove value"
+                            aria-label={`Remove ${val.label || 'variation value'}`}
                           >
                             {Icons.close}
                           </button>
@@ -276,7 +284,7 @@ export function VariationTypeEditor({
                     <div className="cedros-admin__variation-add-value">
                       <input
                         type="text"
-                        className="cedros-admin__input cedros-admin__input--sm"
+                        className="cedros-data-input cedros-admin__input cedros-admin__input--sm"
                         value={newValueLabels[varType.id] || ''}
                         onChange={(e) =>
                           setNewValueLabels((prev) => ({
@@ -284,7 +292,7 @@ export function VariationTypeEditor({
                             [varType.id]: e.target.value,
                           }))
                         }
-                        placeholder="Add value..."
+                        placeholder="Add value…"
                         disabled={disabled}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -295,7 +303,7 @@ export function VariationTypeEditor({
                       />
                       <button
                         type="button"
-                        className="cedros-admin__button cedros-admin__button--secondary cedros-admin__button--sm"
+                        className="cedros-data-btn cedros-admin__button cedros-data-btn--secondary cedros-admin__button--secondary cedros-data-btn--sm cedros-admin__button--sm"
                         onClick={() => handleAddValue(varType.id)}
                         disabled={disabled || !newValueLabels[varType.id]?.trim()}
                       >
@@ -304,7 +312,7 @@ export function VariationTypeEditor({
                     </div>
                   )}
                 </div>
-              )}
+              </AnimatedDisclosure>
             </div>
           ))}
         </div>
@@ -314,7 +322,7 @@ export function VariationTypeEditor({
         <div className="cedros-admin__variation-add-type">
           <input
             type="text"
-            className="cedros-admin__input"
+            className="cedros-data-input cedros-admin__input"
             value={newTypeName}
             onChange={(e) => setNewTypeName(e.target.value)}
             placeholder="New variation type (e.g., Size, Color)"
@@ -328,11 +336,11 @@ export function VariationTypeEditor({
           />
           <button
             type="button"
-            className="cedros-admin__button cedros-admin__button--secondary"
+            className="cedros-data-btn cedros-admin__button cedros-data-btn--secondary cedros-admin__button--secondary"
             onClick={handleAddType}
             disabled={disabled || !newTypeName.trim()}
           >
-            Add Type
+            Add type
           </button>
         </div>
       )}

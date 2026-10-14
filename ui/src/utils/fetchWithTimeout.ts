@@ -3,6 +3,15 @@
  */
 export const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 
+function isAbortError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      (error as { name?: unknown }).name === 'AbortError'
+  );
+}
+
 /**
  * Fetch with timeout utility
  *
@@ -43,7 +52,7 @@ export async function fetchWithTimeout(
     return response;
   } catch (error) {
     // Check if error is due to abort
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (isAbortError(error)) {
       // Check if it was the external signal that triggered abort
       if (externalSignal?.aborted) {
         // Re-throw the original AbortError for caller to detect

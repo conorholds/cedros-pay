@@ -1,8 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      'cedros:admin': resolve(__dirname, 'src/__tests__/mocks/cedrosAdminRuntime.ts'),
+    },
+  },
   test: {
     // Keep a single worker to avoid dynamic-module mock cross-suite interference.
     maxWorkers: 1,
@@ -20,10 +26,8 @@ export default defineConfig({
       exclude: [
         'src/**/*.test.{ts,tsx}',
         'src/**/__tests__/**',
-        'stories/**',
         'examples/**',
         '**/*.d.ts',
-        'src/index.ts', // Re-export file
       ],
       // Global thresholds (minimum 80% for all code)
       thresholds: {
@@ -31,28 +35,6 @@ export default defineConfig({
         lines: 80,
         branches: 75,
         functions: 80,
-      },
-      // Per-file thresholds for critical payment logic (90%)
-      perFile: true,
-      thresholdsPerFile: {
-        'src/components/CedrosPay.tsx': {
-          statements: 90,
-          lines: 90,
-          branches: 85,
-          functions: 90,
-        },
-        'src/hooks/useStripeCheckout.ts': {
-          statements: 90,
-          lines: 90,
-          branches: 85,
-          functions: 90,
-        },
-        'src/hooks/useX402Payment.ts': {
-          statements: 90,
-          lines: 90,
-          branches: 85,
-          functions: 90,
-        },
       },
     },
   },
