@@ -1,11 +1,49 @@
 # Cedros Pay
 
-[Web UI](ui/README.md) · [Native registration](ui/react-native/README.md) · [Security](SECURITY.md) · [License](LICENSE.md)
+**The commerce foundation for the Cedros platform.**
 
-Cedros Pay provides commerce and payments for the Cedros platform. Its extension
-backend handles checkout, subscriptions, credits, refunds, inventory, and durable
-settlement effects. React registration modules provide the host-embedded admin
-and web surfaces; Cedros Shop supplies the buyer-facing storefront.
+[Explore Cedros](https://cedros.ai/) · [Cedros Login](https://github.com/conorholds/cedros-login) · [Web UI](ui/README.md) · [Security](SECURITY.md) · [License](LICENSE.md)
+
+## What is Cedros?
+
+Cedros is a platform for building and running business websites.
+It brings visual page authoring, content, customer accounts, commerce, and site
+administration together, with extensions that add new features and workflows to
+the same site.
+
+Developers can build custom extensions, pages, and integrations around shared
+platform services. That gives a membership site, customer portal, or online
+store a common foundation for its accounts, payments, and administration.
+
+## Where Cedros Pay fits
+
+Cedros Pay is one of the platform's core extensions: the commerce building
+block that other extensions and applications can build around. It provides
+checkout, subscriptions, credits, refunds, inventory, and payment-linked access
+so you can focus on the product or experience you want to create.
+
+- **Sell products and services:** build around shared checkout and payment records.
+- **Offer subscriptions and memberships:** use subscription status and paid-access
+  checks to decide which features a customer can use.
+- **Keep commerce records together:** build your customer experience around
+  consistent purchase, credit, and refund records.
+- **Keep commerce in the site workflow:** manage products and payments through
+  React modules embedded in the Cedros admin.
+
+[Cedros Login](https://github.com/conorholds/cedros-login) supplies customer
+identity, Pay owns the commerce records, and Cedros Shop supplies the
+buyer-facing storefront. For example, a custom membership extension can use
+Login for accounts and Pay for subscription access while owning its own member
+experience and business rules.
+
+## Start here
+
+- **New to the platform?** [Explore Cedros](https://cedros.ai/) to see the broader
+  platform and what you can build with it.
+- **Integrating an admin or storefront?** Read the [UI guide](ui/README.md) and
+  [host services guide](ui/docs/admin-shell-embedding-guide.md).
+- **Working on extension source?** Use the component layout and build commands
+  below. [Native registration](ui/react-native/README.md) is covered separately.
 
 ## Source layout
 
