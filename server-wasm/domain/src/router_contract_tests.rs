@@ -21,8 +21,10 @@ fn list_routes_matches_manifest_and_handoff_contracts() {
         route_ids
     );
 
-    let handoff: Value =
-        serde_json::from_str(include_str!("../../../cedros-extension.host-handoff.json")).unwrap();
+    let handoff: Value = serde_json::from_str(include_str!(
+        "../../../docs/fixtures/cedros-pay-route-contracts.json"
+    ))
+    .unwrap();
     let contracts = handoff["routeContracts"]
         .as_array()
         .unwrap()
@@ -50,8 +52,10 @@ fn list_jobs_matches_manifest_and_handoff_contracts() {
         serde_json::from_str(include_str!("../../../cedros-extension.manifest.json")).unwrap();
     assert_eq!(string_set(&manifest["surfaces"]["server"]["jobs"]), job_ids);
 
-    let handoff: Value =
-        serde_json::from_str(include_str!("../../../cedros-extension.host-handoff.json")).unwrap();
+    let handoff: Value = serde_json::from_str(include_str!(
+        "../../../docs/fixtures/cedros-pay-route-contracts.json"
+    ))
+    .unwrap();
     assert_eq!(string_set(&handoff["jobContracts"]), job_ids);
 }
 
@@ -144,8 +148,10 @@ fn checkout_capability_has_no_v2_alias() {
 
 #[test]
 fn checkout_handoff_matches_verified_buyer_and_operationless_return() {
-    let handoff: Value =
-        serde_json::from_str(include_str!("../../../cedros-extension.host-handoff.json")).unwrap();
+    let handoff: Value = serde_json::from_str(include_str!(
+        "../../../docs/fixtures/cedros-pay-route-contracts.json"
+    ))
+    .unwrap();
     let contracts = handoff["routeContracts"].as_array().unwrap();
     let route = |id| {
         contracts

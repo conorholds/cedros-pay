@@ -1,0 +1,3808 @@
+{
+  "routeContracts": [
+    {
+      "routeId": "cedros-pay:checkout-descriptor",
+      "methods": [
+        "GET"
+      ],
+      "path": "/checkout/descriptor",
+      "auth": "Requires Authorization: Bearer <cedros-login session>; Pay verifies the buyer before deriving the descriptor.",
+      "requestSchema": "No body or query parameters. Provider scope, site, environment, account, and buyer cannot be supplied by the caller.",
+      "responseSchema": "HTTP 200 exact canonical descriptor with protocol, opaque providerScope, 72-hour replay TTL, external idempotency-key bounds, and distinct quote/checkout operation scopes.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "unavailable",
+        "provider_unavailable",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-selection-status",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/subscription/selection-status",
+      "auth": "Requires Authorization: Bearer <cedros-login-jwt>; the userId query value must match the JWT subject.",
+      "requestSchema": "Query: { userId } where userId is the Cedros Login user id.",
+      "responseSchema": "HTTP 200 JSON { selection, complete, status, planId?, resource?, subscriptionId?, paymentMethod?, currentPeriodEnd?, cancelAtPeriodEnd? }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "database_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-plans",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/subscription/plans",
+      "auth": "Public plan-discovery route; returns only active/public plan fields.",
+      "requestSchema": "Optional query: { interval } with monthly or yearly; defaults to monthly.",
+      "responseSchema": "HTTP 200 JSON { enabled, plans: [{ planId, resource, displayName, description, priceCents, currency, interval, sortOrder, active, public, free }] }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "invalid_field",
+        "database_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-plan-solana-subscription",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/plan/solana-subscription",
+      "auth": "Requires Authorization: Bearer <cedros-login-jwt>; returned terms are tied to the authenticated user and requested wallet.",
+      "requestSchema": "JSON body: { planId, interval, wallet, numberOfPayments? }.",
+      "responseSchema": "HTTP 200 JSON { method, planId, resource, userId, wallet, network, programAddress, merchantAddress, solanaPlanId, planAddress, planBump, subscriptionAddress, subscriptionAuthorityAddress, eventAuthorityAddress, subscriberTokenAccount, tokenMint, tokenProgramAddress, receiverTokenAccount?, collectorAddress, amountAtomic, periodHours, numberOfPayments, expectedAmount, expectedPeriodHours, expectedCreatedAt?, expectedSubscriptionAuthorityInitId? }; 4xx Cedros error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "invalid_wallet",
+        "invalid_field",
+        "invalid_resource",
+        "payment_method_disabled",
+        "database_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:compliance-check",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/compliance-check",
+      "auth": "Public pre-flight gate; the UI runs it before checkout and blocks on any non-200. No buyer data required.",
+      "requestSchema": "JSON body: { resources: [resourceId], wallet? }.",
+      "responseSchema": "HTTP 200 JSON { cleared: bool, reasons?: [string] } for a completed screening decision; malformed input or authoritative Core read uncertainty returns the normal 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:refunds-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/refunds/{refundId}",
+      "auth": "Public read by refund id (a non-trivial digest); exposes lifecycle state only and never returns buyer, wallet, amount, purchase, currency, or reason fields.",
+      "requestSchema": "Path param refundId.",
+      "responseSchema": "HTTP 200 JSON { refundId, status, processedAt?, signature? }; processing fields are populated only after the refund leaves pending state.",
+      "errorCodes": [
+        "not_found"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:purchases",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/purchases",
+      "auth": "Buyer-authenticated: the buyer's cedros-login session bearer is verified by Pay against cedros-login's published public current-user contract over http.fetch; the host never injects end-user identity.",
+      "requestSchema": "Authorization: Bearer <cedros-login session token>; optional query limit (1..500, default 50) and offset (>=0).",
+      "responseSchema": "HTTP 200 JSON { purchases: [{ signature, resourceId?, amount, amountCents, currency, provider, status, paidAt }] }; rows are the caller's own succeeded payments only.",
+      "errorCodes": [
+        "unauthorized",
+        "unavailable",
+        "provider_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/v1/status",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; host context must contain authenticated admin actor and permission claims.",
+      "responseSchema": "200 JSON status with extension id/version, wasm readiness, and configured surface counts; 401/403/500 error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-stats",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/stats",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin dashboard aggregate statistics for revenue, transactions, active products, and pending refunds.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-commerce-analytics",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/commerce-analytics",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional limit query parameter. Server clamps limit to the Shop bridge maximum.",
+      "responseSchema": "200 JSON { generatedAt, abandonedCheckouts[], paymentEvents[] } with Pay-generated event ids, statuses, totals, rails, and AdminShell navigate targets. Recovery URLs, recovery tokens, provider payloads, wallets, users, and customer identifiers are never returned.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-commerce-analytics-recover",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/commerce-analytics/abandoned-checkouts/{checkout_id}/recover",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path parameter checkout_id; no body. The checkout id must refer to a tenant-scoped Pay cart quote.",
+      "responseSchema": "200 JSON { checkoutId, status, cart, navigateTarget } with cart item ids, quantities, totals, and an AdminShell target. No recovery URLs, recovery tokens, provider payloads, wallets, users, or customer identifiers are returned.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-transactions-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/transactions",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin transaction list projected from the Cedros Pay commerce ledger.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-orders-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/orders",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin order list projected from successful commerce ledger payments.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-orders-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/orders/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin order detail projected from the commerce ledger.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-returns-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/returns",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body. Optional query { status?, orderId?, limit?, offset? }; status is requested, approved, rejected, received, or refunded.",
+      "responseSchema": "HTTP 200 JSON { returns: ReturnRequest[], count, total, hasMore, truncated }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-returns-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/returns",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON { id?, orderId, items:[{ productId, variantId?, quantity }], reason?, metadata? }; writes require host CSRF verification.",
+      "responseSchema": "HTTP 200 ReturnRequest with status=requested; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-returns-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/returns/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path parameter id; no body.",
+      "responseSchema": "HTTP 200 ReturnRequest; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-returns-status-update",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/returns/{id}/status",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON { status } where status is requested, approved, rejected, received, or refunded; writes require host CSRF verification.",
+      "responseSchema": "HTTP 200 updated ReturnRequest; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-disputes-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/disputes",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Optional query: { status?, source?, orderId?, limit?, offset? }. Status is one of the Stripe-compatible dispute lifecycle values; limit is bounded by the runtime.",
+      "responseSchema": "HTTP 200 JSON { disputes: [{ id, source, orderId?, paymentIntentId?, chargeId?, status, reason?, amount, currency, metadata, createdAt, updatedAt?, statusUpdatedAt? }], count, total, hasMore }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "bad_request",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-disputes-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/disputes/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path parameter: { id } using the bounded dispute identifier grammar.",
+      "responseSchema": "HTTP 200 dispute record { id, source, orderId?, paymentIntentId?, chargeId?, status, reason?, amount, currency, metadata, createdAt, updatedAt?, statusUpdatedAt? }; 404 for an unknown or non-dispute ledger key; 4xx/5xx Cedros error envelope otherwise.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-disputes-status-update",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/disputes/{id}/status",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path parameter: { id }. JSON body: { status } where status is a canonical Stripe-compatible dispute lifecycle value.",
+      "responseSchema": "HTTP 200 updated dispute record; idempotent same-status replays return the current record without a write; 400 invalid transition; 409 concurrent change; 4xx/5xx Cedros error envelope otherwise.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "bad_request",
+        "not_found",
+        "conflict",
+        "unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-readiness",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/catalog/readiness",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional channel readiness query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Canonical catalog readiness summary with product counts, channel statuses, and diagnostics.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-export",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/catalog/exports/{channel}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; channel path parameter selects the published catalog projection.",
+      "responseSchema": "200 JSON Canonical Pay catalog export for the requested channel.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-export-validate",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/catalog/exports/{channel}/validate",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; channel path parameter selects the export validation projection.",
+      "responseSchema": "200 JSON Catalog export validation summary with product counts and diagnostics.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-records-query",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/catalog/records/query",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { stableHandle?: string, recordType?: string, includeArchived?: boolean }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { records: CatalogRecord[], count: integer }; records include stable identifiers, metadata, prices, and catalogVersion.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-activation-status",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/activation/status",
+      "auth": "Requires an authenticated Cedros Pay administrator or the exact host-attested bearer capability claim for this route.",
+      "requestSchema": "Empty JSON object; extra fields are rejected.",
+      "responseSchema": "200 JSON with redacted Stripe mode, capacity configuration presence and loadability, sales and joint activation flags, and aggregate organization readiness counts.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-tax-readiness",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/tax/readiness",
+      "auth": "Requires an authenticated Cedros Pay administrator or the exact host-attested bearer capability claim for this route.",
+      "requestSchema": "Empty JSON object; extra fields are rejected.",
+      "responseSchema": "200 JSON with Stripe Tax settings status, default tax code and behavior, active registration count, and linked add-on tax-code gaps.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-product-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/catalog/products/upsert",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { product: { stableHandle, displayName, description?, status, public, purchasable, productType, sortOrder?, metadata? } }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { kind: product, created: boolean, recordId, record }; record is read back with catalogVersion.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-product-active-set",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/catalog/products/active",
+      "auth": "Requires a regular authenticated Cedros Pay administrator with host-verified CSRF or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { productId: string, active: boolean }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { productId, active, product }; product is the complete updated admin projection.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-product-delete",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/catalog/products/delete",
+      "auth": "Requires a regular authenticated Cedros Pay administrator with host-verified CSRF or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { productId: string, confirmed: true }; unknown fields are rejected and confirmed must be true.",
+      "responseSchema": "200 JSON { productId, deleted }; deleted is false for an already absent product.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-price-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/catalog/prices/upsert",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { productHandle, price: { stableHandle, unitAmountCents, currency, billingInterval, billingIntervalCount?, status, public, purchasable, trialDays?, stripePriceId?, metadata? } }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { kind: price, created: boolean, productId, priceId, price, catalogVersion }; price is read back from the updated product.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-stripe-tax-code-set",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/catalog/products/stripe-tax-code",
+      "auth": "Requires an authenticated Cedros Pay administrator with verified CSRF or the exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { productHandle: stable catalog handle, taxCode: exact Stripe txcd_ identifier }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { productHandle, stripeProductId, taxCode, taxCodeName, updated }.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-catalog-stripe-sync",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/catalog/products/sync-stripe",
+      "auth": "Requires an authenticated Cedros Pay administrator with verified CSRF or the exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { productHandle: stable catalog handle }; unknown fields are rejected.",
+      "responseSchema": "200 JSON { product, stripeProductId, createdStripeProduct, createdStripePrice, createdStripePriceCount, replacedStripePrice, replacedStripePriceCount, prices, warnings }.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-program-entitlement-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/catalog/program-entitlements/upsert",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { entitlement: { stableHandle, displayName, program, status, monthlyPriceCents?, annualPriceCents?, currency?, expiresAt?, renewalRequired?, minimumQualifiedSalesPerMonth?, fallbackPlanHandle?, metadata? } }; activation or referral codes are never accepted.",
+      "responseSchema": "200 JSON { kind: programEntitlement, created: boolean, recordId, record }; controlled entitlement configuration is read back with catalogVersion.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-stripe-import-preview",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/products/stripe-import-preview",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; Stripe import preview reads provider catalog state when the host runtime exposes the Stripe catalog client.",
+      "responseSchema": "200 JSON Stripe import preview counts and candidate product rows.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-stripe-import",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/products/import-stripe",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Stripe import result with imported/skipped counts and product rows.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-stripe-sync",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/products/{id}/sync-stripe",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Product Stripe sync result with product row, created/replaced flags, and warnings.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-inventory-set",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/products/{id}/inventory",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module containing quantity or null; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Updated Pay catalog product with inventoryQuantity/inventoryStatus.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-inventory-adjust",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/products/{id}/inventory/adjust",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module containing delta and optional reason/actor; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Updated Pay catalog product plus inventory adjustment summary.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/products",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin catalog product list from the Pay catalog content model.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/products",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin catalog product creation into the Pay catalog content model.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/products/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin catalog product detail.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/products/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin catalog product update.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-products-delete",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/admin/products/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin catalog product deletion.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-inventory-adjustments",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/products/{id}/inventory/adjustments",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin product inventory adjustment history.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-variations-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/products/{id}/variations",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin product variation configuration and variants.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-variations-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/products/{id}/variations",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin product variation configuration update.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-product-variant-inventory-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/products/{id}/variants/inventory",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin bulk product variant inventory update.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-coupons-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/coupons",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin coupon list from Pay catalog records.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-coupons-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/coupons",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin coupon creation in Pay catalog records.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-coupons-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/coupons/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin coupon update in Pay catalog records.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-coupons-delete",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/admin/coupons/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin coupon deletion from Pay catalog records.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-subscriptions-settings-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/subscriptions/settings",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin subscription page settings read from the host settings seam.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-subscriptions-settings-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/subscriptions/settings",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON body from the Cedros Pay admin module; writes require host CSRF verification in the context envelope.",
+      "responseSchema": "200 JSON Admin subscription page settings update through the host settings seam.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-refunds-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/refunds",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin x402 refund list projected from the commerce ledger.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-credit-refund-requests-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/credits/refund-requests",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin credit refund request list.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-stripe-refunds-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/stripe/refunds",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional pagination/filter query parameters are accepted where the admin tab sends them.",
+      "responseSchema": "200 JSON Admin Stripe refund list projected from the commerce ledger.; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-affiliate-payouts-settle",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/affiliate-payouts/settlements",
+      "auth": "Service-to-service bearer token. Caller must send Authorization: Bearer {cedros_pay_service_token}; the extension verifies it against the configured Pay relying-party shared secret before validating the batch.",
+      "requestSchema": "HTTP POST JSON { batchId, items:[{ payoutId, affiliateUserId, payDestinationId, amount, currency }] } with Authorization: Bearer {cedros_pay_service_token} and Idempotency-Key: affiliate-payout-settlement:{batchId}. amount is integer atomic units.",
+      "responseSchema": "HTTP 503 Cedros error envelope with code affiliate_payout_settlement_unavailable. Core operation storage exists, but the route never accepts work until Pay can validate stored destinations and execute the provider call.",
+      "errorCodes": [
+        "invalid_field",
+        "unauthorized",
+        "forbidden",
+        "affiliate_payout_settlement_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional limit query is ignored by the Wasm settings seam.",
+      "responseSchema": "200 JSON categories list with key counts and secret metadata.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-history",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/history",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional category and limit query parameters.",
+      "responseSchema": "200 JSON history array; currently empty because the settings seam has no audit-history read.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-validate",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/config/validate",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body category plus config object.",
+      "responseSchema": "200 JSON validation result with errors and warnings.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-stripe-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/stripe",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON Stripe config object; secret_key and webhook_token are always redacted when present. Includes webhookEndpoint { path, events }: the tokenised /extensions/cedros-pay/webhook/stripe?token=... path the operator registers in Stripe plus the event types to select. The first read generates and stores the token in host secrets.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-stripe-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/config/stripe",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body config object; [REDACTED] secret placeholders are preserved and not rewritten. webhook_token may only be null (clear, so the next read regenerates it); hand-set token values are rejected with 400.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-x402-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/x402",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON x402 config object containing only non-secret settings; no wallet key field is accepted or returned.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-x402-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/config/x402",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body config object; [REDACTED] secret placeholders are preserved and not rewritten.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-cedros-login-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/cedros_login",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON Cedros Login config object; api_key is always redacted when present.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-cedros-login-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/config/cedros_login",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body config object; [REDACTED] secret placeholders are preserved and not rewritten.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-native-store-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/native_store",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON native store config object; provider private keys are always redacted when present.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-native-store-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/config/native_store",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body config object; [REDACTED] secret placeholders are preserved and not rewritten.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-shop-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/shop",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON Shop config object with storefront feature flags such as refunds_enabled, returns_enabled, inventory_enabled, and coupons_enabled.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-shop-update",
+      "methods": [
+        "PATCH"
+      ],
+      "path": "/admin/config/shop",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body updates object; [REDACTED] secret placeholders are preserved and not rewritten.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-subscriptions-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/config/subscriptions",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; query parameters cannot disable secret redaction.",
+      "responseSchema": "200 JSON subscriptions config object with enabled and subscription collection settings.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-config-subscriptions-update",
+      "methods": [
+        "PATCH"
+      ],
+      "path": "/admin/config/subscriptions",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body updates object; [REDACTED] secret placeholders are preserved and not rewritten.",
+      "responseSchema": "200 JSON update summary with updated key count.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-profiles-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/shipping/profiles",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional limit and offset query parameters.",
+      "responseSchema": "200 JSON { profiles } with Pay-owned shipping profile records; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-profiles-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/shipping/profiles",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "JSON body { id?, name, description?, countries[], active? } using ISO 3166-1 alpha-2 country codes.",
+      "responseSchema": "200 JSON shipping profile; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-profiles-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/shipping/profiles/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path id; no body.",
+      "responseSchema": "200 JSON shipping profile; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-profiles-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/shipping/profiles/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id plus JSON body { id?, name, description?, countries[], active? }.",
+      "responseSchema": "200 JSON shipping profile; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-profiles-delete",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/admin/shipping/profiles/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id; no body.",
+      "responseSchema": "200 JSON { deleted: true }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-rates-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/shipping/profiles/{profileId}/rates",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path profileId; no body.",
+      "responseSchema": "200 JSON { rates } with Pay-owned shipping rate records; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-rates-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/shipping/profiles/{profileId}/rates",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path profileId plus JSON body { id?, name, rateType, amountAtomic, currency, minSubtotal?, maxSubtotal?, active? }.",
+      "responseSchema": "200 JSON shipping rate; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-rates-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/shipping/rates/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id plus JSON body { profileId, name, rateType, amountAtomic, currency, minSubtotal?, maxSubtotal?, active? }.",
+      "responseSchema": "200 JSON shipping rate; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-shipping-rates-delete",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/admin/shipping/rates/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id; no body.",
+      "responseSchema": "200 JSON { deleted: true }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-tax-rates-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/taxes",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; optional limit and offset query parameters.",
+      "responseSchema": "200 JSON { taxRates } with Pay-owned tax rate records; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-tax-rates-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/taxes",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "JSON body { id?, name, country, region?, rateBps, active? } where rateBps is basis points from 0 through 10000.",
+      "responseSchema": "200 JSON tax rate; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-tax-rates-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/taxes/{id}",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "Path id; no body.",
+      "responseSchema": "200 JSON tax rate; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-tax-rates-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/taxes/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id plus JSON body { name, country, region?, rateBps, active? }.",
+      "responseSchema": "200 JSON tax rate; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-tax-rates-delete",
+      "methods": [
+        "DELETE"
+      ],
+      "path": "/admin/taxes/{id}",
+      "auth": "Requires authenticated Cedros admin context, cedros-pay:admin permission claim, and CSRF-verified admin write context.",
+      "requestSchema": "Path id; no body.",
+      "responseSchema": "200 JSON { deleted: true }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscriptions-status",
+      "methods": [
+        "GET"
+      ],
+      "path": "/subscription/v1/status",
+      "auth": "Route-specific bearer or payload validation; Stripe calls use secrets and allowlisted egress.",
+      "requestSchema": "GET query subscriptionId; no body.",
+      "responseSchema": "200 JSON subscription status with redacted provider references; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:stats",
+      "methods": [
+        "GET"
+      ],
+      "path": "/stats/v1/summary",
+      "auth": "Requires admin context plus cedros-pay:balance-read or cedros-pay:subscription-read.",
+      "requestSchema": "GET query window=P7D|P30D|P90D|PYTD|PALL; include=optional comma-separated string of revenue,subscriptions,timeseries,topRoutes,topProducts,comparison; optional minAttributionTxnCount. comparison is opt-in only.",
+      "responseSchema": "200 JSON aggregate stats object containing only requested and permitted blocks. comparison contains previousGrossCents, previousTxnCount, previousWindowStart, and previousWindowEnd for the immediately preceding equal-length bounded window; PALL omits comparison. topProducts rows always contain productId and grossCents, with productName/productSlug when supported by the current catalog record. timeseries contains at most the most recent 400 one-day buckets and is never downsampled.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "internal_error",
+        "unprocessable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:credits-balance",
+      "methods": [
+        "GET"
+      ],
+      "path": "/credits/v1/balance",
+      "auth": "Requires relying-party bearer secret; dormant until relying_party.shared_secret is configured.",
+      "requestSchema": "GET query subjectId; no body.",
+      "responseSchema": "200 JSON { subjectId, balanceCents, heldCents, availableCents, currency }; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:product-rag-records",
+      "methods": [
+        "GET"
+      ],
+      "path": "/products/v1/rag-records",
+      "auth": "Requires authenticated admin/context claim for Cedros Pay product RAG records.",
+      "requestSchema": "GET query limit=optional integer 0..100, offset=optional non-negative integer; no body.",
+      "responseSchema": "200 JSON { source: 'products', records: ProductRagRecord[] } with public/operator-approved product facts only; 401/403/500 error envelope.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:product-read",
+      "methods": [
+        "GET"
+      ],
+      "path": "/products/v1/catalog",
+      "auth": "Requires host-supplied cedros-pay:product-read capability claim for Shop or host storefront rendering.",
+      "requestSchema": "GET query limit=optional integer 0..100 (default 50), offset=optional non-negative integer, slug=optional exact product slug, categoryId=optional exact category id, featured=optional true|false; no body.",
+      "responseSchema": "200 JSON { contract: 'cedros-pay:product-read', products: StorefrontProduct[], categories: StorefrontCategory[], filters: { slug?, categoryId?, featured? }, pagination: { limit, offset, count, hasMore } }. StorefrontProduct includes id, title, optional slug/descriptions/SEO/tags/categoryIds/imageUrls/featured/price/compareAtPrice/inventoryStatus/fulfillment/variants/checkoutUrl. StorefrontCategory is derived from public product categoryIds as { id, slug, title, productCount }.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:product-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/products/v1/catalog",
+      "auth": "Requires host-supplied cedros-pay:product-create capability claim (or a host-verified system-admin session) on an authenticated context.",
+      "requestSchema": "POST JSON { title: required string 1..200, price: { amountCents: required integer 1..100000000, currency?: 3-letter ISO code (default USD) }, id?: string<=120 [A-Za-z0-9._-], slug?: string<=120 lowercase [a-z0-9-], description?: string<=5000, shortDescription?: string<=500, productType?: standard|service|ticket|eventSession|campSession|pass|addon, tags?: string[]<=20, categoryIds?: string[]<=20, imageUrls?: https URL[]<=10, featured?: boolean, active?: boolean (default true), public?: boolean (default true) }. Unknown fields are rejected.",
+      "responseSchema": "200 JSON { contract: 'cedros-pay:product-create', created: true, product: StorefrontProduct } where StorefrontProduct matches the cedros-pay:product-read projection (id, title, optional slug/descriptions/tags/categoryIds/imageUrls/featured, price, checkoutUrl).",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:entitlements",
+      "methods": [
+        "POST"
+      ],
+      "path": "/entitlements/v1/check",
+      "auth": "Requires host-supplied cedros-pay:entitlement-read capability claim from Data gated-media access checks.",
+      "requestSchema": "JSON body { userId, checks: [{ scope: 'media_asset', scopeId, productId?, entitlementId? }] }; checks is 1..50 items.",
+      "responseSchema": "200 JSON { results: [{ scope, scopeId, productId?, entitlementId?, granted }] }; Data only treats results[0].granted === true as access.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "unprocessable",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-entitlements",
+      "methods": [
+        "GET"
+      ],
+      "path": "/subscriptions/v1/{subscriptionId}/entitlements",
+      "auth": "Requires host-supplied cedros-pay:subscription-read capability claim for trusted managed-provider integrations.",
+      "requestSchema": "GET path subscriptionId=required non-empty string <=256 chars; no body.",
+      "responseSchema": "200 JSON { subscriptionId, customerId, productId, status, entitlements: { managedProviderLimits }, updatedAt }. managedProviderLimits may include dailyRequestLimit, monthlyRequestLimit, monthlySpendCents, throttleRpm, routes[id].{monthlyRequestLimit,monthlySpendCents,throttleRpm}, and families[id].{monthlyRequestLimit,monthlySpendCents}.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:payments",
+      "methods": [
+        "GET"
+      ],
+      "path": "/payments/v1/status",
+      "auth": "Requires relying-party bearer secret; returns redacted status by ledger reference only.",
+      "requestSchema": "GET query ledgerRef or paymentRef; no body.",
+      "responseSchema": "200 JSON status with redacted ledger reference and terminal state; 4xx/5xx Cedros error envelope.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-site-settings-tipping-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/site-settings/tipping",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; reads the existing site_settings/tipping payload.",
+      "responseSchema": "200 JSON { kind, key, settings, updatedAt } where settings contains enabled, recipient, currencies, presets, label, description, and allowPerPostRecipient.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-site-settings-tipping-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/site-settings/tipping",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body { settings } with allowed keys enabled, recipient, currencies, presets, label, description, and allowPerPostRecipient.",
+      "responseSchema": "200 JSON { kind, key, settings, updated, updatedAt } with the merged site_settings/tipping payload.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-site-settings-monetization-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/site-settings/monetization",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "No body; reads the existing site_settings/monetization payload.",
+      "responseSchema": "200 JSON { kind, key, settings, updatedAt } where settings contains enabled, defaultAccessMode, defaultPreviewParagraphs, defaultPrice, acceptedPaymentMethods, subscriptionProductId, creditsPerArticle, freeReadsPerMonth, lockedMessage, mediaEnabled, mediaDefaultAccessMode, mediaPreviewPolicy, mediaPayProductId, mediaRequiredEntitlementId, mediaRequiresLogin, and mediaLockedMessage.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-site-settings-monetization-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/site-settings/monetization",
+      "auth": "Requires authenticated Cedros admin context and cedros-pay:admin permission claim.",
+      "requestSchema": "JSON body { settings } with allowed keys enabled, defaultAccessMode, defaultPreviewParagraphs, defaultPrice, acceptedPaymentMethods, subscriptionProductId, creditsPerArticle, freeReadsPerMonth, lockedMessage, mediaEnabled, mediaDefaultAccessMode, mediaPreviewPolicy, mediaPayProductId, mediaRequiredEntitlementId, mediaRequiresLogin, and mediaLockedMessage.",
+      "responseSchema": "200 JSON { kind, key, settings, updated, updatedAt } with the merged site_settings/monetization payload.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-refunds-deny",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/refunds/{refundId}/deny",
+      "auth": "Requires authenticated Cedros admin context, admin-write CSRF proof, and cedros-pay:admin permission.",
+      "requestSchema": "Path refundId; empty JSON body.",
+      "responseSchema": "200 JSON containing the durable refund state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-refunds-process",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/refunds/{refundId}/process",
+      "auth": "Requires authenticated Cedros admin context, admin-write CSRF proof, and cedros-pay:admin permission.",
+      "requestSchema": "Path refundId; empty JSON body.",
+      "responseSchema": "HTTP 200 durable state for an already-submitted or succeeded refund; HTTP 503 refund_signer_unavailable for a pending refund.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "unprocessable",
+        "unavailable",
+        "refund_signer_unavailable",
+        "provider_unavailable",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-stripe-refunds-process",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/stripe/refunds/{id}/process",
+      "auth": "Requires authenticated Cedros admin context, admin-write CSRF proof, and cedros-pay:admin permission.",
+      "requestSchema": "Path refund id; optional empty JSON body.",
+      "responseSchema": "200 JSON containing the durable Stripe refund processing state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:guarded-policy-enroll",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/guarded-policy/enroll",
+      "auth": "Requires authenticated Cedros admin context, admin-write CSRF proof, and cedros-pay:admin permission.",
+      "requestSchema": "Empty body or an empty JSON object only.",
+      "responseSchema": "200 JSON { newlyEnrolled, modelCount, modelSetSha256 }.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:native-store-apple-notification",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/native-store/apple/notifications",
+      "auth": "Apple-signed notification JWS plus configured application identity; no caller-supplied tenant selector.",
+      "requestSchema": "Apple App Store Server Notification signedPayload JSON.",
+      "responseSchema": "200 acknowledgement after durable guarded projection or exact duplicate recognition.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:native-store-google-notification",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/native-store/google/notifications",
+      "auth": "Google Pub/Sub envelope plus provider re-verification against configured Android application identity.",
+      "requestSchema": "Google Real-time Developer Notification Pub/Sub JSON.",
+      "responseSchema": "200 acknowledgement after durable guarded projection or exact duplicate recognition.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:native-store-verify",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/native-store/verify",
+      "auth": "Requires authenticated buyer context; store identity is resolved from operator configuration and provider proof.",
+      "requestSchema": "JSON { productId, method, storeProductId, transactionId?, originalTransactionId?, purchaseToken?, metadata? }.",
+      "responseSchema": "200 JSON verified purchase/entitlement outcome correlated to the provider transaction.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:refunds-request",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/refunds/request",
+      "auth": "Requires authenticated buyer context owning the referenced purchase.",
+      "requestSchema": "Authorization: Bearer <cedros-login session>; JSON { originalPurchaseId, recipientWallet, reason? }. The bearer credential is never copied into the body.",
+      "responseSchema": "200 JSON durable refund request state and stable refund id.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-free-selection",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/free-selection",
+      "auth": "Requires authenticated buyer context.",
+      "requestSchema": "JSON identifying the free subscription plan and selection identity.",
+      "responseSchema": "200 JSON durable subscription selection and entitlements.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-plan-stripe-session",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/plan/stripe-session",
+      "auth": "Requires authenticated buyer context and configured Stripe account scope.",
+      "requestSchema": "JSON identifying the subscription plan, return URLs, and externally supplied idempotency identity.",
+      "responseSchema": "200 JSON durable hosted Stripe session outcome.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-solana-subscription-activate",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/solana-subscription/activate",
+      "auth": "Requires a Cedros Login-verified buyer; the wallet must match the prepared subscriber and both proofs are looked up through user-authenticated activation.",
+      "requestSchema": "Strict JSON { planId, interval, wallet, authorizationSignature, paymentSignature, subscriptionAddress, subscriptionAuthorityAddress?, planAddress?, numberOfPayments?, metadata? }. authorizationSignature proves Subscribe; paymentSignature proves the first TransferSubscription collection.",
+      "responseSchema": "200 JSON durable active subscription with paymentMethod=solana_subscription, exact on-chain currentPeriodStart/currentPeriodEnd, paymentsCollected=1, initialPaymentSignature, and lastCollectionSignature.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "invalid_field",
+        "invalid_resource",
+        "payment_method_disabled",
+        "invalid_signature",
+        "transaction_not_finalized",
+        "transaction_failed",
+        "invalid_payment_proof",
+        "collection_required",
+        "collection_not_finalized",
+        "rpc_error",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-stripe-session",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/stripe-session",
+      "auth": "Requires authenticated buyer context and configured Stripe account scope.",
+      "requestSchema": "JSON subscription checkout request with plan and externally supplied idempotency identity.",
+      "responseSchema": "200 JSON durable Stripe subscription session outcome.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscriptions-cancel",
+      "methods": [
+        "POST"
+      ],
+      "path": "/subscription/v1/cancel",
+      "auth": "Requires the configured relying-party authorization and ownership of the subscription reference.",
+      "requestSchema": "JSON { subscriptionId } plus request idempotency context.",
+      "responseSchema": "200 JSON durable cancellation state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscriptions-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/subscription/v1/create",
+      "auth": "Requires the configured relying-party authorization and validated customer/price references.",
+      "requestSchema": "JSON subscription create material plus request idempotency context.",
+      "responseSchema": "200 JSON durable subscription state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscriptions-portal",
+      "methods": [
+        "POST"
+      ],
+      "path": "/subscription/v1/portal",
+      "auth": "Requires the configured relying-party authorization and ownership of the subscription reference.",
+      "requestSchema": "JSON { subscriptionId, returnUrl }.",
+      "responseSchema": "200 JSON { url } for the provider-issued billing portal session.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:webhooks",
+      "methods": [
+        "POST"
+      ],
+      "path": "/webhook/stripe",
+      "auth": "Require the site-generated stripe.webhook_token (query token or x-cedros-webhook-token header, exactly one), then obtain the authoritative Event with the site Stripe secret. A site without a token fails closed with 503; there is no Stripe-Signature path because Cedros hosts reserialize JSON.",
+      "requestSchema": "Stripe Event notification JSON with evt_ id. Requires exactly one token query value or x-cedros-webhook-token header; all other submitted event fields are ignored.",
+      "responseSchema": "200 acknowledgement after one durable projection or exact duplicate recognition.",
+      "errorCodes": [
+        "bad_request",
+        "conflict",
+        "internal_error",
+        "provider_unavailable",
+        "unauthorized",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:checkout-quote",
+      "methods": [
+        "POST"
+      ],
+      "path": "/checkout/quote",
+      "auth": "Requires a Cedros Login-verified buyer; merchant, environment, provider, site, and buyer operation scope are host-derived.",
+      "requestSchema": "Strict schemaVersion 1 quote intent with an unchanged 1..67-byte visible-ASCII Idempotency-Key and matching body key; accepts product intents or an exact versioned-cart binding, never caller prices or totals.",
+      "responseSchema": "200 canonical authoritative quote snapshot with operationId, attemptId, expiry, safe product facts, totals, requested methods, and optional hold identity; no provider URL, raw contact, token, or secret.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:checkout-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/checkout",
+      "auth": "Requires the same Cedros Login-verified buyer and host-derived operation scope that created the quote.",
+      "requestSchema": "Strict schemaVersion 1 checkout intent binding one quote operation, attemptId, payment method, customer-context hashes, and unchanged 1..67-byte idempotency key.",
+      "responseSchema": "200 finite durable outcome: action_required, processing, paid, terminal, or indeterminate, always correlated to operationId and attemptId.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:checkout-status",
+      "methods": [
+        "GET"
+      ],
+      "path": "/checkout/{operationId}",
+      "auth": "Requires the verified identity and host-derived provider scope that owns the checkout operation.",
+      "requestSchema": "Path operationId; no body and no caller-selected provider scope.",
+      "responseSchema": "200 finite durable checkout outcome correlated to operationId and attemptId; never a provider URL.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:checkout-resolve",
+      "methods": [
+        "POST"
+      ],
+      "path": "/checkout/resolve",
+      "auth": "Requires the verified identity and host-derived provider scope that owns the checkout operation.",
+      "requestSchema": "Strict schemaVersion 1 body with operationId, expected attemptId, and provider-issued return artifact.",
+      "responseSchema": "200 ephemeral verified action URL/outcome; URL is never persisted and production permits only the configured provider HTTPS origin.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:checkout-return-verify",
+      "methods": [
+        "POST"
+      ],
+      "path": "/checkout/return/verify",
+      "auth": "Requires the verified identity and host-derived provider scope that owns the original checkout attempt.",
+      "requestSchema": "Strict schemaVersion 1 body with expectedAttemptId and provider-issued returnArtifact; operationId is rejected.",
+      "responseSchema": "200 verified outcome with checkoutAttemptId, or mismatch/indeterminate with status only; no operation id or provider detail is disclosed.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:versioned-cart-open",
+      "methods": [
+        "POST"
+      ],
+      "path": "/cart/open",
+      "auth": "Requires a Cedros Login-verified buyer; subject and Shop provider scope are host-derived.",
+      "requestSchema": "Strict schemaVersion 1 request for the fixed default lane; caller cannot select subject, provider scope, generation epoch, price, or inventory.",
+      "responseSchema": "200 authoritative generation revision and current cart state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "conflict",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:versioned-cart-read",
+      "methods": [
+        "POST"
+      ],
+      "path": "/cart/read",
+      "auth": "Requires the verified buyer whose host-derived subject/provider scope owns the cart.",
+      "requestSchema": "Strict schemaVersion 1 fixed-lane read request.",
+      "responseSchema": "200 authoritative generation and cart state including public version and opaque host revision.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:versioned-cart-rotate",
+      "methods": [
+        "POST"
+      ],
+      "path": "/cart/rotate",
+      "auth": "Requires the verified buyer whose host-derived subject/provider scope owns the cart.",
+      "requestSchema": "Strict schemaVersion 1 fixed-lane request carrying the current opaque generation revision.",
+      "responseSchema": "200 new authoritative generation revision/epoch and cart state, or stale_generation with authoritative recovery state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:versioned-cart-apply",
+      "methods": [
+        "POST"
+      ],
+      "path": "/cart/apply",
+      "auth": "Requires the verified buyer whose host-derived subject/provider scope owns the cart.",
+      "requestSchema": "Strict schemaVersion 1 fixed-lane mutation with opaque generation revision, expected public cart version, unchanged operationId, and intent-only add/update/remove/replace/clear material.",
+      "responseSchema": "200 applied, replayed, conflict, stale_generation, or idempotency_conflict outcome with authoritative recovery state where required.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "rate_limited",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:subscription-solana-subscription-collect-initial",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/solana-subscription/collect-initial",
+      "auth": "Requires the end user's Cedros Login bearer credential; buyer identity is verified through the existing Login relying-party contract.",
+      "requestSchema": "Strict JSON { planId, interval, wallet, authorizationSignature, subscriptionAddress, subscriptionAuthorityAddress?, planAddress?, numberOfPayments? }. No signer material, RPC URL, amount, mint, recipient, or collector is caller-controlled.",
+      "responseSchema": "HTTP 503 { error: { code: collector_signer_unavailable } } after validating the buyer-owned authorization proof and collection intent; no transaction is originated until a host-managed signing contract is published.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "invalid_field",
+        "invalid_resource",
+        "payment_method_disabled",
+        "invalid_signature",
+        "invalid_payment_proof",
+        "transaction_not_finalized",
+        "transaction_failed",
+        "collector_signer_unavailable",
+        "rpc_error",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-program-invite-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/catalog/program-invites/upsert",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { invite: { stableHandle, programHandle, subjectId, activationCodeSha256?, status, expiresAt?, metadata? } }; only a lowercase SHA-256 digest is accepted, never a raw activation code.",
+      "responseSchema": "200 JSON { kind: programInvite, created, recordId, record }; read-back redacts the digest and reports activationCodeConfigured only.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-program-membership-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/catalog/program-memberships/upsert",
+      "auth": "Requires a regular authenticated Cedros Pay administrator (with host-verified CSRF for writes) or an exact host-attested bearer capability claim for this route.",
+      "requestSchema": "JSON { membership: { subjectId, programHandle, status, expiresAt?, transitionPlanHandle?, metadata? } }.",
+      "responseSchema": "200 JSON { kind: programMembership, created, recordId, record } with the stable subject-scoped membership id.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:program-activate",
+      "methods": [
+        "POST"
+      ],
+      "path": "/programs/v1/activate",
+      "auth": "Requires a verified Cedros Login buyer session; the host-derived subject must match the invite subject.",
+      "requestSchema": "Strict JSON { activationCode }; referralCode and all unknown fields are rejected.",
+      "responseSchema": "200 JSON { activated, programHandle, membershipId, status, expiresAt } without returning the activation code or subject.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "unprocessable",
+        "conflict",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:program-status",
+      "methods": [
+        "GET"
+      ],
+      "path": "/programs/v1/status",
+      "auth": "Requires a verified Cedros Login buyer session.",
+      "requestSchema": "No body.",
+      "responseSchema": "200 JSON { active, membership } with program, status, expiry, and transition plan only.",
+      "errorCodes": [
+        "unauthorized",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:buyer-subscription-cancel",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/cancel",
+      "auth": "Requires the buyer's Cedros Login session; Pay verifies the session and subscription ownership before cancellation.",
+      "requestSchema": "JSON { subscriptionId } plus the buyer Authorization bearer and request idempotency context.",
+      "responseSchema": "200 JSON durable cancellation state.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:buyer-subscription-portal",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/subscription/portal",
+      "auth": "Requires the buyer's Cedros Login session; Pay verifies the session and subscription ownership before issuing a billing portal URL.",
+      "requestSchema": "JSON { subscriptionId, returnUrl } plus the buyer Authorization bearer.",
+      "responseSchema": "200 JSON { url } for the provider-issued billing portal session.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "provider_error",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:assistant-x402-purchase",
+      "methods": [
+        "POST"
+      ],
+      "path": "/assistant/v1/x402/purchase",
+      "auth": "Bearer-authenticated Cedros platform context derived from a verified signed Assistant request; requires the exact route capability, ai-assistant identity, action, stable run/request/idempotency values, explicit approval, and positive authorized ceiling.",
+      "requestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "maxAmountMicrounits": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "resourceUrl": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceUrl"
+        ],
+        "type": "object"
+      },
+      "responseSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "boundary": {
+            "const": "cedros_pay_x402_purchase",
+            "type": "string"
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "output": {
+            "additionalProperties": false,
+            "properties": {
+              "assistantId": {
+                "const": "ai-assistant",
+                "type": "string"
+              },
+              "cluster": {
+                "enum": [
+                  "devnet",
+                  "testnet",
+                  "mainnet-beta",
+                  "localnet"
+                ],
+                "type": "string"
+              },
+              "failureCode": {
+                "enum": [
+                  "balance_check_failed",
+                  "budget_denied",
+                  "changed_requirement",
+                  "cluster_mismatch",
+                  "discovery_failure",
+                  "invalid_requirement",
+                  "payer_mismatch",
+                  "policy_denied",
+                  "replay_mismatch",
+                  "signing_rejected",
+                  "stale_wallet_version",
+                  "submission_failure",
+                  "transaction_failed",
+                  "wrong_wallet"
+                ],
+                "type": "string"
+              },
+              "message": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              "payerPublicKey": {
+                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                "type": "string"
+              },
+              "policyDecisionId": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "postcondition": {
+                "additionalProperties": false,
+                "properties": {
+                  "request_target_digest": {
+                    "pattern": "^sha256:[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "state_digest": {
+                    "pattern": "^sha256:[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "const": "completed",
+                    "type": "string"
+                  },
+                  "target": {
+                    "format": "uri",
+                    "maxLength": 2048,
+                    "type": "string"
+                  },
+                  "verified": {
+                    "const": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "verified",
+                  "target",
+                  "request_target_digest",
+                  "state_digest",
+                  "status"
+                ],
+                "type": "object"
+              },
+              "status": {
+                "enum": [
+                  "approval_required",
+                  "budget_denied",
+                  "vault_policy_denied",
+                  "insufficient_balance",
+                  "wallet_unavailable",
+                  "wallet_pending",
+                  "wallet_rotating",
+                  "wallet_disabled",
+                  "wallet_blocked",
+                  "cluster_mismatch",
+                  "stale_wallet_version",
+                  "transaction_failed",
+                  "ambiguous",
+                  "failed",
+                  "confirmed"
+                ],
+                "type": "string"
+              },
+              "transactionResult": {
+                "additionalProperties": false,
+                "properties": {
+                  "signature": {
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,96}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "confirmed",
+                      "finalized"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status",
+                  "signature"
+                ],
+                "type": "object"
+              },
+              "walletPurpose": {
+                "const": "site-assistant",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "message"
+            ],
+            "type": "object"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "rollback": {
+            "type": "null"
+          },
+          "target": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "boundary",
+          "target",
+          "output",
+          "isError",
+          "replayed",
+          "rollback"
+        ],
+        "type": "object"
+      },
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "unprocessable",
+        "conflict",
+        "guarded_write_policy_unavailable",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:access-pass-offer-resolve",
+      "methods": [
+        "POST"
+      ],
+      "path": "/access-passes/v1/offers/resolve",
+      "auth": "Host-attested Cash Captcha extension-service context only.",
+      "requestSchema": "JSON { schemaVersion:1, offerRef, sourceId, durationSeconds }.",
+      "responseSchema": "HTTP 200 { schemaVersion:1, offer402:{ immutable scope, duration, price, rail, network, safe payment instructions } }; Cedros error envelope otherwise.",
+      "errorCodes": [
+        "service_context_required",
+        "offer_missing",
+        "offer_inactive",
+        "offer_retired",
+        "wrong_product_type",
+        "wrong_source",
+        "wrong_duration",
+        "unsupported_rail",
+        "pay_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:access-pass-purchase",
+      "methods": [
+        "POST"
+      ],
+      "path": "/access-passes/v1/purchase",
+      "auth": "Public buyer x402 payment proof plus a delegated Ed25519 public key.",
+      "requestSchema": "JSON { schemaVersion:1, offerRef, delegatedPublicKey, challengeId? }; X-PAYMENT carries the base64 JSON x402 envelope on settlement.",
+      "responseSchema": "HTTP 402 machine challenge; 202 pending; or 200 issued credential and immutable validity.",
+      "errorCodes": [
+        "offer_missing",
+        "offer_inactive",
+        "challenge_missing",
+        "challenge_expired",
+        "challenge_mismatch",
+        "malformed_payment",
+        "invalid_signature",
+        "payment_replay",
+        "payment_failed",
+        "pay_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:access-pass-authorize",
+      "methods": [
+        "POST"
+      ],
+      "path": "/access-passes/v1/authorize",
+      "auth": "Host-attested Cash Captcha extension-service context plus a fresh delegated Ed25519 request proof.",
+      "requestSchema": "JSON schema-v1 credential, delegatedPublicKey, method/source/path/query binding, and Ed25519 timestamp/nonce/signature proof.",
+      "responseSchema": "HTTP 200 exact active pass projection with opaque passId/subjectRef; stable Cedros denial envelope otherwise.",
+      "errorCodes": [
+        "missing_credential",
+        "malformed_credential",
+        "malformed_proof",
+        "invalid_signature",
+        "replay",
+        "wrong_delegated_key",
+        "unpaid",
+        "pending_payment",
+        "not_started",
+        "expired",
+        "revoked",
+        "refunded",
+        "reversed",
+        "disputed",
+        "wrong_source",
+        "pay_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-access-pass-offer-upsert",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/admin/access-passes/v1/offers",
+      "auth": "Authenticated Pay administrator with verified CSRF.",
+      "requestSchema": "Exact schema-v1 immutable access-pass offer terms and initial lifecycle.",
+      "responseSchema": "HTTP 201 created or 200 exact idempotent replay.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "malformed_request",
+        "offer_immutable",
+        "conflict"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-access-pass-offer-state",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/access-passes/v1/offers/state",
+      "auth": "Authenticated Pay administrator with verified CSRF.",
+      "requestSchema": "JSON { schemaVersion:1, offerRef, state: active|inactive|retired, retirementAtMs? }.",
+      "responseSchema": "HTTP 200 updated offer lifecycle.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "offer_missing",
+        "conflict"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-access-pass-revoke",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/access-passes/v1/passes/revoke",
+      "auth": "Authenticated Pay administrator with verified CSRF.",
+      "requestSchema": "JSON { schemaVersion:1, passId }.",
+      "responseSchema": "HTTP 200 { schemaVersion:1, passId, status:revoked }.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "pass_missing",
+        "conflict"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:portal-orders-list",
+      "methods": [
+        "GET"
+      ],
+      "path": "/portal-source/v1/orders",
+      "auth": "Host-only authenticated managed-source principal cedros-core:portal-orders with exact route capability and trusted siteId. Browser identity/tenant headers have no authority.",
+      "requestSchema": "GET without body. List accepts only optional opaque after key; detail accepts an order id. No destination or tenant fields.",
+      "responseSchema": "contractVersion 1 normalized OrderSummary items with nextAfter, or OrderDetail item, exact integer-string amounts and nullable historical breakdowns including tipAtomic. Core supplies stable expiring authorized Portal snapshots.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "order_source_unavailable",
+        "order_history_requires_recovery",
+        "record_too_large"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:portal-orders-detail",
+      "methods": [
+        "GET"
+      ],
+      "path": "/portal-source/v1/orders/{id}",
+      "auth": "Host-only authenticated managed-source principal cedros-core:portal-orders with exact route capability and trusted siteId. Browser identity/tenant headers have no authority.",
+      "requestSchema": "GET without body. List accepts only optional opaque after key; detail accepts an order id. No destination or tenant fields.",
+      "responseSchema": "contractVersion 1 normalized OrderSummary items with nextAfter, or OrderDetail item, exact integer-string amounts and nullable historical breakdowns including tipAtomic. Core supplies stable expiring authorized Portal snapshots.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "order_source_unavailable",
+        "order_history_requires_recovery",
+        "record_too_large"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-order-fulfillment-read",
+      "methods": [
+        "GET"
+      ],
+      "path": "/admin/orders/{id}/fulfillment",
+      "auth": "Host verified Pay administrator; writes require CSRF verification and verified actor.",
+      "requestSchema": "GET returns current revision and line delivery counts. POST requires expectedVersion, cumulative delivered counts, cancelled boolean and host idempotency key.",
+      "responseSchema": "Order identity and durable delivery state, without changing payment or refund facts.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "order_source_unavailable",
+        "order_history_requires_recovery",
+        "record_too_large"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-order-fulfillment",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/orders/{id}/fulfillment",
+      "auth": "Host verified Pay administrator; writes require CSRF verification and verified actor.",
+      "requestSchema": "GET returns current revision and line delivery counts. POST requires expectedVersion, cumulative delivered counts, cancelled boolean and host idempotency key.",
+      "responseSchema": "Order identity and durable delivery state, without changing payment or refund facts.",
+      "errorCodes": [
+        "bad_request",
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "order_source_unavailable",
+        "order_history_requires_recovery",
+        "record_too_large"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-offers-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/capacity/offers",
+      "auth": "Login buyer + Data scope read authorization",
+      "requestSchema": "#/$defs/OffersRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/OffersResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-preview-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/capacity/preview",
+      "auth": "Login buyer + Data BillingManage authorization",
+      "requestSchema": "#/$defs/PreviewRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PreviewResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-preview-read-http-v1",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/capacity/previews/{quoteId}",
+      "auth": "BillingManage buyer or native Data trusted read; verify exact snapshot scope",
+      "requestSchema": "#/$defs/PreviewReadRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PreviewResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-purchase-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/capacity/purchases",
+      "auth": "Login buyer + atomic Data authorization redemption",
+      "requestSchema": "#/$defs/PurchaseRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PayPurchaseResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-purchase-read-http-v1",
+      "methods": [
+        "GET"
+      ],
+      "path": "/paywall/v1/capacity/purchases/{purchaseId}",
+      "auth": "Login buyer + Data scope read authorization, or trusted Data host",
+      "requestSchema": "#/$defs/PurchaseReadRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PayPurchaseResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-grants-snapshot-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/subscriptions/v1/capacity/grants/snapshot",
+      "auth": "Trusted Data host only; organization, installation and environment bound",
+      "requestSchema": "#/$defs/GrantPageRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/GrantPageResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-billing-action-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/capacity/purchases/{purchaseId}/actions",
+      "auth": "BillingManage; fresh buyer delegation",
+      "requestSchema": "#/$defs/BillingActionRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/BillingActionResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-cancel-http-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/paywall/v1/capacity/purchases/{purchaseId}/cancel",
+      "auth": "BillingManage; fresh buyer delegation",
+      "requestSchema": "#/$defs/CancelRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/CancelResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-offers-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/offers",
+      "auth": "Login buyer + Data scope read authorization",
+      "requestSchema": "#/$defs/OffersRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/OffersResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-preview-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/preview",
+      "auth": "Login buyer + Data BillingManage authorization",
+      "requestSchema": "#/$defs/PreviewRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PreviewResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-preview-read-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/preview/read",
+      "auth": "BillingManage buyer or native Data trusted read; verify exact snapshot scope",
+      "requestSchema": "#/$defs/PreviewReadRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PreviewResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-purchase-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/purchase",
+      "auth": "Login buyer + atomic Data authorization redemption",
+      "requestSchema": "#/$defs/PurchaseRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PayPurchaseResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-purchase-read-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/purchase/read",
+      "auth": "Login buyer + Data scope read authorization, or trusted Data host",
+      "requestSchema": "#/$defs/PurchaseReadRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/PayPurchaseResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-grants-snapshot-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/grants/snapshot",
+      "auth": "Trusted Data host only; organization, installation and environment bound",
+      "requestSchema": "#/$defs/GrantPageRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/GrantPageResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-billing-action-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/billing/action",
+      "auth": "BillingManage; fresh buyer delegation",
+      "requestSchema": "#/$defs/BillingActionRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/BillingActionResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-cancel-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/cancel",
+      "auth": "BillingManage; fresh buyer delegation",
+      "requestSchema": "#/$defs/CancelRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; internal requests use Invocation.",
+      "responseSchema": "#/$defs/CancelResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:capacity-binding-read-v1",
+      "methods": [
+        "POST"
+      ],
+      "path": "/capacity/v1/binding/read",
+      "auth": "Trusted Data host only; organization, installation and environment bound",
+      "requestSchema": "#/$defs/BillingBindingRequest in docs/contracts/capacity-v1/portal-usage-capacity-v1.contract.json; native requests use Invocation.",
+      "responseSchema": "#/$defs/BillingBindingResponse in pinned Data v1.0.0 schema.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "not_found",
+        "idempotency_conflict",
+        "quote_expired",
+        "version_conflict",
+        "offer_unavailable",
+        "cursor_expired",
+        "grant_conflict",
+        "quote_already_accepted",
+        "authorization_already_redeemed",
+        "revision_not_applied",
+        "migration_fenced",
+        "snapshot_conflict",
+        "payment_outcome_unknown",
+        "invalid_request",
+        "unsupported_interval",
+        "unsupported_allowance",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-handoff",
+      "methods": [
+        "GET"
+      ],
+      "path": "/ucp/handoff/{id}",
+      "auth": "Revision-bound checkout MAC; POST also requires same-origin confirmation.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "HTML buyer review, 303 canonical Stripe redirect, or sanitized error.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-handoff-submit",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/handoff/{id}",
+      "auth": "Revision-bound checkout MAC; POST also requires same-origin confirmation.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "HTML buyer review, 303 canonical Stripe redirect, or sanitized error.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-catalog-search",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/catalog/search",
+      "auth": "Public discovery; no MCP key, login, or signature required.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-catalog-lookup",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/catalog/lookup",
+      "auth": "Public discovery; no MCP key, login, or signature required.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-catalog-product",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/catalog/product",
+      "auth": "Public discovery; no MCP key, login, or signature required.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-checkout-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/checkout-sessions",
+      "auth": "UCP platform HTTP Message Signature verified against its public HTTPS profile; no site-management key or buyer login.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-checkout-get",
+      "methods": [
+        "GET"
+      ],
+      "path": "/ucp/v1/checkout-sessions/{id}",
+      "auth": "UCP platform HTTP Message Signature verified against its public HTTPS profile; no site-management key or buyer login.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-checkout-update",
+      "methods": [
+        "PUT"
+      ],
+      "path": "/ucp/v1/checkout-sessions/{id}",
+      "auth": "UCP platform HTTP Message Signature verified against its public HTTPS profile; no site-management key or buyer login.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-checkout-complete",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/checkout-sessions/{id}/complete",
+      "auth": "UCP platform HTTP Message Signature verified against its public HTTPS profile; no site-management key or buyer login.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-checkout-cancel",
+      "methods": [
+        "POST"
+      ],
+      "path": "/ucp/v1/checkout-sessions/{id}/cancel",
+      "auth": "UCP platform HTTP Message Signature verified against its public HTTPS profile; no site-management key or buyer login.",
+      "requestSchema": "UCP 2026-04-08 REST schema; raw UTF-8 body capped at 16 KiB. Handoff accepts only the token query and an empty POST body.",
+      "responseSchema": "UCP 2026-04-08 JSON; checkout uses requires_escalation with continue_url for buyer payment authorization.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ucp-profile",
+      "methods": [
+        "GET"
+      ],
+      "path": "/ucp/profile",
+      "auth": "Public discovery; no MCP key, login, or signature required.",
+      "requestSchema": "No body. Public UCP business discovery.",
+      "responseSchema": "Public UCP 2026-04-08 business profile with REST capabilities and public signing keys.",
+      "errorCodes": [
+        "bad_request",
+        "invalid_signature",
+        "profile_unreachable",
+        "version_unsupported",
+        "capabilities_incompatible",
+        "checkout_expired",
+        "conflict",
+        "internal_error"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-storefront-products-query",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/products/query",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"productId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}}}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"products\":{\"type\":\"array\",\"items\":{\"type\":\"object\"}},\"total\":{\"type\":\"integer\",\"minimum\":0},\"hasMore\":{\"type\":\"boolean\"}},\"required\":[\"products\",\"total\",\"hasMore\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-physical-product-create",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/products/create",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"physicalGoods\":{\"type\":\"boolean\",\"const\":true},\"shippingProfileId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"product\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"slug\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[a-z0-9]+(?:-[a-z0-9]+)*$\"},\"title\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"price\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amountCents\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100000000},\"currency\":{\"type\":\"string\",\"enum\":[\"USD\",\"EUR\",\"GBP\",\"AUD\",\"CAD\",\"NZD\",\"CHF\",\"SGD\",\"HKD\"]}},\"required\":[\"amountCents\",\"currency\"]},\"productType\":{\"const\":\"standard\"},\"active\":{\"type\":\"boolean\"},\"public\":{\"type\":\"boolean\"},\"featured\":{\"type\":\"boolean\"},\"description\":{\"type\":[\"string\",\"null\"],\"maxLength\":5000},\"shortDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":500},\"seoTitle\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"seoDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":500},\"brand\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"sku\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"gtin\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"mpn\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"imageAlt\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"inventoryStatus\":{\"type\":\"string\",\"enum\":[\"in_stock\",\"out_of_stock\",\"backorder\",\"preorder\",\"unknown\"]},\"condition\":{\"type\":\"string\",\"enum\":[\"new\",\"used\",\"refurbished\"]},\"tags\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"string\",\"maxLength\":50}},\"categoryIds\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"string\",\"maxLength\":80}},\"imageUrls\":{\"type\":\"array\",\"maxItems\":10,\"items\":{\"type\":\"string\",\"maxLength\":2048}},\"imageWidth\":{\"type\":[\"integer\",\"null\"],\"minimum\":1,\"maximum\":100000},\"imageHeight\":{\"type\":[\"integer\",\"null\"],\"minimum\":1,\"maximum\":100000},\"categories\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"slug\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"parentId\":{\"type\":[\"string\",\"null\"],\"maxLength\":120},\"bannerImageUrl\":{\"type\":[\"string\",\"null\"],\"maxLength\":2048}},\"required\":[\"id\",\"name\",\"slug\"]}}},\"required\":[\"id\",\"slug\",\"title\",\"price\",\"productType\",\"active\",\"public\"]}},\"required\":[\"physicalGoods\",\"shippingProfileId\",\"product\"]}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"created\":{\"type\":\"boolean\",\"const\":true},\"product\":{\"type\":\"object\"}},\"required\":[\"created\",\"product\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-storefront-product-update",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/products/update",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"productId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"expectedVersion\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"patch\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"slug\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[a-z0-9]+(?:-[a-z0-9]+)*$\"},\"title\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"price\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amountCents\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100000000},\"currency\":{\"type\":\"string\",\"enum\":[\"USD\",\"EUR\",\"GBP\",\"AUD\",\"CAD\",\"NZD\",\"CHF\",\"SGD\",\"HKD\"]}},\"required\":[\"amountCents\",\"currency\"]},\"productType\":{\"const\":\"standard\"},\"active\":{\"type\":\"boolean\"},\"public\":{\"type\":\"boolean\"},\"featured\":{\"type\":\"boolean\"},\"description\":{\"type\":[\"string\",\"null\"],\"maxLength\":5000},\"shortDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":500},\"seoTitle\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"seoDescription\":{\"type\":[\"string\",\"null\"],\"maxLength\":500},\"brand\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"sku\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"gtin\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"mpn\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"imageAlt\":{\"type\":[\"string\",\"null\"],\"maxLength\":200},\"inventoryStatus\":{\"type\":\"string\",\"enum\":[\"in_stock\",\"out_of_stock\",\"backorder\",\"preorder\",\"unknown\"]},\"condition\":{\"type\":\"string\",\"enum\":[\"new\",\"used\",\"refurbished\"]},\"tags\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"string\",\"maxLength\":50}},\"categoryIds\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"string\",\"maxLength\":80}},\"imageUrls\":{\"type\":\"array\",\"maxItems\":10,\"items\":{\"type\":\"string\",\"maxLength\":2048}},\"imageWidth\":{\"type\":[\"integer\",\"null\"],\"minimum\":1,\"maximum\":100000},\"imageHeight\":{\"type\":[\"integer\",\"null\"],\"minimum\":1,\"maximum\":100000},\"categories\":{\"type\":\"array\",\"maxItems\":20,\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"slug\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"parentId\":{\"type\":[\"string\",\"null\"],\"maxLength\":120},\"bannerImageUrl\":{\"type\":[\"string\",\"null\"],\"maxLength\":2048}},\"required\":[\"id\",\"name\",\"slug\"]}}},\"minProperties\":1}},\"required\":[\"productId\",\"expectedVersion\",\"patch\"]}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"updated\":{\"type\":\"boolean\",\"const\":true},\"product\":{\"type\":\"object\"}},\"required\":[\"updated\",\"product\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-physical-product-delete",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/products/delete",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"productId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"expectedVersion\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"confirmed\":{\"type\":\"boolean\",\"const\":true}},\"required\":[\"productId\",\"expectedVersion\",\"confirmed\"]}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"productId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"deleted\":{\"type\":\"boolean\"}},\"required\":[\"productId\",\"deleted\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-orders-query",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/orders/query",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"after\":{\"type\":\"string\",\"pattern\":\"^order_[a-f0-9]{64}$\"}}}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"items\":{\"type\":\"array\",\"maxItems\":25,\"items\":{\"type\":\"object\"}},\"nextAfter\":{\"anyOf\":[{\"type\":\"string\",\"pattern\":\"^order_[a-f0-9]{64}$\"},{\"type\":\"null\"}]}},\"required\":[\"items\",\"nextAfter\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-order-get",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/orders/get",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"orderId\":{\"type\":\"string\",\"pattern\":\"^order_[a-f0-9]{64}$\"}},\"required\":[\"orderId\"]}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"item\":{\"type\":\"object\"},\"version\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"cancelled\":{\"type\":\"boolean\"},\"lines\":{\"type\":\"array\",\"maxItems\":100,\"items\":{\"type\":\"object\"}}},\"required\":[\"item\",\"version\",\"cancelled\",\"lines\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-order-fulfillment",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/orders/fulfillment",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"orderId\":{\"type\":\"string\",\"pattern\":\"^order_[a-f0-9]{64}$\"},\"expectedVersion\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"delivered\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":100,\"items\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":9007199254740991}},\"cancelled\":{\"type\":\"boolean\"}},\"required\":[\"orderId\",\"expectedVersion\",\"delivered\",\"cancelled\"]}",
+      "responseSchema": "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"orderId\":{\"type\":\"string\",\"pattern\":\"^order_[a-f0-9]{64}$\"},\"cancelled\":{\"type\":\"boolean\"},\"lines\":{\"type\":\"array\",\"maxItems\":100,\"items\":{\"type\":\"object\"}}},\"required\":[\"orderId\",\"cancelled\",\"lines\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-shipping-setup-query",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/shipping/query",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"properties\":{\"profileId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"offset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000},\"rateOffset\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":10000}},\"additionalProperties\":false}",
+      "responseSchema": "{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\",\"enum\":[\"missing\",\"choose_profile\",\"inactive\",\"rates_required\",\"configured\"]},\"profiles\":{\"type\":\"array\",\"maxItems\":100,\"items\":{\"type\":\"object\"}},\"rates\":{\"type\":\"array\",\"maxItems\":100,\"items\":{\"type\":\"object\"}},\"total\":{\"type\":\"integer\",\"minimum\":0},\"ratesTotal\":{\"type\":\"integer\",\"minimum\":0},\"hasMore\":{\"type\":\"boolean\"},\"hasMoreRates\":{\"type\":\"boolean\"},\"canCreatePhysicalProduct\":{\"type\":\"boolean\"},\"hasActiveFlatRates\":{\"type\":\"boolean\"},\"nextAction\":{\"type\":\"string\"}},\"additionalProperties\":false,\"required\":[\"status\",\"profiles\",\"nextAction\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-shipping-profile-save",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/shipping/profile",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"properties\":{\"expectedVersion\":{\"anyOf\":[{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},{\"type\":\"null\"}]},\"profile\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"description\":{\"type\":[\"string\",\"null\"],\"maxLength\":2000},\"countries\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":250,\"uniqueItems\":true,\"items\":{\"type\":\"string\",\"pattern\":\"^[A-Za-z]{2}$\"}},\"active\":{\"type\":\"boolean\"}},\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"countries\",\"active\"]}},\"additionalProperties\":false,\"required\":[\"expectedVersion\",\"profile\"]}",
+      "responseSchema": "{\"type\":\"object\",\"properties\":{\"created\":{\"type\":\"boolean\"},\"profile\":{\"type\":\"object\"}},\"additionalProperties\":false,\"required\":[\"created\",\"profile\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:ai-shipping-rate-save",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/assistant/shipping/rate",
+      "auth": "Verified administrator or exact host-attested bearer capability for this route.",
+      "requestSchema": "{\"type\":\"object\",\"properties\":{\"profileId\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"expectedProfileVersion\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"expectedVersion\":{\"anyOf\":[{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},{\"type\":\"null\"}]},\"rate\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120,\"pattern\":\"^[A-Za-z0-9._-]+$\"},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":200},\"rateType\":{\"type\":\"string\",\"const\":\"flat\"},\"amountCents\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":100000000},\"currency\":{\"type\":\"string\",\"enum\":[\"USD\",\"EUR\",\"GBP\",\"AUD\",\"CAD\",\"NZD\",\"CHF\",\"SGD\",\"HKD\"]},\"minSubtotal\":{\"type\":[\"integer\",\"null\"],\"minimum\":0,\"maximum\":100000000},\"maxSubtotal\":{\"type\":[\"integer\",\"null\"],\"minimum\":0,\"maximum\":100000000},\"active\":{\"type\":\"boolean\"}},\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"rateType\",\"amountCents\",\"currency\",\"active\"]}},\"additionalProperties\":false,\"required\":[\"profileId\",\"expectedProfileVersion\",\"expectedVersion\",\"rate\"]}",
+      "responseSchema": "{\"type\":\"object\",\"properties\":{\"created\":{\"type\":\"boolean\"},\"rate\":{\"type\":\"object\"}},\"additionalProperties\":false,\"required\":[\"created\",\"rate\"]}",
+      "errorCodes": [
+        "bad_request",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "unprocessable",
+        "unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-read",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/read",
+      "auth": "Pay admin claim or exact host-attested bearer capability; mutations also require admin write or that exact attestation.",
+      "requestSchema": "Closed input schema declared by cedros-pay:capacity-read.",
+      "responseSchema": "Closed output schema declared by cedros-pay:capacity-read.",
+      "errorCodes": [
+        "invalid_request",
+        "forbidden",
+        "conflict",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-configure",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/configure",
+      "auth": "Pay admin claim or exact host-attested bearer capability; mutations also require admin write or that exact attestation.",
+      "requestSchema": "Closed input schema declared by cedros-pay:capacity-configure.",
+      "responseSchema": "Closed output schema declared by cedros-pay:capacity-configure.",
+      "errorCodes": [
+        "invalid_request",
+        "forbidden",
+        "conflict",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-enroll",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/enroll",
+      "auth": "Pay admin claim or exact host-attested bearer capability; mutations also require admin write or that exact attestation.",
+      "requestSchema": "Closed input schema declared by cedros-pay:capacity-enroll.",
+      "responseSchema": "Closed output schema declared by cedros-pay:capacity-enroll.",
+      "errorCodes": [
+        "invalid_request",
+        "forbidden",
+        "conflict",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-activate",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/activate",
+      "auth": "Pay admin claim or exact host-attested bearer capability; mutations also require admin write or that exact attestation.",
+      "requestSchema": "Closed input schema declared by cedros-pay:capacity-activate.",
+      "responseSchema": "Closed output schema declared by cedros-pay:capacity-activate.",
+      "errorCodes": [
+        "invalid_request",
+        "forbidden",
+        "conflict",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:admin-capacity-coupon-ensure",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/capacity/coupon-ensure",
+      "auth": "Pay admin claim or exact host-attested bearer capability; mutations also require admin write or that exact attestation.",
+      "requestSchema": "Closed input schema declared by cedros-pay:capacity-coupon-ensure.",
+      "responseSchema": "Closed output schema declared by cedros-pay:capacity-coupon-ensure.",
+      "errorCodes": [
+        "invalid_request",
+        "forbidden",
+        "conflict",
+        "source_unavailable"
+      ]
+    },
+    {
+      "routeId": "cedros-pay:domain-checkout",
+      "methods": [
+        "POST"
+      ],
+      "path": "/admin/domain-checkout",
+      "auth": "Authenticated, CSRF-verified host context whose actorId and principalId both attest cedros-domains-manager. Customer and ordinary administrator identities are rejected.",
+      "requestSchema": "Strict camelCase intentId, buyerId, resource, productId, priceId, amountCents, currency, email and returnUrl; optional description. Combined hosting and renewal billing fail closed.",
+      "responseSchema": "200 JSON status, operationId, sessionId and ephemeral checkout url. A checkout session is pending payment; this route does not register domains.",
+      "errorCodes": [
+        "unauthorized",
+        "forbidden",
+        "unprocessable",
+        "conflict",
+        "not_found",
+        "provider_unavailable",
+        "internal_error"
+      ]
+    }
+  ],
+  "jobContracts": [
+    "cedros-pay:sanctions-refresh",
+    "cedros-pay:sanctions-sweep",
+    "cedros-pay:balance-alert",
+    "cedros-pay:health-check",
+    "cedros-pay:cleanup",
+    "cedros-pay:email",
+    "cedros-pay:stats-rollup",
+    "cedros-pay:subscription-sync",
+    "cedros-pay:webhook-delivery",
+    "cedros-pay:x402-reconcile",
+    "cedros-pay:catalog-sync"
+  ]
+}

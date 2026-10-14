@@ -37,9 +37,7 @@ closure consumed by the extension packager. The UI requires host services for
 payment and administration workflows; the Vite development command alone does
 not provide a Cedros installation.
 
-Run `make cedros-package` from the repository root to build the complete archive
-once its release prerequisites are met. Generated output should not be committed.
-See [contributing](CONTRIBUTING.md), [security](SECURITY.md), and the
-[command map](../docs/command-map.md) for additional checks.
+Generated output should not be committed. See [contributing](CONTRIBUTING.md)
+and [security](SECURITY.md) for additional checks.
 
 This component uses the repository's [PILL-1.0.0 license](../LICENSE.md).

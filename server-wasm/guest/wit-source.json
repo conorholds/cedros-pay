@@ -1,9 +1,0 @@
-{
-  "_comment": "Provenance for the vendored cedros:extension WIT. scripts/verify-wit.mjs fails the build when server-wasm/guest/wit/cedros-extension.wit no longer matches witSha256 (or, when CEDROS_DATA_DIR is set, has drifted from the host at sourceCommit). NEVER hand-edit the vendored WIT \u2014 re-vendor with `make vendor-wit`.",
-  "sourceRepo": "Cedros platform",
-  "sourcePath": "server/wit/cedros-extension.wit",
-  "sourceCommit": "6a1ddc9beb31b6ab1765777365afeb576886c758",
-  "witPackage": "cedros:extension",
-  "witVersion": "0.1.0",
-  "witSha256": "2bb16879743cfd2748b7deefefcb82204c16b55a1c1a70385f4e9707a83d48f9"
-}
