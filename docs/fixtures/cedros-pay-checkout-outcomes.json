@@ -1,0 +1,51 @@
+{
+  "actionRequired": {
+    "status": "action_required",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "stripe",
+    "returnArtifact": "cs_test_example",
+    "replayed": false
+  },
+  "processing": {
+    "status": "processing",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "stripe",
+    "replayed": true
+  },
+  "paid": {
+    "status": "paid",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "stripe",
+    "replayed": true
+  },
+  "terminal": {
+    "status": "terminal",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "credits",
+    "code": "insufficient-funds",
+    "replayed": false
+  },
+  "indeterminate": {
+    "status": "indeterminate",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "stripe",
+    "code": "transport-outcome-unknown",
+    "replayed": false
+  },
+  "verified": {
+    "status": "verified",
+    "checkoutAttemptId": "attempt-01HQEXAMPLE"
+  },
+  "resolvedUrl": {
+    "status": "resolved",
+    "operationId": "payop_1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "attemptId": "attempt-01HQEXAMPLE",
+    "paymentMethod": "stripe",
+    "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_example"
+  }
+}

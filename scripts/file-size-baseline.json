@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "maxLines": 500,
+  "files": {
+    "server-wasm/domain/src/routes/admin_site_settings.rs": 501,
+    "ui/src/admin-plugin-payments.css": 650
+  }
+}

@@ -1,0 +1,1064 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "cedros-pay",
+  "version": "5.0.8",
+  "runtimeApiStatus": {
+    "browserReport": "published",
+    "serverReport": "published"
+  },
+  "events": [
+    {
+      "eventId": "cedros-pay:payment-started",
+      "trigger": "Buyer clicks or submits a Cedros Pay checkout action before provider/database writes.",
+      "runtimeSurface": "browser-or-server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "sourceSurface": {
+            "type": "string",
+            "enum": [
+              "page-seed",
+              "checkout-block",
+              "admin-preview",
+              "native"
+            ]
+          },
+          "paymentRail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "amountBucket": {
+            "type": "string",
+            "enum": [
+              "zero",
+              "low",
+              "medium",
+              "high",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "sourceSurface",
+          "paymentRail"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Public event; do not include customer identifiers, email, wallet address, cart contents, tokens, or exact amount.",
+      "stagingVerification": "Bound to host analytics seam; verify one redacted event count appears for the event id."
+    },
+    {
+      "eventId": "cedros-pay:payment-succeeded",
+      "trigger": "Wasm checkout, subscription, or credits flow finishes with a successful payment state.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "subscription",
+              "credit-purchase"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Operator-aggregate gross amount in minor units. Admin-scope subscribers only."
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217 currency code."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "route_path": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "product_id": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "amount_cents",
+          "currency",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "authenticated",
+        "flow": "authenticated",
+        "occurred_at": "authenticated",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "route_path": "admin",
+        "product_id": "admin",
+        "idempotency_key": "authenticated"
+      },
+      "privacy": "Operator-aggregate event. Exact amount_cents and currency are emitted only to admin-scoped subscribers (e.g. cedros-pay:balance-read). Buyer identifiers, provider ids, payment method details, and email are never included. route_path/product_id attribution is elided server-side when txn_count for the bucket falls below min_attribution_txn_count.",
+      "stagingVerification": "Bound to host analytics seam; verify admin subscribers see amount_cents/currency and authenticated subscribers see only payment_rail/flow/occurred_at."
+    },
+    {
+      "eventId": "cedros-pay:checkout-settled",
+      "trigger": "Pay has verified, recorded, and reconciled a checkout; Pay may call granted Balance routes only after this settlement point.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "subscription",
+              "credit-purchase"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settlementStatus": {
+            "type": "string",
+            "enum": [
+              "settled"
+            ]
+          },
+          "paymentReference": {
+            "type": "string"
+          },
+          "externalReferenceId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "amount_cents",
+          "currency",
+          "occurred_at",
+          "settlementStatus"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "authenticated",
+        "flow": "authenticated",
+        "occurred_at": "authenticated",
+        "settlementStatus": "authenticated",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "paymentReference": "admin",
+        "externalReferenceId": "admin",
+        "idempotencyKey": "admin"
+      },
+      "privacy": "Trusted settlement event for host observability and route orchestration. Safe Pay-owned references only; no provider ids, wallet addresses, raw tokens, emails, or user ids.",
+      "stagingVerification": "Deliver duplicate settlement callbacks and duplicate Balance credit calls with the same idempotency key; verify Balance credits once."
+    },
+    {
+      "eventId": "cedros-pay:payment-failed",
+      "trigger": "Wasm payment flow fails validation, permission, provider, or downstream processing.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "subscription",
+              "credit-purchase"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Attempt amount in minor units when known; 0 only when the provider rejected before amount resolution."
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217 currency code."
+          },
+          "cause_code": {
+            "type": "string",
+            "enum": [
+              "validation_failed",
+              "permission_denied",
+              "provider_unavailable",
+              "downstream_failed",
+              "retryable_downstream_failed"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "route_path": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "product_id": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "amount_cents",
+          "currency",
+          "cause_code",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "authenticated",
+        "flow": "authenticated",
+        "cause_code": "authenticated",
+        "occurred_at": "authenticated",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "route_path": "admin",
+        "product_id": "admin",
+        "idempotency_key": "authenticated"
+      },
+      "privacy": "Authenticated event; cause codes must be redacted and must not include raw downstream errors. Exact amount_cents and currency are emitted only to admin-scoped subscribers.",
+      "stagingVerification": "Bound to host analytics seam; verify failure counts show redacted cause-code groupings only."
+    },
+    {
+      "eventId": "cedros-pay:wallet-connected",
+      "trigger": "Buyer connects a wallet for an x402 or wallet-based payment flow.",
+      "runtimeSurface": "browser-or-native",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "sourceSurface": {
+            "type": "string",
+            "enum": [
+              "checkout-block",
+              "payment-modal",
+              "native"
+            ]
+          },
+          "walletProviderKind": {
+            "type": "string",
+            "enum": [
+              "browser-wallet",
+              "walletconnect",
+              "embedded",
+              "unknown"
+            ]
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "solana",
+              "evm",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "sourceSurface",
+          "walletProviderKind"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Public event; never include wallet address, signature, chain account id, or provider token.",
+      "stagingVerification": "Bound to host analytics seam; verify event counts without direct wallet identifiers."
+    },
+    {
+      "eventId": "cedros-pay:refund-settled",
+      "trigger": "Wasm refund flow completes against a prior checkout or subscription invoice and the ledger row is committed.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "subscription",
+              "credit-purchase"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Operator-aggregate refund amount in minor units."
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Refund settlement timestamp; consumers should bucket by this (cashflow convention), not by the original payment timestamp."
+          },
+          "original_occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the original payment-succeeded event, for consumers that need restated-revenue accounting."
+          },
+          "route_path": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "product_id": {
+            "type": "string",
+            "description": "Optional attribution; elided server-side when site fails the minAttributionTxnCount threshold (default 5)."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "amount_cents",
+          "currency",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "occurred_at": "admin",
+        "original_occurred_at": "admin",
+        "route_path": "admin",
+        "product_id": "admin",
+        "idempotency_key": "admin"
+      },
+      "privacy": "Admin-scope event. Operator-aggregate only; no buyer identifiers, provider refund ids, dispute reasons, or refund notes.",
+      "stagingVerification": "Bound to host analytics seam; verify admin subscribers receive amount_cents bucketed by occurred_at (cashflow), and that the event is suppressed for non-admin subscribers."
+    },
+    {
+      "eventId": "cedros-pay:chargeback-opened",
+      "trigger": "Pay ingests or records a chargeback against a prior payment.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "dispute"
+            ]
+          },
+          "dispute_kind": {
+            "type": "string",
+            "enum": [
+              "chargeback"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paymentReference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "dispute_kind",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "dispute_kind": "admin",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "occurred_at": "admin",
+        "paymentReference": "admin"
+      },
+      "privacy": "Admin-scope risk event. Safe Pay reference only; never buyer identifiers, provider chargeback ids, raw dispute reason, evidence, or exact provider payload.",
+      "stagingVerification": "Deliver a chargeback-opened event and verify granted Balance consumers can freeze related credits without provider ids."
+    },
+    {
+      "eventId": "cedros-pay:payment-reversed",
+      "trigger": "Pay completes or records a refund, dispute, chargeback, cancellation, or manual reversal that adjusts a prior payment.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "subscription",
+              "credit-purchase"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reversalReason": {
+            "type": "string",
+            "enum": [
+              "refund",
+              "dispute",
+              "chargeback",
+              "manual_reversal"
+            ]
+          },
+          "originalPaymentReference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "amount_cents",
+          "currency",
+          "occurred_at",
+          "reversalReason"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "amount_cents": "admin",
+        "currency": "admin",
+        "occurred_at": "admin",
+        "reversalReason": "admin",
+        "originalPaymentReference": "admin"
+      },
+      "privacy": "Admin-scope adjustment event. Safe Pay-owned references only; no provider ids, wallet addresses, raw tokens, emails, or user ids.",
+      "stagingVerification": "Deliver duplicate payment-reversed events with the same original Pay reference and verify Balance adjusts once."
+    },
+    {
+      "eventId": "cedros-pay:subscription-started",
+      "trigger": "Wasm subscription create flow completes and the subscription record is persisted.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "subscription"
+            ]
+          },
+          "price_id": {
+            "type": "string",
+            "description": "Stripe price/plan identifier (catalog id, not a buyer identifier); omitted when unknown."
+          },
+          "status": {
+            "type": "string",
+            "description": "Subscription lifecycle status bucket (e.g. active, trialing, incomplete)."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "price_id": "admin",
+        "status": "admin",
+        "occurred_at": "admin",
+        "idempotency_key": "admin"
+      },
+      "privacy": "Admin-scope subscription-growth signal. Operator-aggregate only; never subscriber identifiers, customer ref, or email. price_id is a catalog/plan id.",
+      "stagingVerification": "Bound to host analytics seam; verify admin subscribers see one subscription-started count per newly created subscription."
+    },
+    {
+      "eventId": "cedros-pay:subscription-canceled",
+      "trigger": "Wasm subscription cancel flow completes and the subscription record is updated to a canceling/canceled state.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "x402",
+              "credits",
+              "native-store",
+              "unknown"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "subscription"
+            ]
+          },
+          "price_id": {
+            "type": "string",
+            "description": "Stripe price/plan identifier (catalog id, not a buyer identifier); omitted when unknown."
+          },
+          "status": {
+            "type": "string",
+            "description": "Subscription lifecycle status bucket at cancellation."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "price_id": "admin",
+        "status": "admin",
+        "occurred_at": "admin",
+        "idempotency_key": "admin"
+      },
+      "privacy": "Admin-scope churn signal. Operator-aggregate only; never subscriber identifiers, customer ref, or email.",
+      "stagingVerification": "Bound to host analytics seam; verify admin subscribers see one subscription-canceled count per canceled subscription."
+    },
+    {
+      "eventId": "cedros-pay:dispute-opened",
+      "trigger": "Wasm Stripe webhook ingests a charge.dispute.created or charge.dispute.funds_withdrawn event; not emitted for dispute updates or closures.",
+      "runtimeSurface": "server",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "payment_rail": {
+            "type": "string",
+            "enum": [
+              "stripe"
+            ]
+          },
+          "flow": {
+            "type": "string",
+            "enum": [
+              "dispute"
+            ]
+          },
+          "dispute_kind": {
+            "type": "string",
+            "enum": [
+              "dispute",
+              "chargeback"
+            ]
+          },
+          "amount_bucket": {
+            "type": "string",
+            "enum": [
+              "zero",
+              "low",
+              "medium",
+              "high",
+              "unknown"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 78,
+            "maxLength": 78,
+            "pattern": "^effect-target:[0-9a-f]{64}$",
+            "description": "Optional Pay-generated, PII-free deterministic identifier for deduplicating this analytics delivery."
+          }
+        },
+        "required": [
+          "payment_rail",
+          "flow",
+          "dispute_kind",
+          "amount_bucket",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "audienceScopes": {
+        "payment_rail": "admin",
+        "flow": "admin",
+        "dispute_kind": "admin",
+        "amount_bucket": "admin",
+        "occurred_at": "admin",
+        "idempotency_key": "admin"
+      },
+      "privacy": "Admin-scope risk event. Coarse dispute_kind and amount_bucket only; never buyer identifiers, dispute id, raw dispute reason, evidence, or exact amount.",
+      "stagingVerification": "Bound to host analytics seam; verify admin subscribers see dispute-opened counts bucketed by amount, and that dispute.updated/closed do not emit."
+    },
+    {
+      "eventId": "cedros-pay:pricing-page-viewed",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": [
+              "pricing"
+            ]
+          }
+        },
+        "required": [
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:pricing-page-viewed event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:pricing-billing-period-changed",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "billingPeriod": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          }
+        },
+        "required": [
+          "billingPeriod"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:pricing-billing-period-changed event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:pricing-plan-selected",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "cedros-individual",
+              "cedros-business",
+              "cedros-developer"
+            ]
+          },
+          "billingPeriod": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "billingPeriod"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:pricing-plan-selected event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:pricing-checkout-started",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "cedros-individual",
+              "cedros-business",
+              "cedros-developer"
+            ]
+          },
+          "billingPeriod": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "annual"
+            ]
+          },
+          "paymentRail": {
+            "type": "string",
+            "enum": [
+              "stripe"
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "billingPeriod",
+          "paymentRail"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:pricing-checkout-started event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:pricing-program-link-clicked",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "developer",
+              "partner-overview",
+              "ambassador",
+              "affiliate",
+              "independent-sales-partner"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:pricing-program-link-clicked event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:developer-program-viewed",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "developer"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:developer-program-viewed event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:partner-program-viewed",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "programs",
+              "ambassadors",
+              "affiliates",
+              "sales-partners"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:partner-program-viewed event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:program-application-started",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "ambassadors",
+              "affiliates",
+              "sales-partners"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:program-application-started event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:program-activation-attempted",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "ambassadors",
+              "affiliates",
+              "sales-partners"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:program-activation-attempted event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:program-activation-succeeded",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "ambassadors",
+              "affiliates",
+              "sales-partners"
+            ]
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:program-activation-succeeded event reaches the host analytics seam."
+    },
+    {
+      "eventId": "cedros-pay:program-activation-failed",
+      "trigger": "A visitor interacts with the public Cedros pricing or program surface.",
+      "runtimeSurface": "browser",
+      "reportingPath": "host-event-bus",
+      "safeProperties": {
+        "type": "object",
+        "properties": {
+          "program": {
+            "type": "string",
+            "enum": [
+              "ambassadors",
+              "affiliates",
+              "sales-partners"
+            ]
+          },
+          "failureCategory": {
+            "type": "string",
+            "enum": [
+              "authentication",
+              "conflict",
+              "invalid"
+            ]
+          }
+        },
+        "required": [
+          "program",
+          "failureCategory"
+        ],
+        "additionalProperties": false
+      },
+      "privacy": "Categorical public-page telemetry only; never include an invite code, referral code, identity, email, token, or checkout session.",
+      "stagingVerification": "Verify a redacted cedros-pay:program-activation-failed event reaches the host analytics seam."
+    }
+  ]
+}

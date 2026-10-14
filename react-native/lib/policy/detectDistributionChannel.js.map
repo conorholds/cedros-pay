@@ -1,1 +1,0 @@
-{"version":3,"file":"detectDistributionChannel.js","sourceRoot":"","sources":["../../src/policy/detectDistributionChannel.ts"],"names":[],"mappings":";;AASA,8DAMC;AAfD,+CAAwC;AAGxC;;;;;GAKG;AACH,SAAgB,yBAAyB;IACvC,IAAI,uBAAQ,CAAC,EAAE,KAAK,KAAK,EAAE,CAAC;QAC1B,OAAO,KAAK,CAAC;IACf,CAAC;IAED,OAAO,SAAS,CAAC;AACnB,CAAC"}

@@ -1,0 +1,463 @@
+/* Workbench feedback, overlay, and responsive surface alignment. */
+
+.cedros-pay-admin .cedros-data-status,
+.cedros-pay-admin .cedros-admin__error-banner,
+.cedros-pay-dashboard .cedros-data-status {
+  align-items: flex-start;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: calc(var(--pay-admin-radius) - 0.0625rem);
+  display: flex;
+  font-size: 0.8125rem;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.cedros-pay-admin .cedros-data-status--error,
+.cedros-pay-admin .cedros-admin__error-banner,
+.cedros-pay-dashboard .cedros-data-status--error {
+  background: color-mix(in srgb, var(--pay-admin-error) 12%, var(--pay-admin-bg));
+  border-color: color-mix(in srgb, var(--pay-admin-error) 32%, transparent);
+}
+
+/* Attention notice: the one persistent-condition surface on the Pay hub
+   overview. It renders only while a queue is non-empty, so its actions carry
+   the counts instead of a permanent "review" row under zeroed tiles. */
+.cedros-pay-admin .cedros-data-status--warning {
+  background: var(--pay-admin-warning-light);
+  border-color: color-mix(in srgb, var(--pay-admin-warning) 32%, transparent);
+}
+
+.cedros-pay-admin .cedros-data-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Setup notice: the card is the surface, `__body` is the copy/CTA row, and the
+   copy block keeps headline and description stacked. Declaring the whole
+   anatomy here stops the host row rules from splitting the two apart. */
+.cedros-pay-admin .cedros-data-setup-notice {
+  background: color-mix(in srgb, var(--pay-admin-bg) 96%, var(--pay-admin-accent) 4%);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius-surface);
+  display: block;
+  overflow: hidden;
+  padding: 0;
+}
+
+.cedros-pay-admin .cedros-data-setup-notice__body {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0.9rem 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__setup-notice-copy {
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-data-setup-notice h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.cedros-pay-admin .cedros-data-setup-notice p {
+  color: var(--pay-admin-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin: 0.2rem 0 0;
+  max-width: var(--cd-container-prose, 60ch);
+}
+
+.cedros-pay-admin .cedros-data-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-dropdown-menu__content,
+.cedros-pay-admin .cedros-admin__dropdown-menu {
+  background: var(--pay-admin-card-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--pay-admin-radius);
+  box-shadow: var(--cd-shadow, 0 1px 2px color-mix(in srgb, var(--pay-admin-fg) 8%, transparent));
+  max-height: 20rem;
+  max-width: 20rem;
+  min-width: 11rem;
+  overscroll-behavior-y: contain;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.cedros-pay-admin.cedros-pay-admin__portaled-dropdown .cedros-admin__dropdown-menu {
+  position: fixed;
+  z-index: var(--z-dropdown, 50);
+}
+
+.cedros-pay-admin .cedros-dropdown-menu__item,
+.cedros-pay-admin .cedros-admin__dropdown-item {
+  border-radius: var(--pay-admin-radius-menu-item);
+  font-size: 0.8125rem;
+  height: 2rem;
+  overflow: hidden;
+  padding: 0 0.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cedros-pay-admin .cedros-dropdown-menu__item[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cedros-pay-admin .cedros-data-row-actions__icon,
+.cedros-pay-admin .cedros-row-actions__trigger {
+  height: 2rem;
+  justify-content: center;
+  padding: 0;
+  width: 2rem;
+}
+
+.cedros-pay-admin .cedros-data-dialog__overlay,
+.cedros-pay-admin .cedros-admin__modal-overlay {
+  background: color-mix(in srgb, var(--pay-admin-fg) 45%, transparent);
+}
+
+.cedros-pay-admin .cedros-data-dialog,
+.cedros-pay-admin .cedros-admin__modal {
+  background: var(--pay-admin-card-bg);
+  border: 1px solid var(--pay-admin-border);
+  border-radius: var(--admin-radius, var(--pay-admin-radius-overlay));
+  box-shadow: var(--cd-shadow, 0 1px 2px color-mix(in srgb, var(--pay-admin-fg) 8%, transparent));
+  color: var(--pay-admin-fg);
+  max-height: min(85dvh, 44rem);
+  width: min(26.25rem, calc(100vw - 2rem));
+}
+
+.cedros-pay-admin .cedros-admin__modal--lg {
+  width: min(42.5rem, calc(100vw - 2rem));
+}
+
+.cedros-pay-admin .cedros-admin__coupon-dialog-form {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: min(85dvh, 44rem);
+}
+
+.cedros-pay-admin .cedros-admin__coupon-dialog-body {
+  display: grid;
+  gap: 1rem;
+  overscroll-behavior-y: contain;
+  overflow-y: auto;
+}
+
+.cedros-pay-admin .cedros-admin__coupon-dialog-body .cedros-admin__form-row {
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cedros-pay-admin .cedros-admin__modal-title {
+  font-size: 1.15rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.cedros-pay-admin .cedros-admin__modal-header .cedros-admin__section-subtitle {
+  margin: 0.25rem 0 0;
+}
+
+.cedros-pay-admin .cedros-admin__coupon-dialog-copy {
+  margin: 0;
+}
+
+.cedros-pay-admin .cedros-admin__disclosure-content {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__scroll-edge {
+  scrollbar-gutter: stable;
+}
+
+.cedros-pay-admin .cedros-admin__scroll-edge[data-at-scroll-start='false'][data-at-scroll-end='true'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 0.875rem, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 0.875rem, #000);
+}
+
+.cedros-pay-admin .cedros-admin__scroll-edge[data-at-scroll-start='true'][data-at-scroll-end='false'] {
+  -webkit-mask-image: linear-gradient(to bottom, #000, #000 calc(100% - 0.875rem), transparent);
+  mask-image: linear-gradient(to bottom, #000, #000 calc(100% - 0.875rem), transparent);
+}
+
+.cedros-pay-admin .cedros-admin__scroll-edge[data-at-scroll-start='false'][data-at-scroll-end='false'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 0.875rem, #000 calc(100% - 0.875rem), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 0.875rem, #000 calc(100% - 0.875rem), transparent);
+}
+
+.cedros-pay-admin .cedros-admin__checkbox-option {
+  align-items: center;
+  border: 1px solid var(--pay-admin-border);
+  border-radius: calc(var(--pay-admin-radius) - 0.0625rem);
+  display: flex;
+  font-size: 0.8125rem;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.cedros-pay-admin .cedros-admin__checkbox-option input {
+  accent-color: var(--pay-admin-primary);
+  height: 1rem;
+  margin: 0;
+  width: 1rem;
+}
+
+.cedros-pay-admin .cedros-admin__product-form,
+.cedros-pay-admin .cedros-admin__content-settings--embedded,
+.cedros-pay-admin .cedros-admin__payment-settings-body {
+  max-width: var(--cd-container-settings, 45rem);
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary,
+.cedros-pay-admin .cedros-admin__plan-summary-toggle,
+.cedros-pay-admin .cedros-admin__plan-summary-actions {
+  align-items: center;
+  display: flex;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary {
+  gap: 0.5rem;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary-toggle {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  flex: 1;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary-title {
+  font-weight: 600;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary-price {
+  color: var(--pay-admin-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cedros-pay-admin .cedros-admin__plan-summary-actions {
+  gap: 0.25rem;
+  padding-right: 0.75rem;
+}
+
+/* Disclosure content remains mounted to support an interruptible 0fr -> 1fr
+   layout transition. The React primitive makes the closed subtree inert. */
+.cedros-pay-admin .cedros-admin__animated-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--motion-duration-standard, 220ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+    opacity var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cedros-pay-admin .cedros-admin__animated-disclosure--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.cedros-pay-admin .cedros-admin__animated-disclosure-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cedros-pay-admin .cedros-admin__animated-disclosure-content {
+  min-height: 0;
+}
+
+.cedros-pay-admin .cedros-admin__axis-viewport {
+  min-width: 0;
+  overflow: clip;
+  position: relative;
+}
+
+/* Capped entrance sequencing: later items never wait more than 210ms. */
+.cedros-pay-admin .cedros-admin__stagger-reveal > * {
+  animation: cedros-pay-item-reveal var(--motion-duration-standard, 220ms)
+    var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(2) { animation-delay: 30ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(3) { animation-delay: 60ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(4) { animation-delay: 90ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(5) { animation-delay: 120ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(6) { animation-delay: 150ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(7) { animation-delay: 180ms; }
+.cedros-pay-admin .cedros-admin__stagger-reveal > :nth-child(n + 8) { animation-delay: 210ms; }
+
+@keyframes cedros-pay-item-reveal {
+  from { opacity: 0; transform: translateY(0.375rem) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Row actions stay visible: the promoted action plus the `⋯` menu are the
+   column's content, and a hover-only cluster reads as an empty Actions column.
+   Plan rows keep the progressive reveal — there the card row is the affordance
+   and :focus-within keeps keyboard access immediate. */
+@media (hover: hover) and (pointer: fine) {
+  .cedros-pay-admin .cedros-admin__plan-summary-actions {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(0.25rem);
+    transition:
+      opacity var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1)),
+      transform var(--motion-duration-fast, 160ms) var(--motion-ease-standard, cubic-bezier(0.16, 1, 0.3, 1));
+  }
+
+  .cedros-pay-admin .cedros-admin__plan-summary:hover .cedros-admin__plan-summary-actions,
+  .cedros-pay-admin .cedros-admin__plan-summary:focus-within .cedros-admin__plan-summary-actions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 767px) {
+  .cedros-pay-admin .cedros-data-tabs,
+  .cedros-pay-admin .cedros-data-tabs__list {
+    align-self: stretch;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-data-tabs__tab {
+    flex: 0 0 auto;
+  }
+
+  .cedros-pay-admin .cedros-data__header,
+  .cedros-pay-admin .cedros-admin__page-header,
+  .cedros-pay-admin .cedros-admin__section-header,
+  .cedros-pay-admin .cedros-admin__field-group-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cedros-pay-admin .cedros-data-actions,
+  .cedros-pay-admin .cedros-admin__form-actions,
+  .cedros-pay-admin .cedros-admin__product-form-footer {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-admin__toolbar > *,
+  .cedros-pay-admin .cedros-data-toolbar > * {
+    max-width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-data-toolbar,
+  .cedros-pay-admin .cedros-admin__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cedros-pay-admin .cedros-admin__filter,
+  .cedros-pay-admin .cedros-admin__toolbar-search,
+  .cedros-pay-admin .cedros-admin__search-field,
+  .cedros-pay-admin .cedros-admin__search-field .cedros-data-input {
+    flex-basis: auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-data-toolbar__right {
+    justify-content: flex-end;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-admin__coupon-dialog-body .cedros-admin__form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cedros-pay-admin .cedros-admin__plan-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cedros-pay-admin .cedros-admin__plan-summary-toggle {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .cedros-pay-admin .cedros-admin__plan-summary-actions {
+    justify-content: flex-end;
+    padding: 0 0.75rem 0.75rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .cedros-pay-admin .cedros-data-toolbar__right > .cedros-data-btn,
+  .cedros-pay-admin .cedros-data-actions > .cedros-data-btn,
+  .cedros-pay-admin .cedros-admin__form-actions > .cedros-admin__button,
+  .cedros-pay-admin .cedros-admin__product-form-footer > .cedros-data-btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cedros-pay-admin .cedros-admin__animated-disclosure,
+  .cedros-pay-admin .cedros-admin__plan-summary-actions {
+    transition: none;
+  }
+
+  .cedros-pay-admin .cedros-admin__stagger-reveal > * {
+    animation: none;
+  }
+
+  .cedros-pay-admin .cedros-admin__skeleton,
+  .cedros-pay-admin .cedros-admin__loading-skeleton span,
+  .cedros-pay-admin .cedros-admin__loading svg,
+  .cedros-pay-dashboard .cedros-dashboard__skeleton span {
+    animation: none;
+  }
+
+  .cedros-pay-admin .cedros-data-empty-state__art {
+    animation: none;
+  }
+
+  .cedros-pay-admin *,
+  .cedros-pay-admin *::before,
+  .cedros-pay-admin *::after,
+  .cedros-pay-dashboard *,
+  .cedros-pay-dashboard *::before,
+  .cedros-pay-dashboard *::after {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "errors": [
+    { "status": 400, "code": "bad_request", "condition": "malformed JSON, unknown field, unsupported schemaVersion, invalid operationId, or idempotency header/body mismatch", "effects": "none" },
+    { "status": 413, "code": "payload_too_large", "condition": "request body exceeds 16384 bytes", "effects": "none" },
+    { "status": 422, "code": "unprocessable_entity", "condition": "missing or malformed clientMaterialSha256, invalid bounds, duplicate items or methods, invalid URL, mixed currency, invalid promotion, or invalid rail proof", "effects": "none" },
+    { "status": 404, "code": "not_found", "condition": "catalog item, quote, or scoped checkout operation does not exist", "effects": "none" },
+    { "status": 409, "code": "idempotency_mismatch", "condition": "same scoped idempotency key is reused with different material or attempt", "effects": "original operation preserved; no provider call" },
+    { "status": 409, "code": "cart_changed", "condition": "versioned cart generation or version differs from the quote", "effects": "no checkout claim or provider call" },
+    { "status": 409, "code": "quote_changed", "condition": "catalog facts differ from the authoritative quote", "effects": "no checkout claim or provider call" },
+    { "status": 409, "code": "quote_expired", "condition": "trusted host time is after quote expiry", "effects": "no checkout claim or provider call" },
+    { "status": 409, "code": "payment_method_unavailable_in_region", "condition": "the trusted market-country policy denies a requested or selected payment method", "effects": "no checkout claim or provider call" },
+    { "status": 409, "code": "regional_payment_policy_changed", "condition": "the trusted market country, policy fingerprint, or allowed methods differ from the authoritative quote binding", "effects": "requote required; no checkout claim or provider call" },
+    { "status": 409, "code": "inventory_unavailable", "condition": "tracked inventory is below requested quantity", "effects": "no quote persistence" },
+    { "status": 503, "code": "inventory_hold_unavailable", "condition": "tracked finite inventory has no authoritative reservation hold", "effects": "no quote persistence" },
+    { "status": 503, "code": "shipping_authority_unavailable", "condition": "physical shipping lacks a valid active profile, destination rate, tax authority, or tipping policy", "effects": "no quote persistence" },
+    { "status": 503, "code": "cart_authority_unavailable", "condition": "versioned cart source lacks a verified buyer/provider binding", "effects": "none" },
+    { "status": 503, "code": "checkout_scope_unavailable", "condition": "trusted host site, environment, or actor scope is unavailable", "effects": "none" },
+    { "status": 503, "code": "guarded_write_policy_unavailable", "condition": "exact guarded-policy readiness marker is absent or incompatible", "effects": "no operation or money mutation" },
+    { "status": 200, "code": "insufficient-funds", "condition": "authenticated credits authority proves the available balance is below the authoritative checkout total", "effects": "durable terminal outcome; no debit, ledger settlement, inventory commit, or delivery effect" },
+    { "status": 200, "code": "transport-outcome-unknown", "condition": "Stripe transport or response cannot prove creation or non-creation", "effects": "durable indeterminate checkout; never reported paid" }
+  ]
+}

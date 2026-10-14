@@ -1,0 +1,3 @@
+/* Styles exposed by the extension archive; registration also injects them for hosts. */
+@import './admin-plugin.css';
+@import './admin-plugin-payments.css';

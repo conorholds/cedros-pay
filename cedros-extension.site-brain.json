@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "cedros-pay",
+  "version": "5.0.8",
+  "runtimeApiStatus": {
+    "siteBrainRecordEmit": "published",
+    "structuredLogHelper": "published"
+  },
+  "subjectScheme": "Use stable manifest ids for jobs/routes and cedros-pay:<local-action> for setup or support records.",
+  "tagScheme": [
+    "cedros-pay",
+    "payments",
+    "setup",
+    "automation",
+    "compliance",
+    "maintenance"
+  ],
+  "redactionPlan": {
+    "forbiddenDetailKeys": [
+      "email",
+      "phone",
+      "token",
+      "secret",
+      "cookie",
+      "authorization",
+      "walletAddress",
+      "customerId",
+      "userId",
+      "paymentIntent",
+      "rawPayload"
+    ],
+    "allowedCauseCodes": [
+      "validation_failed",
+      "permission_denied",
+      "provider_unavailable",
+      "downstream_failed",
+      "retryable_downstream_failed",
+      "dependency_missing",
+      "capability_denied"
+    ],
+    "correlationFields": [
+      "requestId",
+      "runId",
+      "scheduleInstanceId"
+    ],
+    "leakScan": "Validate durable details and transient metadata keys against forbiddenDetailKeys before packaging."
+  },
+  "durableRecords": [
+    {
+      "recordId": "cedros-pay:setup-completed",
+      "category": "setup",
+      "subject": "cedros-pay:setup-completed",
+      "title": "Cedros Pay setup completed",
+      "summary": "Required payment and webhook settings were reviewed.",
+      "tags": [
+        "cedros-pay",
+        "setup"
+      ],
+      "detailsShape": {
+        "completedStepCount": "integer",
+        "skippedStepCount": "integer",
+        "requestId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "admin-page",
+          "id": "cedros-pay:payment-settings",
+          "path": "cedros-pay:payment-settings",
+          "label": "Payment Options",
+          "description": "Review payment provider setup."
+        },
+        {
+          "kind": "admin-page",
+          "id": "cedros-pay:webhooks",
+          "path": "cedros-pay:webhooks",
+          "label": "Webhooks",
+          "description": "Review webhook delivery setup."
+        }
+      ],
+      "recoveryAction": "Return to Cedros Pay onboarding if a setup step is later marked incomplete."
+    },
+    {
+      "recordId": "cedros-pay:webhook-delivery-record",
+      "category": "automation",
+      "subject": "cedros-pay:webhook-delivery",
+      "title": "Webhook delivery completed",
+      "summary": "Cedros Pay processed queued webhook deliveries.",
+      "tags": [
+        "cedros-pay",
+        "automation",
+        "webhooks"
+      ],
+      "detailsShape": {
+        "deliveredCount": "integer",
+        "retryableCount": "integer",
+        "failedCount": "integer",
+        "deadLetterCount": "integer",
+        "runId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "job",
+          "id": "cedros-pay:webhook-delivery",
+          "label": "Webhook delivery job",
+          "description": "Queued webhook delivery run."
+        },
+        {
+          "kind": "admin-page",
+          "id": "cedros-pay:webhooks",
+          "path": "cedros-pay:webhooks",
+          "label": "Webhooks",
+          "description": "Review retry and dead-letter state."
+        }
+      ],
+      "recoveryAction": "Open Webhooks and retry or disable failing destinations."
+    },
+    {
+      "recordId": "cedros-pay:subscription-sync-record",
+      "category": "automation",
+      "subject": "cedros-pay:subscription-sync",
+      "title": "Subscription sync completed",
+      "summary": "Cedros Pay reconciled subscription state.",
+      "tags": [
+        "cedros-pay",
+        "automation",
+        "subscriptions"
+      ],
+      "detailsShape": {
+        "syncedCount": "integer",
+        "expiredCount": "integer",
+        "failedCount": "integer",
+        "runId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "job",
+          "id": "cedros-pay:subscription-sync",
+          "label": "Subscription sync job",
+          "description": "Subscription reconciliation run."
+        },
+        {
+          "kind": "admin-page",
+          "id": "cedros-pay:subscriptions",
+          "path": "cedros-pay:subscriptions",
+          "label": "Subscriptions",
+          "description": "Review affected subscription records."
+        }
+      ],
+      "recoveryAction": "Review failed count and rerun after provider or database recovery."
+    },
+    {
+      "recordId": "cedros-pay:cleanup-record",
+      "category": "maintenance",
+      "subject": "cedros-pay:cleanup",
+      "title": "Cleanup completed",
+      "summary": "Cedros Pay applied retention and queue cleanup policy.",
+      "tags": [
+        "cedros-pay",
+        "maintenance"
+      ],
+      "detailsShape": {
+        "deletedCount": "integer",
+        "archivedCount": "integer",
+        "retainedCount": "integer",
+        "failedCount": "integer",
+        "runId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "job",
+          "id": "cedros-pay:cleanup",
+          "label": "Cleanup job",
+          "description": "Retention cleanup run."
+        }
+      ],
+      "recoveryAction": "Rerun cleanup after resolving retryable database failures."
+    },
+    {
+      "recordId": "cedros-pay:stats-rollup-record",
+      "category": "automation",
+      "subject": "cedros-pay:stats-rollup",
+      "title": "Stats rollup completed",
+      "summary": "Cedros Pay aggregated one day of payment activity for dashboard stats.",
+      "tags": [
+        "cedros-pay",
+        "automation"
+      ],
+      "detailsShape": {
+        "day": "date",
+        "txnCount": "integer",
+        "grossCents": "integer",
+        "runId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "job",
+          "id": "cedros-pay:stats-rollup",
+          "label": "Stats rollup job",
+          "description": "Daily revenue aggregation."
+        },
+        {
+          "kind": "admin-page",
+          "id": "cedros-pay:transactions",
+          "path": "cedros-pay:transactions",
+          "label": "Transactions",
+          "description": "Review aggregate transaction activity."
+        }
+      ],
+      "recoveryAction": "Rerun the affected day after resolving database errors."
+    },
+    {
+      "recordId": "cedros-pay:x402-reconcile-record",
+      "category": "automation",
+      "subject": "cedros-pay:x402-reconcile",
+      "title": "x402 reconciliation completed",
+      "summary": "Cedros Pay reconciled bounded pending x402 payments from durable on-chain proof.",
+      "tags": [
+        "cedros-pay",
+        "automation"
+      ],
+      "detailsShape": {
+        "checkedCount": "integer",
+        "settledCount": "integer",
+        "retryableCount": "integer",
+        "runId": "redacted-reference"
+      },
+      "references": [
+        {
+          "kind": "job",
+          "id": "cedros-pay:x402-reconcile",
+          "label": "x402 reconcile job",
+          "description": "Guarded pending payment reconciliation."
+        }
+      ],
+      "recoveryAction": "Keep the schedule paused until the guarded marker validates; retry after RPC recovery."
+    }
+  ],
+  "transientLogs": [
+    {
+      "logId": "cedros-pay:route-failed-log",
+      "level": "warn",
+      "surface": "server-route",
+      "operation": "route-request",
+      "fields": [
+        "extensionId",
+        "manifestId",
+        "requestId",
+        "operation",
+        "cause",
+        "metadata"
+      ],
+      "metadataShape": {
+        "statusCode": "integer",
+        "retryable": "boolean"
+      }
+    },
+    {
+      "logId": "cedros-pay:job-outcome-log",
+      "level": "info",
+      "surface": "job",
+      "operation": "job-execution",
+      "fields": [
+        "extensionId",
+        "manifestId",
+        "runId",
+        "operation",
+        "cause",
+        "metadata"
+      ],
+      "metadataShape": {
+        "attempt": "integer",
+        "succeededCount": "integer",
+        "failedCount": "integer"
+      }
+    },
+    {
+      "logId": "cedros-pay:provider-call-log",
+      "level": "warn",
+      "surface": "provider",
+      "operation": "host-provider-call",
+      "fields": [
+        "extensionId",
+        "manifestId",
+        "requestId",
+        "operation",
+        "cause",
+        "metadata"
+      ],
+      "metadataShape": {
+        "provider": "string",
+        "retryable": "boolean",
+        "durationMs": "integer"
+      }
+    }
+  ]
+}

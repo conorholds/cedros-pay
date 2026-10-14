@@ -1,0 +1,29 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/admin/register.ts",
+    "src/web/register.ts",
+    "src/__tests__/mocks/cedrosAdminRuntime.ts",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.spec.{ts,tsx}",
+    "scripts/*.mjs",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/*.mjs",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "ignore": [
+    "dist/**",
+    "react-native/**"
+  ],
+  "ignoreDependencies": [
+    "bigint-buffer",
+    "buffer",
+    "cedros",
+    "image-size"
+  ]
+}

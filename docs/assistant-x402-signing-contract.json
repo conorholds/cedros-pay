@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "providerOperation": {
+    "accessId": "cedros-pay:blockchain-assistant-x402-sign",
+    "provider": "blockchain",
+    "operation": "blockchain.solana.sign.assistant-x402",
+    "payloadSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "walletId",
+        "walletVersionId",
+        "cluster",
+        "serializedTransactionBase64",
+        "transactionSha256",
+        "paymentMint",
+        "paymentAmountMicrounits",
+        "tokenDecimals",
+        "payTo",
+        "destinationTokenAccount",
+        "memo",
+        "maxFeeLamports",
+        "requestId",
+        "assistantId",
+        "runId",
+        "idempotencyKey"
+      ],
+      "properties": {
+        "walletId": { "type": "string", "format": "uuid" },
+        "walletVersionId": { "type": "string", "format": "uuid" },
+        "cluster": { "enum": ["devnet", "testnet", "mainnet-beta", "localnet"] },
+        "serializedTransactionBase64": { "type": "string", "minLength": 1, "maxLength": 1644 },
+        "transactionSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "paymentMint": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+        "paymentAmountMicrounits": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "tokenDecimals": { "type": "integer", "minimum": 0, "maximum": 9 },
+        "payTo": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+        "destinationTokenAccount": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+        "memo": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "maxFeeLamports": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "assistantId": { "const": "ai-assistant" },
+        "runId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 240,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        }
+      }
+    }
+  },
+  "vaultRequest": {
+    "openApiSource": "cedros-vault/docs/cedros-openapi.yaml#/components/schemas/SignManagedSolanaTransaction",
+    "method": "POST",
+    "pathTemplate": "/cedros/platform/v1/admin/wallets/{walletId}/signatures",
+    "walletIdSource": "providerOperation.payload.walletId",
+    "bodySchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "walletVersionId",
+        "cluster",
+        "serializedTransactionBase64",
+        "transactionSha256",
+        "intent",
+        "idempotencyKey"
+      ],
+      "properties": {
+        "walletVersionId": { "type": "string", "format": "uuid" },
+        "cluster": { "enum": ["devnet", "testnet", "mainnet-beta", "localnet"] },
+        "serializedTransactionBase64": { "type": "string", "minLength": 1, "maxLength": 1644 },
+        "transactionSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "intent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "paymentMint",
+            "paymentAmountMicrounits",
+            "tokenDecimals",
+            "payTo",
+            "destinationTokenAccount",
+            "memo",
+            "maxFeeLamports",
+            "requestId",
+            "assistantId",
+            "runId"
+          ],
+          "properties": {
+            "kind": { "const": "assistantX402Payment" },
+            "paymentMint": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+            "paymentAmountMicrounits": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "tokenDecimals": { "type": "integer", "minimum": 0, "maximum": 9 },
+            "payTo": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+            "destinationTokenAccount": { "type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$" },
+            "memo": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "maxFeeLamports": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "requestId": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "assistantId": { "const": "ai-assistant" },
+            "runId": { "type": "string", "minLength": 1, "maxLength": 255 }
+          }
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 240,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        }
+      }
+    }
+  },
+  "providerToVaultMapping": {
+    "walletId": "path.walletId",
+    "walletVersionId": "body.walletVersionId",
+    "cluster": "body.cluster",
+    "serializedTransactionBase64": "body.serializedTransactionBase64",
+    "transactionSha256": "body.transactionSha256",
+    "paymentMint": "body.intent.paymentMint",
+    "paymentAmountMicrounits": "body.intent.paymentAmountMicrounits",
+    "tokenDecimals": "body.intent.tokenDecimals",
+    "payTo": "body.intent.payTo",
+    "destinationTokenAccount": "body.intent.destinationTokenAccount",
+    "memo": "body.intent.memo",
+    "maxFeeLamports": "body.intent.maxFeeLamports",
+    "requestId": "body.intent.requestId",
+    "assistantId": "body.intent.assistantId",
+    "runId": "body.intent.runId",
+    "idempotencyKey": "body.idempotencyKey"
+  }
+}

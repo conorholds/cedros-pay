@@ -1,0 +1,21 @@
+# Check for production keys in .env files
+if grep -r "pk_live_" .env* 2>/dev/null | grep -v ".env.example"; then
+  echo "❌ ERROR: Production Stripe keys detected in .env files"
+  echo "Remove live keys before committing"
+  exit 1
+fi
+
+if grep -r "sk_live_" .env* 2>/dev/null | grep -v ".env.example"; then
+  echo "❌ ERROR: Production Stripe secret keys detected in .env files"
+  echo "Remove live keys before committing"
+  exit 1
+fi
+
+# Check if .env files are being committed
+if git diff --cached --name-only | grep -E "^\.env(\.|$)"; then
+  echo "❌ ERROR: Attempting to commit .env files"
+  echo "Remove .env files from staging area"
+  exit 1
+fi
+
+exit 0

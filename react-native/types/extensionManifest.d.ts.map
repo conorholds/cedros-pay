@@ -1,1 +1,0 @@
-{"version":3,"file":"extensionManifest.d.ts","sourceRoot":"","sources":["../src/extensionManifest.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,wBAAwB,EAAE,uBAAuB,EAAE,MAAM,0BAA0B,CAAC;AAElG,YAAY,EAAE,wBAAwB,EAAE,uBAAuB,EAAE,MAAM,0BAA0B,CAAC;AAElG;;;GAGG;AACH,eAAO,MAAM,gCAAgC,EAAwB,uBAAuB,CAAC;AAE7F,eAAO,MAAM,iCAAiC,EAAE,wBAE/C,CAAC"}

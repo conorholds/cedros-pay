@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <link rel="icon" href="data:," />
+  <title>Cedros admin cache performance fixture</title>
+  <main>
+    <h1>Admin cache performance fixture</h1>
+    <p>Synthetic data, no network API calls. Use browser Performance and Memory tools while running repeated workloads.</p>
+    <button id="run" type="button">Run 1,000 search reads</button>
+    <pre id="results" aria-live="polite">Ready</pre>
+    <ol id="rows"></ol>
+  </main>
+  <script type="module" src="/src/__tests__/adminCacheBrowserFixture.ts"></script>
+</html>

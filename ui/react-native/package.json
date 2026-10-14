@@ -1,0 +1,55 @@
+{
+  "name": "@cedros/pay-react-native",
+  "version": "5.0.8",
+  "description": "Private native registration for the Cedros Pay extension",
+  "exports": {
+    "./register": {
+      "types": "./types/register.d.ts",
+      "react-native": "./esm/register.js",
+      "import": "./esm/register.js",
+      "require": "./lib/register.js"
+    }
+  },
+  "files": [
+    "esm",
+    "lib",
+    "types"
+  ],
+  "author": "Cedros Pay Team",
+  "license": "LicenseRef-PILL-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/conorholds/cedros-pay.git",
+    "directory": "ui/react-native"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@typescript-eslint/eslint-plugin": "8.60.1",
+    "@typescript-eslint/parser": "8.60.1",
+    "esbuild": "0.28.1",
+    "eslint": "9.39.4",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.6.0",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "clean": "rm -rf lib esm types",
+    "build": "npm run clean && npm run build:lib && npm run build:esm && npm run build:types",
+    "build:lib": "tsc -p tsconfig.json --outDir lib --module commonjs --jsx react-jsx",
+    "build:esm": "node scripts/build-esm.mjs",
+    "build:types": "tsc -p tsconfig.json --outDir types --declaration --emitDeclarationOnly",
+    "lint": "eslint src",
+    "type-check": "tsc --noEmit",
+    "test": "npm run build:lib && node --test tests/*.test.cjs",
+    "sync:extension-manifest": "node scripts/sync-extension-manifest.mjs",
+    "check:extension-manifest": "node scripts/sync-extension-manifest.mjs --check",
+    "verify:exports": "node scripts/verify-package-exports.mjs",
+    "ci:checks": "npm run check:extension-manifest && npm run lint && npm run type-check && npm test && npm run build && npm run verify:exports"
+  },
+  "bugs": {
+    "url": "https://github.com/conorholds/cedros-pay/issues"
+  },
+  "homepage": "https://github.com/conorholds/cedros-pay#readme",
+  "packageManager": "npm@11.13.0",
+  "private": true
+}

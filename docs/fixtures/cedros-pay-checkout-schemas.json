@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cedros.dev/schemas/cedros-pay-checkout-v1.json",
+  "title": "Cedros Pay canonical checkout schema version 1",
+  "$defs": {
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 67,
+      "pattern": "^[!-~]+$"
+    },
+    "attemptId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "clientMaterialSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "operationId": {
+      "type": "string",
+      "pattern": "^payop_[0-9a-f]{64}$"
+    },
+    "paymentMethod": {
+      "enum": ["stripe", "x402", "credits"]
+    },
+    "returnUrls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["success", "cancel"],
+      "properties": {
+        "success": { "type": "string", "maxLength": 2048, "pattern": "^https://[^@]+$" },
+        "cancel": { "type": "string", "maxLength": 2048, "pattern": "^https://[^@]+$" }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "email": { "type": "string", "minLength": 1, "maxLength": 254 },
+        "phone": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "fulfillment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "digital" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "address", "shipping"],
+          "properties": {
+            "kind": { "const": "shipping" },
+            "address": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["line1", "city", "postalCode", "country"],
+              "properties": {
+                "line1": { "type": "string", "minLength": 1, "maxLength": 200 },
+                "line2": { "type": "string", "minLength": 1, "maxLength": 200 },
+                "city": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "region": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "postalCode": { "type": "string", "minLength": 1, "maxLength": 32 },
+                "country": { "type": "string", "pattern": "^[A-Za-z]{2}$" }
+              }
+            },
+            "shipping": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["optionId"],
+              "properties": { "optionId": { "type": "string", "minLength": 1, "maxLength": 128 } }
+            }
+          }
+        }
+      ]
+    },
+    "customerContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fulfillment", "returnUrls"],
+      "properties": {
+        "fulfillment": { "$ref": "#/$defs/fulfillment" },
+        "contact": { "$ref": "#/$defs/contact" },
+        "returnUrls": { "$ref": "#/$defs/returnUrls" }
+      }
+    },
+    "quoteItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource", "qty"],
+      "properties": {
+        "resource": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_.:-]+$" },
+        "variantId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_.:-]+$" },
+        "qty": { "type": "integer", "minimum": 1, "maximum": 999 }
+      }
+    },
+    "quoteSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "items"],
+          "properties": {
+            "kind": { "const": "items" },
+            "items": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/quoteItem" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "lane", "generation", "version"],
+          "properties": {
+            "kind": { "const": "versioned_cart" },
+            "lane": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_.:-]+$" },
+            "generation": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "version": { "type": "integer", "minimum": 0, "maximum": 100000 }
+          }
+        }
+      ]
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "providerScope", "replayTtlMs", "acceptsExternalIdempotencyKey", "maxIdempotencyKeyLength", "idempotencyKeyCharacterSet", "operationScopes"],
+      "properties": {
+        "protocol": { "const": "cedros-pay-checkout" },
+        "providerScope": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "replayTtlMs": { "const": 259200000 },
+        "acceptsExternalIdempotencyKey": { "const": true },
+        "maxIdempotencyKeyLength": { "const": 67 },
+        "idempotencyKeyCharacterSet": { "const": "ascii-visible" },
+        "operationScopes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quote", "checkout"],
+          "properties": {
+            "quote": { "const": "cedros-pay-checkout:quote" },
+            "checkout": { "const": "cedros-pay-checkout:checkout" }
+          }
+        }
+      }
+    },
+    "quoteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "idempotencyKey", "attemptId", "clientMaterialSha256", "source", "customerContext", "requestedPaymentMethods"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "idempotencyKey": { "$ref": "#/$defs/idempotencyKey" },
+        "attemptId": { "$ref": "#/$defs/attemptId" },
+        "clientMaterialSha256": { "$ref": "#/$defs/clientMaterialSha256" },
+        "source": { "$ref": "#/$defs/quoteSource" },
+        "promotionCode": { "type": "string" },
+        "customerContext": { "$ref": "#/$defs/customerContext" },
+        "tip": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "amountCents"],
+              "properties": {
+                "kind": { "const": "fixed" },
+                "amountCents": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "basisPoints"],
+              "properties": {
+                "kind": { "const": "percentage" },
+                "basisPoints": { "type": "integer", "minimum": 1, "maximum": 10000 }
+              }
+            }
+          ]
+        },
+        "requestedPaymentMethods": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/paymentMethod" }
+        }
+      }
+    },
+    "railProof": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "stripe" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "transaction"],
+          "properties": {
+            "kind": { "const": "x402" },
+            "transaction": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "credits" } }
+        }
+      ]
+    },
+    "checkoutRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "idempotencyKey", "attemptId", "clientMaterialSha256", "quoteOperationId", "paymentMethod", "customerContext"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "idempotencyKey": { "$ref": "#/$defs/idempotencyKey" },
+        "attemptId": { "$ref": "#/$defs/attemptId" },
+        "clientMaterialSha256": { "$ref": "#/$defs/clientMaterialSha256" },
+        "quoteOperationId": { "$ref": "#/$defs/operationId" },
+        "paymentMethod": { "$ref": "#/$defs/paymentMethod" },
+        "customerContext": { "$ref": "#/$defs/customerContext" },
+        "railProof": { "$ref": "#/$defs/railProof" }
+      }
+    },
+    "resolveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "operationId", "expectedAttemptId", "returnArtifact"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "operationId": { "$ref": "#/$defs/operationId" },
+        "expectedAttemptId": { "$ref": "#/$defs/attemptId" },
+        "returnArtifact": { "type": "string", "pattern": "^cs_[A-Za-z0-9_-]+$", "maxLength": 255 }
+      }
+    },
+    "verifyReturnRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "expectedAttemptId", "returnArtifact"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "expectedAttemptId": { "$ref": "#/$defs/attemptId" },
+        "returnArtifact": { "type": "string", "pattern": "^cs_[A-Za-z0-9_-]+$", "maxLength": 255 }
+      }
+    },
+    "safeSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "intentSha256"],
+          "properties": {
+            "kind": { "const": "items" },
+            "intentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "lane", "generation", "version"],
+          "properties": {
+            "kind": { "const": "versioned_cart" },
+            "lane": { "type": "string" },
+            "generation": { "type": "string" },
+            "version": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "authoritativeLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource", "qty", "unitAmountCents", "lineTotalCents", "currency", "title", "paymentResource"],
+      "properties": {
+        "resource": { "type": "string" },
+        "variantId": { "type": "string" },
+        "qty": { "type": "integer", "minimum": 1 },
+        "unitAmountCents": { "type": "integer", "minimum": 0 },
+        "lineTotalCents": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Za-z]{3}$" },
+        "title": { "type": "string" },
+        "image": { "type": "string" },
+        "paymentResource": { "type": "string" },
+        "shippingProfileId": { "type": "string" }
+      }
+    },
+    "x402PaymentInstructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "payTo", "recipientTokenAccount", "tokenMint", "amountAtomic", "decimals", "memo"],
+      "properties": {
+        "network": { "type": "string", "minLength": 1 },
+        "tokenSymbol": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "payTo": { "type": "string", "minLength": 32, "maxLength": 44 },
+        "feePayer": { "type": "string", "minLength": 32, "maxLength": 44 },
+        "recipientTokenAccount": { "type": "string", "minLength": 32, "maxLength": 44 },
+        "tokenMint": { "type": "string", "minLength": 32, "maxLength": 44 },
+        "amountAtomic": { "type": "integer", "minimum": 1 },
+        "decimals": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "memo": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "authoritativeQuote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "source", "lines", "currency", "subtotalCents", "discountCents", "shippingCents", "taxCents", "tipCents", "totalCents", "requestedPaymentMethods", "expiresAt"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "source": { "$ref": "#/$defs/safeSource" },
+        "lines": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/authoritativeLine" } },
+        "currency": { "type": "string", "pattern": "^[A-Za-z]{3}$" },
+        "subtotalCents": { "type": "integer", "minimum": 0 },
+        "discountCents": { "type": "integer", "minimum": 0 },
+        "shippingCents": { "type": "integer", "minimum": 0 },
+        "taxCents": { "type": "integer", "minimum": 0 },
+        "tipCents": { "type": "integer", "minimum": 0 },
+        "totalCents": { "type": "integer", "minimum": 1 },
+        "shippingRateId": { "type": "string" },
+        "taxRateId": { "type": "string" },
+        "appliedTip": {
+          "oneOf": [
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["kind", "amountCents"],
+              "properties": { "kind": { "const": "fixed" }, "amountCents": { "type": "integer", "minimum": 1 } }
+            },
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["kind", "basisPoints", "amountCents"],
+              "properties": {
+                "kind": { "const": "percentage" },
+                "basisPoints": { "type": "integer", "minimum": 1, "maximum": 10000 },
+                "amountCents": { "type": "integer", "minimum": 1 }
+              }
+            }
+          ]
+        },
+        "inventoryHold": {
+          "type": "object", "additionalProperties": false,
+          "required": ["holdId", "expiresAt"],
+          "properties": {
+            "holdId": { "type": "string" },
+            "expiresAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "promotionCode": { "type": "string" },
+        "requestedPaymentMethods": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/paymentMethod" } },
+        "x402": { "$ref": "#/$defs/x402PaymentInstructions" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "quoteResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "operationId", "attemptId", "quote", "replayed"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "operationId": { "$ref": "#/$defs/operationId" },
+        "attemptId": { "$ref": "#/$defs/attemptId" },
+        "quote": { "$ref": "#/$defs/authoritativeQuote" },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "paymentOutcome": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "operationId", "attemptId", "paymentMethod", "returnArtifact", "replayed"],
+          "properties": {
+            "status": { "const": "action_required" }, "operationId": { "$ref": "#/$defs/operationId" },
+            "attemptId": { "$ref": "#/$defs/attemptId" }, "paymentMethod": { "$ref": "#/$defs/paymentMethod" },
+            "returnArtifact": { "type": "string" }, "replayed": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "operationId", "attemptId", "paymentMethod", "replayed"],
+          "properties": {
+            "status": { "enum": ["processing", "paid"] }, "operationId": { "$ref": "#/$defs/operationId" },
+            "attemptId": { "$ref": "#/$defs/attemptId" }, "paymentMethod": { "$ref": "#/$defs/paymentMethod" },
+            "replayed": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "operationId", "attemptId", "paymentMethod", "code", "replayed"],
+          "properties": {
+            "status": { "enum": ["terminal", "indeterminate"] }, "operationId": { "$ref": "#/$defs/operationId" },
+            "attemptId": { "$ref": "#/$defs/attemptId" }, "paymentMethod": { "$ref": "#/$defs/paymentMethod" },
+            "code": { "type": "string" }, "replayed": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "verifyOutcome": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "checkoutAttemptId"],
+          "properties": {
+            "status": { "const": "verified" },
+            "checkoutAttemptId": { "$ref": "#/$defs/attemptId" }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status"],
+          "properties": { "status": { "enum": ["mismatch", "indeterminate"] } }
+        }
+      ]
+    },
+    "resolveOutcome": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "operationId", "attemptId", "paymentMethod", "checkoutUrl"],
+          "properties": {
+            "status": { "const": "resolved" }, "operationId": { "$ref": "#/$defs/operationId" },
+            "attemptId": { "$ref": "#/$defs/attemptId" }, "paymentMethod": { "$ref": "#/$defs/paymentMethod" },
+            "checkoutUrl": { "type": "string", "pattern": "^https://checkout[.]stripe[.]com/" }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "operationId", "attemptId", "paymentMethod"],
+          "properties": {
+            "status": { "enum": ["mismatch", "indeterminate"] }, "operationId": { "$ref": "#/$defs/operationId" },
+            "attemptId": { "$ref": "#/$defs/attemptId" }, "paymentMethod": { "$ref": "#/$defs/paymentMethod" }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/descriptor" },
+    { "$ref": "#/$defs/quoteRequest" },
+    { "$ref": "#/$defs/quoteResponse" },
+    { "$ref": "#/$defs/checkoutRequest" },
+    { "$ref": "#/$defs/resolveRequest" },
+    { "$ref": "#/$defs/verifyReturnRequest" },
+    { "$ref": "#/$defs/paymentOutcome" },
+    { "$ref": "#/$defs/verifyOutcome" },
+    { "$ref": "#/$defs/resolveOutcome" }
+  ]
+}

@@ -1,0 +1,487 @@
+package cedros:extension@0.1.0;
+
+/// Capabilities are modeled as separate interfaces so the host can grant each
+/// one independently: the host links an interface into the guest only when the
+/// site owner granted that capability. A guest that imports a capability it was
+/// not granted fails closed at instantiation (the import is unsatisfied), rather
+/// than being denied per call. Operation-level scope (which content models /
+/// verbs) is still enforced per call by the host's validated seam.
+
+/// Always-granted diagnostic logging. Benign, so every extension gets it.
+interface logging {
+    /// Emit a diagnostic log line through the host tracing pipeline.
+    /// `level` is one of: error, warn, info, debug, trace.
+    log: func(level: string, message: string);
+}
+
+/// Granted when the extension's manifest declares any `databaseAccess`.
+/// Backed by the host's validated site-database seam.
+interface database {
+    /// Structured error returned by a failed database operation.
+    record host-error {
+        message: string,
+    }
+
+    /// Stable machine-readable error returned by the optimistic-concurrency
+    /// seam. Compare-and-set conflicts are not errors; they are the `conflict`
+    /// case of `cas-outcome`.
+    record cas-error {
+        /// Stable code such as `cedros.request.invalid`.
+        code: string,
+        /// Stable category such as `validation_failed`, `not_found`,
+        /// `rate_limited`, `conflict`, `storage_failed`, or
+        /// `host_runtime_failed`.
+        category: string,
+        /// Human-readable, user-safe diagnostic text.
+        message: string,
+    }
+
+    /// Redacted first failed precondition. Stored payloads and current revision
+    /// tokens are deliberately omitted so conflict handling grants no read
+    /// authority beyond the caller's declared database access.
+    record cas-conflict {
+        condition-index: u32,
+        content-model-id: string,
+        entry-key: string,
+        predicate: string,
+    }
+
+    /// Applied responses carry the canonical JSON result because batch
+    /// operation result bodies are operation-specific. Conflicts are a typed
+    /// domain outcome and guarantee that no mutation committed.
+    variant cas-outcome {
+        applied(string),
+        conflict(cas-conflict),
+    }
+
+    /// Read entries from an extension-owned content model. `query-json` is the
+    /// read payload (entryKeys, contains, filters, orderBy, limit, offset).
+    /// Returns `{ "entries": [{ "entry_key", "payload", "updated_at",
+    /// "version" }] }`. For host-managed JSONB collections, `version` is an
+    /// opaque stable revision token for the exact committed row state; compare
+    /// it only for equality and never derive ordering or time from it. Typed
+    /// collections return a null version and are outside the v1 CAS contract.
+    read: func(
+        access-id: string,
+        content-model-id: string,
+        query-json: string,
+    ) -> result<string, host-error>;
+
+    /// Count entries matching a filter without fetching rows. `query-json` takes
+    /// the same `entryKeys`/`contains`/`filters` as `read` (ordering and
+    /// pagination are ignored). Returns `{ count }`.
+    count: func(
+        access-id: string,
+        content-model-id: string,
+        query-json: string,
+    ) -> result<string, host-error>;
+
+    /// Upsert one entry into an extension-owned content model. `data-json` is
+    /// the entry payload. Returns the stored entry JSON.
+    write: func(
+        access-id: string,
+        content-model-id: string,
+        entry-key: string,
+        data-json: string,
+    ) -> result<string, host-error>;
+
+    /// Delete one entry from an extension-owned content model by key. Returns
+    /// `{ removed }` (whether a row existed). Idempotent: deleting a missing key
+    /// succeeds with `removed: false`.
+    delete: func(
+        access-id: string,
+        content-model-id: string,
+        entry-key: string,
+    ) -> result<string, host-error>;
+
+    /// Apply multiple write/delete ops atomically in one transaction (all
+    /// commit or all roll back). `ops-json` is `{ "ops": [ { "op":
+    /// "write"|"delete", "contentModelId": string, "entryKey": string, "data"?:
+    /// object }, ... ] }`. Each op's verb + content model is scope-checked
+    /// against the same `databaseAccess[]` write/delete scopes (no extra
+    /// authority). Returns `{ applied }`.
+    batch: func(
+        access-id: string,
+        ops-json: string,
+    ) -> result<string, host-error>;
+
+    /// Atomically compare preconditions and apply one or more extension-owned
+    /// JSONB record mutations. Typed collections are rejected. `request-json`
+    /// is schemaVersion 1 with non-empty `conditions` and `ops` arrays. A
+    /// condition names contentModelId,
+    /// entryKey, and either predicate `absent` or predicate `version` plus
+    /// expectedVersion. Ops are write/delete shapes accepted by `batch`.
+    ///
+    /// Every condition requires read scope; every op keeps its own write/delete
+    /// scope and declared-model checks. All referenced keys are locked and all
+    /// conditions are evaluated in the same transaction as every mutation.
+    /// `conflict` means zero mutations committed. `applied` JSON contains
+    /// `{ "outcome": "applied", "applied", "results", "entries":
+    /// [{ "contentModelId", "entryKey", "version" }], "replayed" }`.
+    ///
+    /// Create uses an `absent` condition; update/delete use a `version`
+    /// condition from a prior read. Reset/recovery must re-read and reconcile
+    /// after conflict, never silently retry an unconditional overwrite.
+    compare-and-set: func(
+        access-id: string,
+        request-json: string,
+    ) -> result<cas-outcome, cas-error>;
+
+    /// Provision/register an extension-owned content-model collection.
+    /// `mode` is "jsonb" (default) or "typed". Returns the collection JSON.
+    migrate: func(
+        access-id: string,
+        content-model-id: string,
+        mode: string,
+    ) -> result<string, host-error>;
+}
+
+/// Granted when the extension's manifest declares any settingsSchemas. A
+/// per-extension key/value store scoped to this extension.
+interface settings {
+    record host-error {
+        message: string,
+    }
+
+    /// Read one setting value (JSON-encoded), if set.
+    get: func(key: string) -> result<option<string>, host-error>;
+
+    /// Write exactly one setting value. This is a single-key, non-batching
+    /// seam with no multi-key transaction. `value` is JSON; a non-JSON string
+    /// is stored as a JSON string.
+    set: func(key: string, value: string) -> result<_, host-error>;
+
+    /// Read all of this extension's settings as a JSON object.
+    list-all: func() -> result<string, host-error>;
+}
+
+/// Always granted: a per-extension, encrypted-at-rest secret store, fully
+/// isolated from other extensions (like logging, it reaches no host resource —
+/// just this extension's own sealed values).
+interface secrets {
+    record host-error {
+        message: string,
+    }
+
+    /// Read one secret value (decrypted), if set.
+    get: func(key: string) -> result<option<string>, host-error>;
+
+    /// Store one secret value (sealed before persistence).
+    set: func(key: string, value: string) -> result<_, host-error>;
+
+    /// Remove one secret. Returns whether it existed.
+    delete: func(key: string) -> result<bool, host-error>;
+}
+
+/// Granted when the extension's manifest declares any server events. Emits
+/// telemetry attributed to the extension; durable site-brain writes additionally
+/// require a write capability resource of `site-brain-record:<category>`.
+interface telemetry {
+    record host-error {
+        message: string,
+    }
+
+    /// Emit one analytics event. `label` may be empty; `metadata-json` is a JSON
+    /// object (or empty for none).
+    emit-event: func(
+        event-id: string,
+        label: string,
+        metadata-json: string,
+    ) -> result<_, host-error>;
+
+    /// Publish one durable site-brain record (operational log). `category` must
+    /// match a `site-brain-record:<category>` write capability resource.
+    /// `payload-json` may carry `summary`, `subject`, `tags`, `details` (or
+    /// empty for none).
+    emit-record: func(
+        category: string,
+        title: string,
+        text: string,
+        payload-json: string,
+    ) -> result<_, host-error>;
+}
+
+/// Granted when the extension's manifest declares any customerTagAccess. Reads
+/// and writes CRM customer-tag assignments through the host's validated bridge.
+interface customer-tags {
+    record host-error {
+        message: string,
+    }
+
+    /// Assign a tag to a profile. `payload-json` may carry `note`, `metadata`.
+    /// Returns the assignment record JSON.
+    assign: func(
+        access-id: string,
+        profile-id: string,
+        tag-slug: string,
+        payload-json: string,
+    ) -> result<string, host-error>;
+
+    /// Remove a tag from a profile. Returns `{ removed }`.
+    unassign: func(
+        access-id: string,
+        profile-id: string,
+        tag-slug: string,
+    ) -> result<string, host-error>;
+
+    /// Read a profile's current tag assignments as JSON.
+    read: func(access-id: string, profile-id: string) -> result<string, host-error>;
+}
+
+/// Granted when the extension's manifest declares any crmSourceAccess. Submits
+/// source events into Data-owned CRM profile/source/event linking without direct
+/// CRM database access.
+interface crm-source-events {
+    record host-error {
+        message: string,
+    }
+
+    /// Submit one source event. `access-id` must name the manifest
+    /// `crmSourceAccess[]` grant, `source-kind` and `event-type` must match that
+    /// grant, and `payload-json` is the source-specific JSON body. Returns the
+    /// attribution outcome JSON (`attached`, `profileId`, `reason`).
+    submit: func(
+        access-id: string,
+        source-kind: string,
+        event-type: string,
+        payload-json: string,
+    ) -> result<string, host-error>;
+}
+
+/// Granted when the extension's manifest declares any providerAccess. Calls a
+/// site-owned provider (storage, intelligence, email, …) the operator granted.
+interface providers {
+    record host-error {
+        /// Stable code such as `cedros.provider.not_configured`.
+        code: string,
+        /// Stable category such as `provider_not_configured`.
+        category: string,
+        /// Human-readable, user-safe diagnostic text.
+        message: string,
+    }
+
+    /// Run one provider operation. `access-id` must name the manifest
+    /// `providerAccess[]` grant, `provider` is the provider kind (e.g.
+    /// "storage"), `operation` is the published provider verb, and
+    /// `payload-json` is a JSON request. Returns the provider's JSON output.
+    execute: func(
+        access-id: string,
+        provider: string,
+        operation: string,
+        payload-json: string,
+    ) -> result<string, host-error>;
+
+    /// Resolve the host-selected default for one granted provider operation.
+    /// `access-id`, `provider`, and `operation` pass through the same manifest
+    /// grant and scope checks as `execute`. Intelligence currently returns
+    /// `{ "status": "configured", "provider": string, "model": string }`.
+    /// Provider credentials and secret references are never returned.
+    resolve-default: func(
+        access-id: string,
+        provider: string,
+        operation: string,
+    ) -> result<string, host-error>;
+}
+
+/// Outbound HTTP, restricted to an operator-approved host allowlist — e.g. OIDC
+/// discovery / JWKS / token exchange for federated login. This interface is
+/// always linked, but inert without operator config: every call is enforced at
+/// call time against the allowlist (`CEDROS_EXTENSION_HTTP_ALLOWLIST`), and an
+/// empty allowlist denies all. So a component may reference `http.fetch` and
+/// still load — egress just degrades gracefully (every call returns an error)
+/// until the operator grants hosts. (Same shape as `secrets`, which is inert
+/// without the passphrase.) Granting egress is operator-only, never
+/// manifest-declared, since it is the most security-sensitive capability.
+interface http {
+    record host-error {
+        message: string,
+    }
+
+    /// Perform one outbound request. `request-json` is `{ "method": string,
+    /// "url": string (https), "headers"?: [[name, value]] | object, "body"?:
+    /// string }`. The URL host must be in the operator allowlist and the scheme
+    /// must be https, or the call fails closed before any network I/O. Returns
+    /// `{ "status": u16, "headers": [[name, value]], "body": string }`.
+    fetch: func(request-json: string) -> result<string, host-error>;
+}
+
+/// Capability-gated invocation of another active extension's declared Wasm
+/// route. Linked only when the consumer declares an extension capability
+/// dependency. The host derives the caller extension id from the running guest,
+/// validates both manifests, and injects exactly one authorized operation claim.
+/// There is deliberately no request-header field: service authorization cannot
+/// be self-granted with headers, cookies, bearer tokens, or request JSON.
+interface extension-services {
+    record host-error {
+        /// Stable code such as `cedros.request.invalid`.
+        code: string,
+        /// Stable category such as `validation_failed` or `host_runtime_failed`.
+        category: string,
+        /// Human-readable, user-safe diagnostic text.
+        message: string,
+    }
+
+    record service-request {
+        target-extension-id: string,
+        route-id: string,
+        capability-id: string,
+        method: string,
+        /// Concrete host-mounted path, e.g.
+        /// `/extensions/cedros-balance/credits/rail/transfer`.
+        path: string,
+        query: list<tuple<string, string>>,
+        /// JSON request body. Use an empty string when the operation has no body.
+        body-json: string,
+    }
+
+    record service-response {
+        status: u16,
+        /// Safe provider response headers. Credential and browser-policy headers
+        /// are removed by the host before the consumer receives them.
+        headers: list<tuple<string, string>>,
+        body: string,
+    }
+
+    invoke: func(request: service-request) -> result<service-response, host-error>;
+}
+
+/// Inbound server-route surface an extension exports to the host router.
+interface routes {
+    /// One route the extension serves, declared by the guest so the host can
+    /// bind concrete (method, path) pairs without a manifest schema change.
+    record route-spec {
+        /// Manifest-declared route id (must appear in surfaces.server.routes[]).
+        route-id: string,
+        /// HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS).
+        method: string,
+        /// Path relative to the extension's namespace, e.g. "/orgs". The host
+        /// mounts it under /extensions/{extension-id}.
+        path: string,
+    }
+
+    /// Routes this extension serves. The host calls this once at bind time and
+    /// registers each (method, /extensions/{id}{path}) into the router.
+    list-routes: func() -> list<route-spec>;
+
+    /// One inbound request the host resolved to this extension's route.
+    record route-request {
+        route-id: string,
+        method: string,
+        path: string,
+        headers: list<tuple<string, string>>,
+        query: list<tuple<string, string>>,
+        body: string,
+        /// Host-populated context envelope (actor, auth, csrf, site, env) as
+        /// JSON. The guest must fail closed on unauthenticated/unverified calls.
+        context-json: string,
+    }
+
+    /// The response envelope the guest returns to the host router.
+    record route-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: string,
+    }
+
+    /// Handle one inbound request the host resolved to this extension's route.
+    handle-route: func(request: route-request) -> route-response;
+}
+
+/// Server jobs the extension runs on the host scheduler. An extension with no
+/// jobs returns an empty `list-jobs` and a `run-job` it never receives.
+interface jobs {
+    /// One job the extension runs. The id must appear in surfaces.server.jobs[].
+    record job-spec {
+        job-id: string,
+    }
+
+    /// Status of a finished job run.
+    enum job-status {
+        succeeded,
+        failed,
+        retryable,
+    }
+
+    /// One scheduled invocation handed to the extension.
+    record job-execution {
+        job-id: string,
+        /// Caller-supplied metadata as JSON (or empty for none).
+        metadata-json: string,
+        /// 1-based attempt counter for retries.
+        attempt: u32,
+    }
+
+    /// The result the extension returns to the host scheduler.
+    record job-outcome {
+        status: job-status,
+        /// JSON details for logs/notifications (or empty for none).
+        details-json: string,
+    }
+
+    /// Jobs this extension runs. The host binds each declared id to the scheduler.
+    list-jobs: func() -> list<job-spec>;
+
+    /// Run one scheduled job invocation.
+    run-job: func(execution: job-execution) -> job-outcome;
+}
+
+/// Public-route SEO seam for extensions that serve dynamic, parameterized public
+/// routes (declared in the manifest `seoRoutes[]`). The guest returns DECLARATIVE
+/// SEO data as JSON; Cedros Core owns all head/canonical/JSON-LD/sitemap emission.
+/// This is opt-in: only extensions whose manifest declares `seoRoutes[]` need
+/// implement it, via the `extension-seo` world below — `extension`-only guests are
+/// unaffected.
+interface seo {
+    /// Describe SEO for one route. `request-json` is `{ "path": string,
+    /// "locale": string }` — `path` includes an approved canonical query
+    /// variant when one is declared. The host passes only route context; the guest
+    /// SELF-SOURCES its content (it has its `database` capability). Returns a JSON
+    /// route description (`{ "revision", "indexable", "title", "description",
+    /// "seo": { "schema": { "kind": "Product", ... } } }`) or `none` when the path
+    /// does not resolve (host serves 404/410).
+    describe-route: func(request-json: string) -> option<string>;
+
+    /// Enumerate the extension's indexable public URLs for the sitemap.
+    /// `request-json` carries `{ "origin": string }` context; the guest self-sources
+    /// its routes. Returns `{ "urls": [{ "loc", "revision", "schemaType"? }] }` as
+    /// JSON. Each `loc` must be a same-origin absolute path within the extension's
+    /// declared `seoRoutes` namespace. Core batch-resolves every locale and
+    /// atomically activates HTML plus sitemap only when the same non-empty revision,
+    /// indexability, schema, and locale set agree.
+    list-sitemap-urls: func(request-json: string) -> string;
+}
+
+/// The world a Cedros server extension implements: it imports host capabilities
+/// (each grantable independently) and exports its inbound route + job surfaces.
+/// Central Controls publication lifecycle. The host authenticates extension identity,
+/// validates durable policy, and retains locks until invocation/response completion.
+interface controls-privacy {
+    record host-error { message: string, }
+    bind: func(scope-json: string) -> result<_, host-error>;
+    drain: func(policy-json: string) -> result<_, host-error>;
+}
+
+world extension {
+    import logging;
+    import controls-privacy;
+    import secrets;
+    import database;
+    import settings;
+    import telemetry;
+    import providers;
+    import customer-tags;
+    import crm-source-events;
+    import http;
+    import extension-services;
+    export routes;
+    export jobs;
+}
+
+/// Opt-in superset world for extensions that also serve public SEO routes. Adds
+/// the `seo` export on top of `extension`; the host instantiates a guest against
+/// this world only when its manifest declares `seoRoutes[]` (and falls back to
+/// `extension` otherwise), so non-SEO extensions never implement `seo`.
+world extension-seo {
+    include extension;
+    export seo;
+}

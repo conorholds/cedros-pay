@@ -1,0 +1,23 @@
+pub(crate) mod api_tests;
+mod boundary_security_tests;
+mod canonical_rails_tests;
+mod identity_tests;
+mod inventory_lifecycle_tests;
+mod inventory_quote_tests;
+mod performance_tests;
+mod pricing_shipping_tests;
+mod pricing_tax_tests;
+mod pricing_tip_tests;
+mod provider_attempt_tests;
+mod rail_scope_isolation_tests;
+mod rail_scope_tests;
+mod service_tests;
+mod settlement_atomic_tests;
+mod settlement_effect_test_support;
+mod settlement_effect_tests;
+mod settlement_effect_worker_tests;
+mod settlement_reconcile_tests;
+mod test_support;
+mod tests;
+
+mod portal_order_tests;

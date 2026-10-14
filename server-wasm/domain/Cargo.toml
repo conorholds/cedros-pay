@@ -1,0 +1,61 @@
+# Pure, host-target-testable domain crate. No host bindings, no IO: every host
+# capability is reached through the `HostSeams` trait, so all route/job logic is
+# unit-tested against an in-memory fake (`crate::fake`). The guest crate adapts
+# the real wasm host imports to this trait.
+[package]
+name = "cedros-pay-extension-domain"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+description = "Cedros Pay extension backend domain logic (seam-generic, testable)."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+# HMAC-SHA256 for signed checkout context and capacity-contract verification.
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
+# x402 / Solana crypto rail. The official Solana crates (solana-pubkey/-program/
+# -sdk) gate on `target_arch = "wasm32"` and emit `wasm-bindgen` bindings for the
+# browser (wasm32-unknown-unknown + JS), which fail to component-link under
+# wasm32-wasip2. So we re-implement the few primitives x402 needs (base58 keys,
+# program-derived addresses, ed25519 verify/sign, SPL transfer parsing) with
+# pure-crypto crates that have no wasm-bindgen path. Correctness is pinned by
+# known-answer tests against the canonical Solana derivations. On-chain RPC goes
+# through the host `http_fetch` egress seam, not a bundled RPC client.
+bs58 = "0.5"
+base64 = "0.22"
+curve25519-dalek = "4"
+ed25519-dalek = { version = "2", default-features = false }
+# Native-store (Apple App Store / Google Play) receipt verification. Apple signs
+# its App Store Server API responses as an ES256 (P-256) JWS whose x5c header is a
+# cert chain anchored to the (P-384) Apple Root CA G3; we sign the App Store Connect
+# bearer JWT with the operator's own P-256 key. Like the x402 crates these are pure
+# RustCrypto with NO wasm-bindgen path, so they component-link under wasm32-wasip2
+# (proven by the guest build). ECDSA signing uses RFC-6979 deterministic nonces — no
+# host randomness needed. Correctness is pinned by known-answer tests. The `builder`
+# feature (synthetic test chains) and the `std`/`oid` it pulls in are dev-only, kept
+# out of [dependencies] so they never bloat the shipped guest component.
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8", "pem"] }
+p384 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+x509-cert = { version = "0.2.5", default-features = false, features = ["pem"] }
+# Google Play verification authenticates to Google with an RS256 (RSASSA-PKCS1-v1_5 +
+# SHA-256) service-account assertion. AWS-LC provides the private-key operation without
+# the timing-side-channel advisory carried by the pure-Rust `rsa` crate. Correctness is
+# pinned by a known-answer test and the canonical wasm32-wasip2 release build.
+aws-lc-rs = "1"
+pem-rfc7468 = { version = "1", features = ["alloc"] }
+
+[dev-dependencies]
+# Test-only: the chain-validation KATs construct synthetic cert chains with
+# x509-cert's `CertificateBuilder`, which signs certs with p256 ECDSA. That needs
+# `builder` + `std` on x509-cert, `std` on p256 (for SignatureBitStringEncoding), and
+# the `oid` feature on sha2 (AssociatedOid for the signature algorithm identifier).
+# Cargo unions these into the domain test build only; the guest component never sees
+# them, so the shipped wasm stays lean.
+x509-cert = { version = "0.2.5", features = ["builder", "std"] }
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8", "pem", "std"] }
+sha2 = { version = "0.10", features = ["oid"] }

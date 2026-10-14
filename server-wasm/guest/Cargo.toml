@@ -1,0 +1,21 @@
+# The wasm component. Thin adapter: generates `cedros:extension` guest bindings,
+# implements `HostSeams` against the real host imports, and forwards routes/jobs
+# into the domain crate. Build:
+#   cargo build -p cedros-pay-extension-guest --target wasm32-wasip2 --release
+# → target/wasm32-wasip2/release/cedros_pay_extension_guest.wasm
+#   (packaged as cedros-extension.server.wasm)
+[package]
+name = "cedros-pay-extension-guest"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+description = "Cedros Pay extension backend wasm component (cedros:extension world)."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cedros-pay-extension-domain = { path = "../domain" }
+serde_json = { workspace = true }
+wit-bindgen = "0.57"
