@@ -6,14 +6,27 @@
 
 ## What is Cedros?
 
-Cedros is a platform for building and running business websites.
-It brings visual page authoring, content, customer accounts, commerce, and site
-administration together, with extensions that add new features and workflows to
-the same site.
+Cedros is an AI-native website platform that enables businesses, agencies, and developers to create, manage, and operate websites using artificial intelligence.
 
-Developers can build custom extensions, pages, and integrations around shared
-platform services. That gives a membership site, customer portal, or online
-store a common foundation for its accounts, payments, and administration.
+Unlike traditional website builders that primarily use AI to generate designs or content, Cedros is designed for ongoing collaboration between website owners and AI agents. Websites become active business tools that agents can understand, modify, and operate through natural language instructions.
+
+The platform combines website creation, hosting, content management, AI capabilities, and an extensible ecosystem of business functionality.
+
+**Key capabilities include:**
+
+- **AI Website Creation:** Build and customize websites using natural language, with control over design, structure, content, and functionality.
+- **Agent-Native Management:** Enable authorized AI agents to manage website content, make changes, and interact with supported business operations.
+- **Extensible Functionality:** Add capabilities such as online stores, payments, directories, events, and other business-specific workflows through extensions.
+- **Integrated Intelligence:** Use AI to assist with content creation, ongoing website management, and operational tasks.
+- **Business and Developer Tools:** Manage hosted websites, custom domains, permissions, and extensible functionality for different business requirements.
+
+Cedros is designed for small and medium-sized businesses seeking to reduce the technical work involved in maintaining an online presence, as well as agencies and developers building websites for clients.
+
+Its agent-native architecture allows websites to function as more than static destinations. Rather than relying entirely on manual administration, owners can delegate supported tasks to AI while maintaining control over their websites and business operations.
+
+The goal of Cedros is to make websites an active part of running a business, combining the flexibility of modern web development with the accessibility and operational capabilities of AI agents.
+
+**Websites that think, act, and work for you.**
 
 ## Where Cedros Pay fits
 
