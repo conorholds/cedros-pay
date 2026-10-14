@@ -51,12 +51,39 @@ experience and business rules.
 
 ## Start here
 
+- **Building a custom extension with an AI agent?** Start at
+  [cedros.ai/skill.md](https://cedros.ai/skill.md) and follow the integration
+  guidance below.
 - **New to the platform?** [Explore Cedros](https://cedros.ai/) to see the broader
   platform and what you can build with it.
 - **Integrating an admin or storefront?** Read the [UI guide](ui/README.md) and
   [host services guide](ui/docs/admin-shell-embedding-guide.md).
 - **Working on extension source?** Use the component layout and build commands
   below. [Native registration](ui/react-native/README.md) is covered separately.
+
+## Build a custom extension with an AI agent
+
+Start with the [Cedros agent entry point](https://cedros.ai/skill.md). It routes
+agents to the current extension-authoring workflow, versioned documentation,
+and published integration contracts.
+
+For an extension that needs customer accounts or payments, follow **Extension
+Authoring** from that entry point, then search **Official extension integrations**
+for **Cedros Login** or **Cedros Pay**, as required. Read the matching
+**Composability and relying-party contracts** guidance before designing how
+those extensions work together. Use the documentation version that matches
+your target Cedros site.
+
+You can give your agent a brief such as:
+
+> Read https://cedros.ai/skill.md and follow the extension-authoring workflow.
+> Build a members-only learning extension for Cedros. Find and use the current
+> published Cedros Login contracts for customer identity and Cedros Pay contracts
+> for subscription access. Use only supported public APIs and capabilities.
+
+The authoring guides explain the supported contracts and package workflow;
+this repository provides the implementation source. Use the published
+integration contracts when building a separate extension.
 
 ## Source layout
 
