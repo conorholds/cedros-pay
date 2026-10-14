@@ -45,27 +45,6 @@ for (const directory of ['ui']) {
 // API Extractor consumes the guarded formatter through its existing argparse chain.
 for (const directory of ['ui']) {
   const require = createRequire(new URL('../../' + directory + '/package.json', import.meta.url));
-  const formatter = createRequire(createRequire(require.resolve('@rushstack/ts-command-line')).resolve('argparse'))('sprintf-js');
-
-  test(`${directory}: formatter preserves ordinary positional and named formatting`, () => {
-    assert.equal(formatter.sprintf('%.2f %s', 1.25, 'ready'), '1.25 ready');
-    assert.equal(formatter.sprintf('%(prog)s: ready', { prog: 'api-extractor' }), 'api-extractor: ready');
-    assert.equal(formatter.vsprintf('%s %d', ['count', 3]), 'count 3');
-  });
-
-  test(`${directory}: extreme numeric precision cannot escape as an uncaught exception`, () => {
-    for (const type of ['e', 'f', 'g']) {
-      for (const precision of ['101', '999999999999999999999999999999999999999999']) {
-        const value = formatter.sprintf(`%.${precision}${type}`, 1.25);
-        assert.equal(typeof value, 'string');
-        assert.ok(value.length <= 110, value);
-      }
-    }
-    assert.equal(formatter.sprintf('%.0g', 1.25), '1');
-    assert.equal(formatter.sprintf('%.0f', 1.25), '1');
-    assert.equal(formatter.sprintf('%.100f', 1).length, 102);
-  });
-
   const packagePath = require.resolve('@microsoft/api-extractor/package.json');
   const metadata = JSON.parse(readFileSync(packagePath, 'utf8'));
   const cli = resolve(dirname(packagePath), metadata.bin['api-extractor']);

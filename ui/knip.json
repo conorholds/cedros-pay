@@ -24,6 +24,7 @@
     "bigint-buffer",
     "buffer",
     "cedros",
-    "image-size"
+    "image-size",
+    "sprintf-js"
   ]
 }

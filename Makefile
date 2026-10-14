@@ -67,7 +67,7 @@ cedros-verify: verify-wit
 	cargo test --manifest-path server-wasm/Cargo.toml
 
 test-dependency-security:
-	node --test scripts/tests/dependency-security.test.mjs
+	node --test scripts/tests/dependency-security.test.mjs ui/scripts/formatter-security.test.mjs
 
 # Prepare the separate public source checkout without building the extension.
 publish-source:

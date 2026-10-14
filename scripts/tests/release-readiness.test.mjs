@@ -305,3 +305,16 @@ test('preserves archive digest validation for ready release evidence', (t) => {
   assert.notEqual(afterMutation.status, 0, 'archive mutation was accepted');
   assert.match(output(afterMutation), /archive sha256 mismatch/i);
 });
+
+test('rejects an unreviewed local formatter source mutation', (t) => {
+  const fixture = createReleaseFixture();
+  t.after(() => removeTempDir(fixture));
+  pointReleaseAt(fixture, git(fixture, 'rev-parse', 'HEAD'));
+  commitAll(fixture, 'record release evidence');
+  const beforeMutation = validateRelease(fixture);
+  assert.equal(beforeMutation.status, 0, output(beforeMutation));
+  appendFileSync(join(fixture, 'ui/vendor/sprintf-js/src/sprintf.js'), '\n// unreviewed local dependency mutation\n');
+  const afterMutation = validateRelease(fixture);
+  assert.notEqual(afterMutation.status, 0, 'local dependency mutation was accepted');
+  assert.match(output(afterMutation), /packaged input|digest/i);
+});
