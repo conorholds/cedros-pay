@@ -67,7 +67,7 @@
     "sprintf-js": "file:./vendor/sprintf-js",
     "tailwindcss": "3.4.19",
     "typescript": "5.9.3",
-    "vite": "7.3.5",
+    "vite": "7.3.7",
     "vite-plugin-dts": "4.5.4",
     "vitest": "4.1.11"
   },
