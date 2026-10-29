@@ -20,7 +20,7 @@ description = "Wasmtime load+serve harness for the Cedros Pay extension componen
 cedros-pay-extension-domain = { path = "../domain" }
 # Pinned to the oldest current runtime line containing the component type-index
 # and WASI filesystem security fixes required by the harness.
-wasmtime = { version = "48.0.5", features = ["component-model", "async"] }
+wasmtime = { version = "50.0.0", features = ["component-model", "async"] }
 wasmtime-wasi = "48.0.5"
 tokio = { version = "1", features = ["rt", "macros", "time"] }
 serde_json = { workspace = true }
